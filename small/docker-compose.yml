@@ -367,7 +367,7 @@ services:  # containers this file runs; each key below is one service
       - TELEGRAM_TOPIC_ID=${TELEGRAM_TOPIC_ID:-}                 # forum topic id; empty = general chat
       - TELEGRAM_WARNING_CHAT_ID=${TELEGRAM_WARNING_CHAT_ID:-}   # empty = same chat as critical
       - TELEGRAM_WARNING_TOPIC_ID=${TELEGRAM_WARNING_TOPIC_ID:-} # empty = same topic as critical (when same chat)
-      - GRAFANA_URL=${GRAFANA_URL:-http://localhost:3000}         # for "Dashboard" links in messages
+      - GRAFANA_URL=${GRAFANA_URL:-http://localhost:${GRAFANA_PORT:-3000}}         # for "Dashboard" links in messages
       - ALERTMANAGER_URL=${ALERTMANAGER_URL:-http://localhost:9093} # for "Silence" links in messages
       - TZ=Asia/Tashkent            # times in messages and the maintenance window use this zone
     # Alertmanager cannot read env vars from its config, so this script fills them in, then starts it.
@@ -402,7 +402,7 @@ services:  # containers this file runs; each key below is one service
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro   # dashboard JSON files
       - grafana-data:/var/lib/grafana                         # users, settings, alert state (SQLite)
     # Main entry is grafana-proxy on :3000 (themed). This port is plain Grafana, for debugging.
-    ports: ["3002:3000"]            # plain UI: http://localhost:3002
+    ports: ["${GRAFANA_HOST:-0.0.0.0}:${GRAFANA_DIRECT_PORT:-3002}:3000"]  # plain UI: http://<GRAFANA_HOST>:<GRAFANA_DIRECT_PORT>
     depends_on: [victoriametrics, victorialogs, tempo]  # start after victoriametrics, victorialogs, tempo (start order only, not readiness)
 
   # Grafana with a custom look (background gradient, translucent panels): http://localhost:3000
@@ -414,7 +414,7 @@ services:  # containers this file runs; each key below is one service
     volumes:  # config from this repo, read-only
       - ./grafana-proxy/nginx.conf:/etc/nginx/nginx.conf:ro  # proxy + stylesheet injection
       - ./grafana-proxy/theme:/etc/nginx/theme:ro  # theme.css; edits apply on browser reload
-    ports: ["3000:80"]              # UI: http://localhost:3000
+    ports: ["${GRAFANA_HOST:-0.0.0.0}:${GRAFANA_PORT:-3000}:80"]  # UI: http://<GRAFANA_HOST>:<GRAFANA_PORT>
     depends_on: [grafana]  # start after grafana (start order only, not readiness)
 
   # ── Logs ────────────────────────────────────────────────────────────────────

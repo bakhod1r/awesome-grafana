@@ -149,7 +149,7 @@ def check_panel(g, dash, p, values, time_from):
 def main():
     env = {**dotenv(), **os.environ}
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--url", default=env.get("GRAFANA_CHECK_URL", "http://localhost:3000"))
+    ap.add_argument("--url", default=env.get("GRAFANA_CHECK_URL", f"http://localhost:{env.get('GRAFANA_PORT', '3000')}"))
     ap.add_argument("--user", default=env.get("GRAFANA_ADMIN_USER", "admin"))
     ap.add_argument("--password", default=env.get("GRAFANA_ADMIN_PASSWORD", "admin"))
     ap.add_argument("--dashboard", action="append", help="dashboard uid (repeatable); default: all")
