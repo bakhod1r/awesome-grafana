@@ -1,5 +1,5 @@
 # Vector: collects container and file logs and pushes them to VictoriaLogs.
-# Also: OTLP traces/metrics/logs from apps (section 8). pprof profiles stay in Alloy (alloy/config.alloy).
+# Also: OTLP traces/metrics/logs from apps (section 8).
 # Pipelines:
 #   Docker: docker_logs "docker" (+ multiline) → remap "docker_labels" → filter "drop_health" → remap "parse" ─┐
 #   Files:  file "nginx" → remap "nginx_parse" ──────────────────────────────────────────────────────────────────┤

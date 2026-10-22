@@ -2,3 +2,5 @@
 .env
 # Left over from an older setup that stored the token in a file; no longer used.
 alertmanager/secrets/
+# Python bytecode from scripts/ and grafana/generators/
+__pycache__/

@@ -6,7 +6,7 @@
     python3 scripts/check-dashboards.py --all               # also print the panels that are fine
 
 Queries go through Grafana's /api/ds/query, exactly like the browser, so every datasource is covered
-(VictoriaMetrics, Prometheus, VictoriaLogs, Pyroscope, Tempo, Alertmanager). Dashboard variables are
+(VictoriaMetrics, Prometheus, VictoriaLogs, Tempo, Alertmanager). Dashboard variables are
 replaced with "match everything" (.*), or with their current value when they are not query variables.
 
 Panels that set a "No value" text (fieldConfig.defaults.noValue) are expected to be empty sometimes,

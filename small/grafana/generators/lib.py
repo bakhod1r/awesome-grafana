@@ -35,7 +35,6 @@ NAV = [
     ("Alerts", "alerts", "alerts", "bolt"),
     ("SLO", "probes-slo", "probes-slo", "dashboard"),
     ("App SLO", "app-slo", "app-slo", "dashboard"),
-    ("Profiles", "profiles", "profiles", "fire"),
     ("Stack", "self", "self", "cloud"),
 ]
 

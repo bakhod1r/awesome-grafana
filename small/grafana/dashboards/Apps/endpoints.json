@@ -2282,13 +2282,6 @@
       "targetBlank": false
     },
     {
-      "title": "Profiles",
-      "type": "link",
-      "icon": "fire",
-      "url": "/d/profiles/profiles?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
       "title": "Stack",
       "type": "link",
       "icon": "cloud",

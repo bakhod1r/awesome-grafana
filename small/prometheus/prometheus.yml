@@ -162,8 +162,6 @@ scrape_configs:  # scrape jobs
     static_configs: [{ targets: ["victorialogs:9428"] }]  # scrape http://victorialogs:9428/metrics
   - job_name: vector  # job="vector" label: log-derived metrics + Vector's own health
     static_configs: [{ targets: ["vector:9598"] }]  # scrape http://vector:9598/metrics
-  - job_name: alloy  # job="alloy" label: profile collector health
-    static_configs: [{ targets: ["alloy:12345"] }]  # scrape http://alloy:12345/metrics
   - job_name: vmalert  # job="vmalert" label on every metric from this job
     static_configs: [{ targets: ["vmalert:8880"] }]  # scrape http://vmalert:8880/metrics
 

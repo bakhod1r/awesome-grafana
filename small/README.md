@@ -2,15 +2,15 @@
 
 Self-hosted observability stack in one `docker compose up`: metrics, logs, traces, alerting to Telegram and ready-made Grafana dashboards.
 
-![Architecture](docs/architecture-vector.png)
+![Architecture](docs/architecture.svg)
 
 ## What's inside
 
 | Layer | Services |
 |-------|----------|
 | Metrics collection | Prometheus, node-exporter, cAdvisor, blackbox-exporter, pushgateway, speedtest-exporter, discoverer (auto-finds app `/metrics`) |
-| Logs, traces, profiles | Vector (Docker logs, file logs, OTLP), Grafana Alloy (pprof profiles only), nginx-demo, telemetrygen (demo profile) |
-| Storage | VictoriaMetrics (metrics, 12 months), VictoriaLogs (logs, 90 days / 20 GiB), Tempo (traces + span metrics), Pyroscope (profiles, 30 days) |
+| Logs, traces | Vector (Docker logs, file logs, OTLP), nginx-demo, telemetrygen (demo profile) |
+| Storage | VictoriaMetrics (metrics, 12 months), VictoriaLogs (logs, 90 days / 20 GiB), Tempo (traces + span metrics) |
 | Alerting | Prometheus rules + vmalert (LogsQL rules) → Alertmanager → Telegram; Grafana dead man's switch |
 | UI | Grafana (provisioned datasources and dashboards), grafana-proxy (themed nginx front) |
 | Optional exporters | PostgreSQL, MySQL, Redis (each with a demo database + load generator and its own dashboard), MongoDB, nginx, smartctl + Scrutiny (enabled via profiles) |
@@ -21,8 +21,7 @@ Self-hosted observability stack in one `docker compose up`: metrics, logs, trace
 1. **Metrics** — Prometheus scrapes exporters and apps (static jobs + `discoverer` file_sd targets), evaluates recording/alert rules, and `remote_write`s everything to VictoriaMetrics. Grafana reads metrics from VictoriaMetrics.
 2. **Logs** — Vector reads container stdout through the Docker socket and nginx file logs, parses levels, masks secrets, turns lines into metrics (`vector_*` on `:9598`) and ships them to VictoriaLogs. vmalert runs LogsQL alert rules against VictoriaLogs.
 3. **Traces** — apps send OTLP to Vector (`4317` gRPC, `4318` HTTP), Vector forwards traces to Tempo, metrics to Prometheus, logs to VictoriaLogs. No CORS: browser SDKs need a reverse proxy in front. Tempo's metrics generator writes span metrics (with exemplars) back to Prometheus.
-4. **Profiles** — Alloy (kept only for this, Vector has no pprof support) pulls pprof profiles (CPU, memory, goroutines) from the stack's Go services and pushes them to Pyroscope. A span in Tempo links to the profile of the same service and time.
-5. **Alerts** — Prometheus and vmalert fire into Alertmanager, which sends Telegram messages (critical loud, warnings silent). Grafana runs a dead man's switch so a dead alert pipeline is noticed too.
+4. **Alerts** — Prometheus and vmalert fire into Alertmanager, which sends Telegram messages (critical loud, warnings silent). Grafana runs a dead man's switch so a dead alert pipeline is noticed too.
 
 ## Quick start
 
@@ -92,7 +91,7 @@ services:
   **Project** dashboard: summary plus a table of its containers. Click a container → the dashboard for its
   `container.type` (backend → App Endpoints, db → PostgreSQL, ...; unlabelled → **Container**).
   Click its *lang* cell → the runtime dashboard for that language.
-- **Logs**: search every container's logs; **Traces**: slow and failed requests; **Profiles**: flame graphs.
+- **Logs**: search every container's logs; **Traces**: slow and failed requests.
 - **Alerts**: what is firing now and its history; **SLO** / **App SLO**: availability and error budgets.
 - **Stack** (Self Monitoring): is the monitoring itself healthy (scrapes, storage, alert delivery).
 
@@ -136,7 +135,6 @@ history matters to you.
 | App SLO — availability 99.5% (non-5xx) and latency 99% within 1s per service, error budget, multi-window burn-rate alerts `AppErrorBudget*` / `AppLatencyBudget*` | dashboard **App SLO**, `prometheus/rules/{recording,alerts}.yml` |
 | Probe SLO — 99.9% of blackbox probes, certificate expiry (`SslExpiresSoon` at 14 days, `SslExpiresCritical` at 3) | dashboard **Probes & SLO** |
 | Disk forecast — `DiskWillFillIn24h` / `DiskWillFillIn4h` (`predict_linear`), hours-until-full panel | dashboard **Node Overview** |
-| Profiles — CPU / memory flame graphs per service | dashboard **Profiles**, Explore → Profiles |
 | MySQL, Redis, PostgreSQL | dashboards **MySQL**, **Redis**, **PostgreSQL** |
 | One project, one container | **Docker projects → Project → Container** (or the type dashboard: App Endpoints, Frontend, Queue, Worker, Proxy, Search, NoSQL, Storage, Cron) |
 | Language runtime (Go, Java, Node, Python, PHP, .NET, Rust, Ruby) | dashboards **Runtime: <language>** |
@@ -168,9 +166,7 @@ The check exits non-zero on a query error or an unexpected empty panel, so it ca
 | http://localhost:9093 | Alertmanager |
 | http://localhost:8880 | vmalert |
 | http://localhost:3200 | Tempo API |
-| http://localhost:4040 | Pyroscope UI |
 | http://localhost:8686/health | Vector health |
-| http://localhost:12345 | Alloy pipeline UI (profiles) |
 | http://localhost:8080 | cAdvisor |
 | http://localhost:8081 | Scrutiny |
 
@@ -247,7 +243,6 @@ Databases and caches need an exporter next to them (postgres-exporter, redis_exp
 ```
 alertmanager/     routing + Telegram template
 vector/           log and OTLP pipeline
-alloy/            pprof profile scraping
 blackbox/         probe modules
 discoverer/       app metrics auto-discovery
 grafana/          provisioning, dashboards, dashboard generators
@@ -258,7 +253,6 @@ vmalert/          log alert rules
 postgres/         demo database + load generator
 mysql/            demo database + load generator
 redis/            demo cache load generator
-pyroscope/        profile storage config
 scripts/          check-dashboards.py, annotate-deploy.sh
 nginx-demo/       demo nginx with file logs
 traefik/          demo Traefik routes (profile "proxy")

@@ -461,23 +461,6 @@ services:  # containers this file runs; each key below is one service
       - "4318:4318"    # OTLP HTTP (default protocol of most SDKs)
     depends_on: [victorialogs, tempo, prometheus]  # start after victorialogs, tempo, prometheus (start order only, not readiness)
 
-  # Profile collector: pulls pprof from the stack's Go services and pushes to Pyroscope.
-  # Vector has no pprof support, so Alloy stays for this one job (alloy/config.alloy).
-  alloy:  # profile collector
-    image: grafana/alloy:v1.11.0  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
-    command:  # arguments passed to the program at start
-      - run  # alloy subcommand: run the pipeline
-      - --server.http.listen-addr=0.0.0.0:12345   # UI + /metrics
-      - --storage.path=/var/lib/alloy/data         # internal state
-      - /etc/alloy/config.alloy  # pipeline config file to run
-    volumes:  # named volumes; data here survives `docker compose down`
-      - ./alloy:/etc/alloy:ro  # config directory from this repo, read-only
-      - alloy-data:/var/lib/alloy/data  # persistent data at /var/lib/alloy/data
-    ports:  # host:container
-      - "12345:12345"  # UI: http://localhost:12345 (pipeline graph, component health)
-    depends_on: [pyroscope]  # start after pyroscope (start order only, not readiness)
-
   # ── Traces ──────────────────────────────────────────────────────────────────
   #   app (OpenTelemetry SDK) ──OTLP──> Vector ──OTLP──> Tempo ──> Grafana
   #                                                       │
@@ -512,24 +495,6 @@ services:  # containers this file runs; each key below is one service
       - --child-spans=3  # spans per trace besides the root
       - --duration=87600h  # run "forever" (10 years)
     depends_on: [vector]  # start after vector (start order only, not readiness)
-
-  # ── Profiles ────────────────────────────────────────────────────────────────
-  #   Go services (/debug/pprof) <──scrape── Alloy ──push──> Pyroscope ──> Grafana (Profiles, trace → profile)
-
-  # Continuous profiling: CPU, memory, goroutines and mutex waits per service, kept 30 days.
-  # Alloy pulls pprof from the stack's own Go services (alloy/config.alloy); apps can push
-  # with a Pyroscope SDK to http://pyroscope:4040. Tempo spans with a pyroscope.profile.id
-  # link straight to the profile of that request.
-  pyroscope:  # profile database
-    image: grafana/pyroscope:1.13.4  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
-    command:
-      - -config.file=/etc/pyroscope/pyroscope.yaml  # retention and storage settings
-    user: "0"  # fresh named volume is owned by root; same reason as tempo
-    volumes:
-      - ./pyroscope:/etc/pyroscope:ro  # config directory from this repo, read-only
-      - pyroscope-data:/data  # profile blocks
-    ports: ["4040:4040"]            # UI + API: http://localhost:4040
 
   # Evaluates log alert rules (LogsQL) against VictoriaLogs and sends firing alerts to
   # the same Alertmanager as Prometheus, so routing, silences and Telegram are shared.
@@ -734,7 +699,6 @@ volumes:  # named volumes; data here survives `docker compose down`
   prometheus-data:  # named volume (see the service that mounts it)
   grafana-data:  # named volume (see the service that mounts it)
   vlogs-data:  # named volume (see the service that mounts it)
-  alloy-data:  # named volume (see the service that mounts it)
   vector-data:  # Vector read positions + disk buffer
   tempo-data:  # named volume (see the service that mounts it)
   nginx-demo-logs:  # named volume (see the service that mounts it)
@@ -744,4 +708,3 @@ volumes:  # named volumes; data here survives `docker compose down`
   scrutiny-influxdb:  # named volume (see the service that mounts it)
   auto-targets:  # discoverer -> Prometheus target list
   mysql-data:  # demo MySQL data
-  pyroscope-data:  # profile blocks

@@ -2020,7 +2020,7 @@
       },
       "targets": [
         {
-          "expr": "label_replace(name:container_cpu_usage:rate1m{name=~\".*(prometheus|victoriametrics|victorialogs|alertmanager|grafana|vector|alloy|vmalert|tempo|cadvisor|node-exporter|blackbox|pushgateway).*\"} * 100, \"name\", \"(none)\", \"name\", \"\")",
+          "expr": "label_replace(name:container_cpu_usage:rate1m{name=~\".*(prometheus|victoriametrics|victorialogs|alertmanager|grafana|vector|vmalert|tempo|cadvisor|node-exporter|blackbox|pushgateway).*\"} * 100, \"name\", \"(none)\", \"name\", \"\")",
           "refId": "A",
           "legendFormat": "{{name}}"
         }
@@ -2067,7 +2067,7 @@
       },
       "targets": [
         {
-          "expr": "label_replace(name:container_memory_working_set:bytes{name=~\".*(prometheus|victoriametrics|victorialogs|alertmanager|grafana|vector|alloy|vmalert|tempo|cadvisor|node-exporter|blackbox|pushgateway).*\"}, \"name\", \"(none)\", \"name\", \"\")",
+          "expr": "label_replace(name:container_memory_working_set:bytes{name=~\".*(prometheus|victoriametrics|victorialogs|alertmanager|grafana|vector|vmalert|tempo|cadvisor|node-exporter|blackbox|pushgateway).*\"}, \"name\", \"(none)\", \"name\", \"\")",
           "refId": "A",
           "legendFormat": "{{name}}"
         }
@@ -2215,13 +2215,6 @@
       "type": "link",
       "icon": "dashboard",
       "url": "/d/app-slo/app-slo?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
-      "title": "Profiles",
-      "type": "link",
-      "icon": "fire",
-      "url": "/d/profiles/profiles?${__url_time_range}",
       "targetBlank": false
     }
   ]
