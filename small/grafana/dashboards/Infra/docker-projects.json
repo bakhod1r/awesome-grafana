@@ -1511,18 +1511,18 @@
     },
     {
       "type": "table",
-      "title": "Containers (all running)",
+      "title": "Containers — report (pick a project above, click a container for its own report)",
       "gridPos": {
         "x": 0,
         "y": 15,
         "w": 24,
-        "h": 12
+        "h": 14
       },
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
       },
-      "description": "Every running container on the Docker host, one row each. Filter with the project/service variables or the column filters.",
+      "description": "One row per running container of the selected project: resources, uptime, restarts, OOM kills, error logs and HTTP traffic (Beyla, the app's /metrics, or frontend access logs). Click a container name: its Container dashboard (health, resources, HTTP, runtime, logs).",
       "targets": [
         {
           "refId": "A",
@@ -1589,6 +1589,72 @@
           "instant": true,
           "range": false,
           "format": "table"
+        },
+        {
+          "refId": "G",
+          "expr": "label_replace(label_replace(sum by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (resets(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[24h])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\")",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "H",
+          "expr": "label_replace(label_replace(sum by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (increase(container_oom_events_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[24h])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\")",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "I",
+          "expr": "(sum by (name) (label_replace(rate(vector_log_lines_total{level=~\"error|fatal|panic\"}[5m]) * 60, \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "J",
+          "expr": "(sum by (name) (label_replace(rate(http_requests_total{job=\"apps\"}[5m]) or rate(vector_frontend_http_requests_total[5m]), \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "K",
+          "expr": "((sum by (name) (label_replace(rate(http_requests_total{job=\"apps\", status=~\"5..\"}[5m]) or rate(vector_frontend_http_requests_total{status_class=\"5xx\"}[5m]), \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))) / ((sum by (name) (label_replace(rate(http_requests_total{job=\"apps\"}[5m]) or rate(vector_frontend_http_requests_total[5m]), \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))) * 100",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "L",
+          "expr": "histogram_quantile(0.95, sum by (name, le) (label_replace(rate(http_request_duration_seconds_bucket{job=\"apps\"}[5m]) or rate(vector_frontend_http_request_duration_seconds_bucket[5m]), \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
         }
       ],
       "transformations": [
@@ -1613,7 +1679,13 @@
               "Value #C": 4,
               "Value #D": 5,
               "Value #E": 6,
-              "Value #F": 7
+              "Value #F": 7,
+              "Value #G": 8,
+              "Value #H": 9,
+              "Value #I": 10,
+              "Value #J": 11,
+              "Value #K": 12,
+              "Value #L": 13
             },
             "renameByName": {
               "name": "Container",
@@ -1623,7 +1695,13 @@
               "Value #C": "Memory",
               "Value #D": "Net in",
               "Value #E": "Net out",
-              "Value #F": "Uptime"
+              "Value #F": "Uptime",
+              "Value #G": "Restarts 24h",
+              "Value #H": "OOM 24h",
+              "Value #I": "Errors/min",
+              "Value #J": "Req/s",
+              "Value #K": "5xx %",
+              "Value #L": "p95"
             }
           }
         }
@@ -1729,6 +1807,233 @@
                         "text": "(standalone)"
                       }
                     }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Restarts 24h"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "OOM 24h"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors/min"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 0.1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Req/s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5xx %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "transparent",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 0.5
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Container"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Report for this container",
+                    "url": "/d/container/container?${__url_time_range}&var-container=${__value.raw}"
                   }
                 ]
               }
@@ -1902,6 +2207,589 @@
       }
     },
     {
+      "type": "table",
+      "title": "Containers of the project — click one to open its dashboard (by container.type)",
+      "description": "Every container of the project. Click the container (or Opens) for its dashboard, lang for its runtime (Container dashboard, Runtime row). Labels come from docker-compose: container.type / lang / team / env.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name, image, container_label_container_type, container_label_container_lang, container_label_container_team, container_label_container_env) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"container_label_com_docker_compose_project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"), \"type\", \"$1\", \"container_label_container_type\", \"(.+)\"), \"lang\", \"$1\", \"container_label_container_lang\", \"(.+)\"), \"team\", \"$1\", \"container_label_container_team\", \"(.+)\"), \"env\", \"$1\", \"container_label_container_env\", \"(.+)\"), \"key\", \"|\", \"type\", \"image\"), \"dash\", \"container\", \"name\", \".*\"), \"dash\", \"endpoints\", \"key\", \"(backend|service|api)\\\\|.*\"), \"dash\", \"frontend\", \"key\", \"frontend\\\\|.*\"), \"dash\", \"postgres\", \"key\", \"db\\\\|.*postgres.*\"), \"dash\", \"redis\", \"key\", \"cache\\\\|.*\"), \"dash\", \"storage\", \"key\", \"storage\\\\|.*\"), \"dash\", \"worker\", \"key\", \"worker\\\\|.*\"), \"dash\", \"self\", \"key\", \"monitoring\\\\|.*\"), \"appsvc\", \"-\", \"project\", \"service\"), \"lsvc\", \"$1\", \"service\", \"(.+)\"), \"k2\", \"|\", \"dash\", \"appsvc\"), \"lsvc\", \"$1\", \"k2\", \"endpoints\\\\|(.+)\"), \"pj\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"link_dash\", \"$1\", \"dash\", \"(.*)\"), \"link_name\", \"$1\", \"name\", \"(.*)\"), \"opens\", \"$1\", \"dash\", \"(.*)\"), \"opens\", \"Container\", \"dash\", \"container\"), \"opens\", \"App Endpoints\", \"dash\", \"endpoints\"), \"opens\", \"Frontend\", \"dash\", \"frontend\"), \"opens\", \"PostgreSQL\", \"dash\", \"postgres\"), \"opens\", \"Redis\", \"dash\", \"redis\"), \"opens\", \"Storage\", \"dash\", \"storage\"), \"opens\", \"Worker\", \"dash\", \"worker\"), \"opens\", \"Self Monitoring\", \"dash\", \"self\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "max by (name) (time() - container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\"} < bool 60)",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "C",
+          "expr": "max by (name) (time() - container_start_time_seconds{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "D",
+          "expr": "max by (name) (rate(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])) * 100",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "E",
+          "expr": "max by (name) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "F",
+          "expr": "max by (name) (resets(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[24h]))",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "G",
+          "expr": "label_replace(sum by (container) (rate(vector_log_lines_total{project=~\"$project\", level=~\"error|fatal|panic\"}[5m])) * 60, \"name\", \"$1\", \"container\", \"(.+)\") and on (name) max by (name) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "server": true,
+              "Value #A": true,
+              "image": true,
+              "key": true,
+              "k2": true,
+              "appsvc": true,
+              "container": true,
+              "container_label_com_docker_compose_project": true,
+              "container_label_com_docker_compose_service": true,
+              "container_label_container_type": true,
+              "container_label_container_lang": true,
+              "container_label_container_team": true,
+              "container_label_container_env": true
+            },
+            "renameByName": {
+              "Value #B": "Status",
+              "Value #C": "Uptime",
+              "Value #D": "CPU %",
+              "Value #E": "Memory",
+              "Value #F": "Restarts 24h",
+              "Value #G": "Errors/min"
+            },
+            "indexByName": {
+              "name": 0,
+              "service": 1,
+              "type": 2,
+              "lang": 3,
+              "team": 4,
+              "env": 5,
+              "opens": 6,
+              "Value #B": 7,
+              "Value #C": 8,
+              "Value #D": 9,
+              "Value #E": 10,
+              "Value #F": 11,
+              "Value #G": 12,
+              "project": 13
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 230
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open the dashboard for this container (by container.type)",
+                    "url": "/d/${__data.fields.link_dash}?${__url_time_range}&var-project=${__data.fields.pj}&var-service=${__data.fields.lsvc}&var-container=${__data.fields.link_name}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "container"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "opens"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open the dashboard for this container (by container.type)",
+                    "url": "/d/${__data.fields.link_dash}?${__url_time_range}&var-project=${__data.fields.pj}&var-service=${__data.fields.lsvc}&var-container=${__data.fields.link_name}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Opens"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "dash"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "lsvc"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pj"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "link_dash"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "link_name"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "service"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "team"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "env"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "lang"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Runtime: ${__data.fields.lang}",
+                    "url": "/d/container/container?${__url_time_range}&var-project=${__data.fields.pj}&var-container=${__data.fields.link_name}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 80
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "DOWN",
+                        "color": "red",
+                        "index": 0
+                      },
+                      "1": {
+                        "text": "UP",
+                        "color": "green",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Uptime"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 50
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Restarts 24h"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors/min"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 0.1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "CPU %",
+            "desc": true
+          }
+        ]
+      },
+      "id": 950,
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 24,
+        "h": 12
+      }
+    },
+    {
       "type": "timeseries",
       "title": "Network by project",
       "description": "Yuqori = kirgan, past = chiqqan trafik.",
@@ -1982,7 +2870,7 @@
       "id": 14,
       "gridPos": {
         "x": 0,
-        "y": 37,
+        "y": 49,
         "w": 24,
         "h": 10
       }
@@ -1994,7 +2882,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 47,
+        "y": 59,
         "w": 24,
         "h": 1
       },
@@ -2200,7 +3088,7 @@
       "id": 915,
       "gridPos": {
         "x": 0,
-        "y": 48,
+        "y": 60,
         "w": 24,
         "h": 8
       }
@@ -2273,7 +3161,7 @@
       "id": 16,
       "gridPos": {
         "x": 0,
-        "y": 56,
+        "y": 68,
         "w": 24,
         "h": 8
       }
@@ -2399,7 +3287,7 @@
       "id": 903,
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 76,
         "w": 8,
         "h": 7
       }
@@ -2472,7 +3360,7 @@
       "id": 17,
       "gridPos": {
         "x": 8,
-        "y": 64,
+        "y": 76,
         "w": 16,
         "h": 7
       }
@@ -2484,7 +3372,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 71,
+        "y": 83,
         "w": 24,
         "h": 1
       },
@@ -2562,7 +3450,7 @@
       "id": 801,
       "gridPos": {
         "x": 0,
-        "y": 72,
+        "y": 84,
         "w": 12,
         "h": 9
       }
@@ -2639,7 +3527,7 @@
       "id": 802,
       "gridPos": {
         "x": 12,
-        "y": 72,
+        "y": 84,
         "w": 12,
         "h": 9
       }
@@ -2716,7 +3604,7 @@
       "id": 803,
       "gridPos": {
         "x": 0,
-        "y": 81,
+        "y": 93,
         "w": 12,
         "h": 9
       }
@@ -2793,7 +3681,7 @@
       "id": 804,
       "gridPos": {
         "x": 12,
-        "y": 81,
+        "y": 93,
         "w": 12,
         "h": 9
       }
@@ -2870,7 +3758,7 @@
       "id": 805,
       "gridPos": {
         "x": 0,
-        "y": 90,
+        "y": 102,
         "w": 12,
         "h": 9
       }
@@ -2947,7 +3835,7 @@
       "id": 806,
       "gridPos": {
         "x": 12,
-        "y": 90,
+        "y": 102,
         "w": 12,
         "h": 9
       }
@@ -3020,7 +3908,7 @@
       "id": 24,
       "gridPos": {
         "x": 0,
-        "y": 99,
+        "y": 111,
         "w": 8,
         "h": 8
       }
@@ -3093,7 +3981,7 @@
       "id": 25,
       "gridPos": {
         "x": 8,
-        "y": 99,
+        "y": 111,
         "w": 8,
         "h": 8
       }
@@ -3153,7 +4041,7 @@
       "id": 26,
       "gridPos": {
         "x": 16,
-        "y": 99,
+        "y": 111,
         "w": 8,
         "h": 8
       }
@@ -3165,7 +4053,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 107,
+        "y": 119,
         "w": 24,
         "h": 1
       },
@@ -3684,7 +4572,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 108,
+        "y": 120,
         "w": 24,
         "h": 1
       },
@@ -3761,7 +4649,7 @@
       "id": 34,
       "gridPos": {
         "x": 0,
-        "y": 109,
+        "y": 121,
         "w": 12,
         "h": 7
       }
@@ -3837,7 +4725,7 @@
       "id": 35,
       "gridPos": {
         "x": 12,
-        "y": 109,
+        "y": 121,
         "w": 12,
         "h": 7
       }
@@ -3874,7 +4762,7 @@
       "id": 905,
       "gridPos": {
         "x": 0,
-        "y": 116,
+        "y": 128,
         "w": 14,
         "h": 11
       }
@@ -3992,7 +4880,7 @@
       "id": 36,
       "gridPos": {
         "x": 14,
-        "y": 116,
+        "y": 128,
         "w": 10,
         "h": 11
       }
