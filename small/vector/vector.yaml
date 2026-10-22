@@ -36,9 +36,8 @@ sources:
       timeout_ms: 3000          # flush an entry if no new line arrives within 3s
 
   # 6. Log files: nginx access/error logs written to disk, the usual setup when nginx runs as a
-  #    systemd service (apt install nginx). On a server, mount /var/log/nginx into Vector read-only.
-  #    Here the nginx-demo container writes to the nginx-demo-logs volume, mounted at the same path,
-  #    so the exact server code path is tested. Rotated files (logrotate) are picked up automatically.
+  #    systemd service (apt install nginx). The host's /var/log/nginx is mounted into Vector read-only
+  #    (docker-compose.yml); no nginx on the host = nothing to read. Rotated files are picked up automatically.
   nginx:
     type: file
     include: ["/var/log/nginx/*.log"]  # files to tail
@@ -162,7 +161,7 @@ transforms:
       .level = (get({"err": "error", "eror": "error", "warning": "warn", "critical": "fatal"}, [level]) ?? null) || level
       .source = "docker"
 
-  # Parse the nginx access log line (log_format "timed" in nginx-demo/nginx.conf):
+  # Parse the nginx access log line (needs rt=$request_time at the end of the log_format for latency):
   #   1.2.3.4 - - [20/Oct/2026:12:00:00 +0000] "GET /path HTTP/1.1" 200 612 "-" "curl/8" rt=0.003
   # and turn it into fields + metrics. Error-log lines say [error]/[warn].
   nginx_parse:
@@ -170,7 +169,7 @@ transforms:
     inputs: [nginx]
     source: |
       msg = string!(.message)
-      .service = "nginx-demo"  # rename on a server, e.g. "nginx"
+      .service = "nginx"
       .source = "file"         # tells file logs apart from Docker logs
       a, err = parse_regex(msg, r'^\S+ \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+) \S+ [^"]*" (?P<sc>\d)\d\d \d+ "[^"]*" "[^"]*" rt=(?P<rt>[\d.]+)')
       if err == null {

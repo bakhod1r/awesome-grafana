@@ -1,5 +1,0 @@
-# nginx metrics from nginx-prometheus-exporter (stub_status: connections and requests only) (job "nginx"). Empty by default, so nothing is scraped and TargetDown stays quiet.
-# To enable: enable stub_status in nginx, set NGINX_STUB_STATUS_URL in .env, run: docker compose --profile nginx up -d
-# then replace [] with the commented target below and save (re-read every 30s, no restart needed).
-[]
-# - targets: [nginx-exporter:9113]

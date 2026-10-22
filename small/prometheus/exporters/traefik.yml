@@ -1,6 +1,0 @@
-# Traefik built-in metrics (RPS, status codes, latency histograms). No exporter container needed (job "traefik").
-# The demo proxy (compose profile "proxy") is enabled below. For your own Traefik: start it with
-#   --metrics.prometheus=true --entrypoints.metrics.address=:8082 --metrics.prometheus.entrypoint=metrics
-# join it to this compose network and add its host:port. Without the profile this target is down: set the file to [].
-- targets: [grafana-s-traefik-demo:8082]
-  labels: { project: grafana-s, container: grafana-s-traefik-demo, env: demo }

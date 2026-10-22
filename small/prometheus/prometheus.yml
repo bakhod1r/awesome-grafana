@@ -121,34 +121,13 @@ scrape_configs:  # scrape jobs
 
   # Internet speed. Every scrape runs a full speed test, so scrape rarely and wait long.
   # Samples are 30m apart: queries use last_over_time(...[1h]) so values don't go stale after 5m.
-  - job_name: speedtest  # job="speedtest" label on every metric from this job
-    scrape_interval: 30m  # one speed test every 30 minutes
-    scrape_timeout: 2m  # a test takes 20-60s
-    static_configs: [{ targets: ["grafana-s-speedtest-exporter:9798"] }]  # scrape http://speedtest-exporter:9798/metrics
 
   # Optional exporters for your own services. Each targets file is empty until you enable it
   # (instructions inside the file), so a disabled exporter never shows up as TargetDown.
   - job_name: postgres  # postgres-exporter (compose profile "postgres")
     file_sd_configs: [{ files: [/etc/prometheus/exporters/postgres.yml], refresh_interval: 30s }]  # targets file
-  - job_name: mysql  # mysqld-exporter (compose profile "mysql")
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/mysql.yml], refresh_interval: 30s }]  # targets file
   - job_name: redis  # redis_exporter (compose profile "redis")
     file_sd_configs: [{ files: [/etc/prometheus/exporters/redis.yml], refresh_interval: 30s }]  # targets file
-  - job_name: nginx  # nginx-prometheus-exporter (compose profile "nginx")
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/nginx.yml], refresh_interval: 30s }]  # targets file
-  - job_name: traefik  # Traefik's built-in /metrics, no exporter needed
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/traefik.yml], refresh_interval: 30s }]  # targets file
-  - job_name: rabbitmq  # RabbitMQ built-in plugin, per-queue numbers (compose profile "queue")
-    metrics_path: /metrics/per-object  # aggregated + one series per queue / exchange / connection
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/rabbitmq.yml], refresh_interval: 30s }]  # targets file
-  - job_name: smartctl  # smartctl-exporter (compose profile "smart", Linux hosts only)
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/smartctl.yml], refresh_interval: 30s }]  # targets file
-  - job_name: mongodb  # percona mongodb_exporter (compose profile "mongodb")
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/mongodb.yml], refresh_interval: 30s }]  # targets file
-  - job_name: elasticsearch  # elasticsearch-exporter (compose profile "search")
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/elasticsearch.yml], refresh_interval: 30s }]  # targets file
-  - job_name: memcached  # memcached-exporter (compose profile "nosql")
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/memcached.yml], refresh_interval: 30s }]  # targets file
 
   # Your own apps exposing /metrics. Containers in any compose project are found by the
   # discoverer service (/etc/prometheus-auto/auto.json); exporters/apps.yml is for apps outside Docker.

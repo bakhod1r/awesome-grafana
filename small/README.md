@@ -8,13 +8,12 @@ Self-hosted observability stack in one `docker compose up`: metrics, logs, trace
 
 | Layer | Services |
 |-------|----------|
-| Metrics collection | Prometheus, node-exporter, cAdvisor, blackbox-exporter, pushgateway, speedtest-exporter, discoverer (auto-finds app `/metrics`) |
-| Logs, traces | Vector (Docker logs, file logs, OTLP), nginx-demo, telemetrygen (demo profile) |
+| Metrics collection | Prometheus, node-exporter, cAdvisor, blackbox-exporter, pushgateway, discoverer (auto-finds app `/metrics`) |
+| Logs, traces | Vector (Docker logs, host nginx log files, OTLP), Beyla (eBPF) |
 | Storage | VictoriaMetrics (metrics, 12 months), VictoriaLogs (logs, 90 days / 20 GiB), Tempo (traces + span metrics) |
 | Alerting | Prometheus rules + vmalert (LogsQL rules) → Alertmanager → Telegram; Grafana dead man's switch |
 | UI | Grafana (provisioned datasources and dashboards), grafana-proxy (themed nginx front) |
-| Optional exporters | PostgreSQL, MySQL, Redis (each with a demo database + load generator and its own dashboard), MongoDB, nginx, smartctl + Scrutiny (enabled via profiles) |
-| Demos per container type | RabbitMQ, Traefik, Elasticsearch, MongoDB + Memcached, cron jobs (profiles `queue`, `proxy`, `search`, `nosql`, `cron`) |
+| Optional exporters | PostgreSQL, Redis (your own databases, enabled via profiles) |
 
 ## How data flows
 
@@ -33,13 +32,10 @@ docker compose up -d
 Optional parts:
 
 ```bash
-docker compose --profile demo up -d                         # demo traces
-docker compose --profile postgres --profile mysql --profile redis up -d   # databases: exporter + demo DB + load
-docker compose --profile queue --profile proxy up -d   # demo RabbitMQ (+ load) and Traefik for the Queue / Proxy dashboards
-docker compose --profile search --profile nosql --profile cron up -d   # demo Elasticsearch, MongoDB + Memcached, cron jobs
+docker compose --profile postgres --profile redis up -d   # database exporters (set the DSN in .env first)
 ```
 
-PostgreSQL, MySQL and Redis targets are on in `prometheus/exporters/<name>.yml` (set the file to `[]` when the profile is off, or `TargetDown` fires). Other exporters: add the target there after enabling the profile.
+PostgreSQL and Redis targets are off (`[]`) in `prometheus/exporters/<name>.yml`: switch one on after starting its profile. Other exporters: add the target there after enabling the profile.
 
 ## Settings (.env)
 
@@ -53,8 +49,7 @@ PostgreSQL, MySQL and Redis targets are on in `prometheus/exporters/<name>.yml` 
 | `GRAFANA_HOST` | IP Grafana binds to: `0.0.0.0` every interface, `127.0.0.1` this machine only. |
 | `GRAFANA_PORT`, `GRAFANA_DIRECT_PORT` | Main UI (themed proxy, default `3000`) and plain Grafana (default `3002`). Keep `GRAFANA_URL` in sync. |
 | `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD` | Grafana login. Change the password before exposing it. |
-| `POSTGRES_EXPORTER_DSN` | PostgreSQL to watch (profile `postgres`). Commented out = the demo database. |
-| `MYSQL_EXPORTER_ADDRESS`, `_USER`, `_PASSWORD` | MySQL to watch (profile `mysql`). Not needed without MySQL. |
+| `POSTGRES_EXPORTER_DSN` | PostgreSQL to watch (profile `postgres`), then switch on `prometheus/exporters/postgres.yml`. |
 | `REDIS_EXPORTER_ADDR`, `REDIS_EXPORTER_PASSWORD` | Redis to watch (profile `redis`). Default = the demo cache. |
 
 Exporter settings are read only when their profile is started; plain `docker compose up -d` ignores them.
@@ -110,7 +105,7 @@ GRANT pg_monitor TO monitor;
 1. Create a Telegram bot with [@BotFather](https://t.me/BotFather) (`/newbot`), send it a message, then open
    `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `"chat":{"id":...}`.
 2. `cp .env.example .env` and fill in `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and a strong `GRAFANA_ADMIN_PASSWORD`.
-3. `docker compose up -d` (add the `--profile ...` lines above for the demos you want).
+3. `docker compose up -d` (add `--profile postgres` / `--profile redis` when you use them).
 4. Open http://localhost:33000 and log in as `admin` with the password from `.env`.
 5. Check that alerts reach you: a "Watchdog" alert is always firing on purpose; in Alertmanager
    (http://localhost:39093) you should see it, and failures to deliver show on **Self Monitoring**.
@@ -164,7 +159,7 @@ The links in the top bar go to the same dashboards from everywhere and keep the 
 Rules live in `prometheus/rules/alerts.yml` (metrics) and `vmalert/` (log patterns). Critical alerts come to
 Telegram with sound, warnings silently; each message links to the query, the dashboard and the logs, and has
 a one-click Silence. Containers labelled `container.team` / `container.env` show them in the message.
-Targets with `env: demo` (the demo databases, queue, proxy) are routed nowhere, so demos never page you.
+Targets with `env: demo` (the demo cache, queue, proxy) are routed nowhere, so demos never page you.
 
 ### 5. Change or add dashboards
 
@@ -197,7 +192,7 @@ history matters to you.
 | App SLO — availability 99.5% (non-5xx) and latency 99% within 1s per service, error budget, multi-window burn-rate alerts `AppErrorBudget*` / `AppLatencyBudget*` | dashboard **App SLO**, `prometheus/rules/{recording,alerts}.yml` |
 | Probe SLO — 99.9% of blackbox probes, certificate expiry (`SslExpiresSoon` at 14 days, `SslExpiresCritical` at 3) | dashboard **Probes & SLO** |
 | Disk forecast — `DiskWillFillIn24h` / `DiskWillFillIn4h` (`predict_linear`), hours-until-full panel | dashboard **Node Overview** |
-| MySQL, Redis, PostgreSQL | dashboards **MySQL**, **Redis**, **PostgreSQL** |
+| Redis, PostgreSQL | dashboards **Redis**, **PostgreSQL** |
 | One project, one container | **Docker projects → Project → Container** (or the type dashboard: App Endpoints, Frontend, Queue, Worker, Proxy, Search, NoSQL, Storage, Cron) |
 | Language runtime (Go, Java, Node, Python, PHP, .NET, Rust, Ruby) | dashboards **Runtime: <language>** |
 
@@ -230,7 +225,6 @@ The check exits non-zero on a query error or an unexpected empty panel, so it ca
 | http://localhost:33200 | Tempo API |
 | http://localhost:38686/health | Vector health |
 | http://localhost:38080 | cAdvisor |
-| http://localhost:38081 | Scrutiny |
 
 Grafana login: `admin` and `GRAFANA_ADMIN_PASSWORD` from `.env` (default `admin` — change it before exposing Grafana).
 
@@ -252,7 +246,7 @@ through eBPF: requests/s, errors and latency per route, plus traces. Any languag
 `--network host`. Linux only, kernel 5.8+ (`uname -r`).
 
 1. List the apps in [beyla/beyla.yml](beyla/beyla.yml): the port each listens on and its name.
-2. `docker compose --profile beyla up -d beyla`, then switch the target on in [prometheus/exporters/beyla.yml](prometheus/exporters/beyla.yml)
+2. `docker compose up -d` (Beyla is part of the stack)
 
 Prometheus scrapes it (job `beyla`) and renames the metrics to `http_requests_total` /
 `http_request_duration_seconds` with `service`, `route`, `method`, `status`, so **App Endpoints** and
@@ -326,12 +320,8 @@ grafana-proxy/    nginx + theme.css
 prometheus/       scrape config, exporters, probes, rules
 tempo/            trace storage config
 vmalert/          log alert rules
-postgres/         demo database + load generator
-mysql/            demo database + load generator
-redis/            demo cache load generator
+postgres/         custom SQL metrics for postgres-exporter (queries.yaml)
 scripts/          check-dashboards.py, annotate-deploy.sh
-nginx-demo/       demo nginx with file logs
-traefik/          demo Traefik routes (profile "proxy")
 ```
 
 ## License

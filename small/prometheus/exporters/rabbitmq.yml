@@ -1,5 +1,0 @@
-# RabbitMQ built-in Prometheus plugin (job "rabbitmq"), shown on the "Queue" dashboard.
-# The demo broker (compose profile "queue") is enabled below. For your own RabbitMQ: the plugin is on by
-# default since 3.8 (port 15692); add its host:port here. Without the profile this target is down: set the file to [].
-- targets: [grafana-s-rabbitmq:15692]
-  labels: { project: grafana-s, container: grafana-s-rabbitmq, env: demo }

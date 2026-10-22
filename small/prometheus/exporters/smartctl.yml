@@ -1,5 +1,0 @@
-# Disk SMART metrics from smartctl-exporter (job "smartctl"). Empty by default, so nothing is scraped and TargetDown stays quiet.
-# Linux hosts only (needs real disks). To enable: docker compose --profile smart up -d
-# then replace [] with the commented target below and save (re-read every 30s, no restart needed).
-[]
-# - targets: [smartctl-exporter:9633]

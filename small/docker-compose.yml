@@ -112,25 +112,6 @@ services:  # containers this file runs; each key below is one service
       - pushgateway-data:/data  # persistent data at /data
     ports: ["39091:9091"]            # UI + push API: http://localhost:39091
 
-  # Internet speed (download, upload, ping, jitter) via the Speedtest.net CLI.
-  # Each scrape runs a real test and saturates the line for ~20s, so Prometheus scrapes it
-  # only every 30m (job "speedtest" in prometheus/prometheus.yml).
-  speedtest-exporter:  # internet speed test exporter
-    container_name: grafana-s-speedtest-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: miguelndecarvalho/speedtest-exporter:v3.5.4  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
-    environment:  # environment variables inside the container
-      - SPEEDTEST_SERVER=${SPEEDTEST_SERVER:-}  # Speedtest.net server id; empty = nearest server
-    ports: ["39798:9798"]            # raw metrics (runs a test!): http://localhost:39798/metrics
-    # The image checks http://localhost:39798, which resolves to IPv6 ::1 first, but the exporter
-    # listens on IPv4 only: the container was always "unhealthy". 127.0.0.1 avoids that.
-    # The / page is static; /metrics would run a full speed test on every check.
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9798/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-
   # Auto-discovery of app metrics: finds every container on this Docker host (any compose
   # project) that serves Prometheus metrics, connects Prometheus and blackbox to its network
   # and writes it to the "apps" scrape job. New projects appear in ~30s, no config edits.
@@ -180,120 +161,11 @@ services:  # containers this file runs; each key below is one service
       - --collector.postmaster              # server start time (uptime)
       - --collector.replication_slot        # slots and retained WAL
     environment:  # environment variables inside the container
-      # Default points at the demo database below; set POSTGRES_EXPORTER_DSN in .env for a real one.
+      # Set POSTGRES_EXPORTER_DSN in .env (your database, user with the pg_monitor role).
       - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN:-postgresql://postgres_exporter:exporter@postgres:5432/postgres?sslmode=disable}  # postgresql://user:pass@host:5432/db?sslmode=disable
     volumes:
       - ./postgres/queries.yaml:/etc/postgres-exporter/queries.yaml:ro  # custom SQL metrics
     ports: ["39187:9187"]            # raw metrics: http://localhost:39187/metrics
-
-  # Demo PostgreSQL 16 with pg_stat_statements and statement logging, so the dashboard has data.
-  # Remove it (or leave the profile off) when the exporter points at your own database.
-  # Every statement is logged with its duration: Vector turns those lines into the p95/p99
-  # latency histogram (postgres_statement_duration_seconds) and the slow-query log panel.
-  postgres:  # demo database
-    container_name: grafana-s-postgres  # fixed name; grafana-s-* = this stack (small)
-    image: postgres:16.4-alpine  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: db }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [postgres]  # started only with --profile postgres
-    environment:
-      - POSTGRES_PASSWORD=postgres  # demo only; not exposed outside the Docker network
-    command:
-      - postgres
-      - -c
-      - shared_preload_libraries=pg_stat_statements  # per-query statistics
-      - -c
-      - pg_stat_statements.track=all   # include statements inside functions
-      - -c
-      - track_io_timing=on             # read/write time per query and database
-      - -c
-      - track_functions=all
-      - -c
-      - log_min_duration_statement=0   # log every statement with its duration (demo; on a busy server use 100 or more)
-      - -c
-      - "log_line_prefix=app=%a db=%d user=%u pid=%p "   # trailing space matters; parsed by Vector into fields
-      - -c
-      - log_lock_waits=on              # log sessions waiting longer than deadlock_timeout
-      - -c
-      - log_checkpoints=on
-      - -c
-      - log_autovacuum_min_duration=0
-      - -c
-      - log_temp_files=0               # log every temp file (work_mem too small)
-      - -c
-      - log_connections=on
-      - -c
-      - log_disconnections=on
-    volumes:
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # demo databases + exporter role
-      - postgres-data:/var/lib/postgresql/data
-    # No ports: reachable only inside the Docker network (postgres:5432).
-
-  # Demo traffic for the database above: several "services" (application_name) with
-  # OLTP load, a slow reporting job, lock waits, idle-in-transaction, deadlocks and errors.
-  postgres-loadgen:  # demo database traffic
-    container_name: grafana-s-postgres-loadgen  # fixed name; grafana-s-* = this stack (small)
-    image: postgres:16.4-alpine  # same image: brings pgbench and psql
-    labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [postgres]  # started only with --profile postgres
-    entrypoint: ["/bin/sh", "/loadgen.sh"]
-    environment:
-      - PGHOST=postgres
-      - PGUSER=postgres
-      - PGPASSWORD=postgres
-    volumes:
-      - ./postgres/loadgen.sh:/loadgen.sh:ro
-    depends_on: [postgres]
-
-  # MySQL / MariaDB: connections, slow queries, replication lag, InnoDB buffer pool.
-  mysqld-exporter:  # MySQL metrics exporter
-    container_name: grafana-s-mysqld-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: prom/mysqld-exporter:v0.17.2  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [mysql]  # started only with --profile mysql
-    command:  # arguments passed to the program at start
-      - --mysqld.address=${MYSQL_EXPORTER_ADDRESS:-mysql:3306}  # host:port of the database
-      - --mysqld.username=${MYSQL_EXPORTER_USER:-exporter}  # database user (needs PROCESS, REPLICATION CLIENT, SELECT)
-    environment:  # environment variables inside the container
-      - MYSQLD_EXPORTER_PASSWORD=${MYSQL_EXPORTER_PASSWORD:-exporter}  # password for that user (default = demo database), kept out of the command line
-    ports: ["39104:9104"]            # raw metrics: http://localhost:39104/metrics
-
-  # Demo MySQL 8.4 with the exporter user and slow query log, so the "MySQL" dashboard has data.
-  # Remove it (or leave the profile off) when the exporter points at your own database.
-  mysql:  # demo database
-    container_name: grafana-s-mysql  # fixed name; grafana-s-* = this stack (small)
-    image: mysql:8.4.3  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: db }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [mysql]  # started only with --profile mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=mysql  # demo only; not exposed outside the Docker network
-    command:
-      - --slow-query-log=ON           # queries slower than long_query_time are counted (Slow_queries)
-      - --long-query-time=0.5         # 0.5s, so the demo's slow report query counts
-      - --performance-schema=ON       # per-statement stats for the exporter
-    volumes:
-      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # demo schema + exporter user
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pmysql"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    # No ports: reachable only inside the Docker network (mysql:3306).
-
-  # Demo traffic for the database above: inserts, point reads, a slow report and lock waits.
-  mysql-loadgen:  # demo database traffic
-    container_name: grafana-s-mysql-loadgen  # fixed name; grafana-s-* = this stack (small)
-    image: mysql:8.4.3  # same image: brings the mysql client
-    labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [mysql]  # started only with --profile mysql
-    entrypoint: ["/bin/sh", "/loadgen.sh"]
-    environment:
-      - MYSQL_HOST=mysql
-      - MYSQL_PWD=mysql  # read by the mysql client, keeps the password off the command line
-    volumes:
-      - ./mysql/loadgen.sh:/loadgen.sh:ro
-    depends_on:
-      mysql: { condition: service_healthy }
 
   # Redis: memory, hit ratio, evictions, connected clients.
   redis-exporter:  # Redis metrics exporter
@@ -305,85 +177,6 @@ services:  # containers this file runs; each key below is one service
       - REDIS_ADDR=${REDIS_EXPORTER_ADDR:-redis://redis:6379}  # Redis URL
       - REDIS_PASSWORD=${REDIS_EXPORTER_PASSWORD:-}  # empty = no auth
     ports: ["39121:9121"]            # raw metrics: http://localhost:39121/metrics
-
-  # Demo Redis 7, so the "Redis" dashboard has data: hits, misses, expirations, command mix.
-  # Memory stays well under maxmemory, so RedisMemoryHigh / RedisEvictions stay quiet.
-  redis:  # demo cache
-    container_name: grafana-s-redis  # fixed name; grafana-s-* = this stack (small)
-    image: redis:7.4.1-alpine  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: cache }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [redis]  # started only with --profile redis
-    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]  # cache limit, no disk snapshots
-    # No ports: reachable only inside the Docker network (redis:6379).
-
-  # Demo traffic for the cache above: reads with misses, writes with TTL, big values that force evictions.
-  redis-loadgen:  # demo cache traffic
-    container_name: grafana-s-redis-loadgen  # fixed name; grafana-s-* = this stack (small)
-    image: redis:7.4.1-alpine  # same image: brings redis-cli and redis-benchmark
-    labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [redis]  # started only with --profile redis
-    entrypoint: ["/bin/sh", "/loadgen.sh"]
-    environment:
-      - REDIS_HOST=redis
-    volumes:
-      - ./redis/loadgen.sh:/loadgen.sh:ro
-    depends_on: [redis]
-
-  # MongoDB: connections, operations/s, memory, replication lag.
-  # Shown in the MongoDB row of the "Services" dashboard. User needs the clusterMonitor role.
-  mongodb-exporter:  # MongoDB metrics exporter
-    container_name: grafana-s-mongodb-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: percona/mongodb_exporter:0.40.0  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [mongodb, nosql]  # started only with --profile mongodb or nosql
-    command:  # arguments passed to the program at start
-      - --mongodb.global-conn-pool  # one connection pool for all collectors
-      - --compatible-mode           # also expose the classic metric names (mongodb_up, mongodb_connections, ...)
-      - --collector.diagnosticdata  # serverStatus: connections, opcounters, memory
-      - --collector.replicasetstatus  # replica set members and lag (no-op on a standalone server)
-    environment:  # environment variables inside the container
-      - MONGODB_URI=${MONGODB_EXPORTER_URI:-mongodb://mongodb:27017}  # mongodb://user:pass@host:27017/admin
-    ports: ["39216:9216"]            # raw metrics: http://localhost:39216/metrics
-
-  # nginx: active connections and request rate, read from nginx's stub_status page.
-  # stub_status has no status codes or latency; use Traefik's metrics or access logs for those.
-  nginx-exporter:  # nginx metrics exporter
-    container_name: grafana-s-nginx-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: nginx/nginx-prometheus-exporter:1.3.0  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [nginx]  # started only with --profile nginx
-    command:  # arguments passed to the program at start
-      - --nginx.scrape-uri=${NGINX_STUB_STATUS_URL:-http://nginx:8080/stub_status}  # nginx stub_status URL
-    ports: ["39113:9113"]            # raw metrics: http://localhost:39113/metrics
-
-  # Disk health from SMART: temperature, SMART pass/fail, power-on hours, SSD wear.
-  # Needs raw access to the disks, so Linux hosts only. Docker Desktop on macOS/Windows
-  # runs in a VM with virtual disks and has no SMART data.
-  smartctl-exporter:  # disk SMART metrics exporter
-    container_name: grafana-s-smartctl-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: quay.io/prometheuscommunity/smartctl-exporter:v0.14.0  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [smart]  # started only with --profile smart
-    privileged: true                # smartctl sends ATA/NVMe commands straight to the devices
-    user: root                      # device nodes are root-only
-    command:  # arguments passed to the program at start
-      - --smartctl.interval=60s     # read SMART once a minute; scrapes in between get the cached result
-    ports: ["39633:9633"]            # raw metrics: http://localhost:39633/metrics
-
-  # Scrutiny: web UI for the same SMART data, with per-disk failure probability
-  # (based on Backblaze drive statistics) and history. Not a Prometheus exporter;
-  # use it next to the Hardware dashboard. Linux hosts only, like smartctl-exporter.
-  scrutiny:  # SMART web UI with failure prediction
-    container_name: grafana-s-scrutiny  # fixed name; grafana-s-* = this stack (small)
-    image: ghcr.io/analogj/scrutiny:v0.8.1-omnibus  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [smart]  # started only with --profile smart
-    privileged: true                # reads SMART straight from the devices
-    volumes:  # named volumes; data here survives `docker compose down`
-      - /run/udev:/run/udev:ro      # device metadata (serials, models)
-      - scrutiny-config:/opt/scrutiny/config  # settings and SQLite database
-      - scrutiny-influxdb:/opt/scrutiny/influxdb  # SMART history
-    ports: ["38081:8080"]            # UI: http://localhost:38081 (8080 is taken by cAdvisor)
 
   # Receives alerts from Prometheus, groups/deduplicates them and sends them to Telegram.
   alertmanager:  # alert router and Telegram sender
@@ -468,12 +261,11 @@ services:  # containers this file runs; each key below is one service
     ports: ["39428:9428"]            # UI: http://localhost:39428/select/vmui
 
   # HTTP metrics + traces of apps without touching their code (eBPF). Linux only, kernel 5.8+.
-  # Which ports/apps to watch: beyla/beyla.yml. Start:  docker compose --profile beyla up -d
+  # Which ports/apps to watch: beyla/beyla.yml. Starts with plain `docker compose up -d`.
   beyla:  # eBPF auto-instrumentation
     container_name: grafana-s-beyla  # fixed name; grafana-s-* = this stack (small)
     image: grafana/beyla:2.1.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [beyla]  # started only with --profile beyla
     pid: host          # sees the host's processes, also apps on --network host
     privileged: true   # loads eBPF programs into the kernel
     command: ["--config=/etc/beyla/beyla.yml"]
@@ -495,7 +287,7 @@ services:  # containers this file runs; each key below is one service
       - vector-data:/var/lib/vector  # read positions + disk buffer: no gaps or duplicates after restart
       - /var/run/docker.sock:/var/run/docker.sock:ro   # to discover containers and stream their logs
       # File logs: on a server mount the real directory instead: /var/log/nginx:/var/log/nginx:ro
-      - nginx-demo-logs:/var/log/nginx:ro              # nginx-demo's log files, at the usual server path
+      - /var/log/nginx:/var/log/nginx:ro               # host nginx log files (if nginx runs on the server)
       # journald (Linux servers only; also uncomment section 7 in vector/vector.yaml):
       # - /var/log/journal:/var/log/journal:ro         # persistent journal
       # - /run/log/journal:/run/log/journal:ro         # volatile journal
@@ -529,23 +321,6 @@ services:  # containers this file runs; each key below is one service
     ports: ["33200:3200"]            # API: http://localhost:33200/ready, /metrics
     depends_on: [prometheus]  # start after prometheus (start order only, not readiness)
 
-  # Demo trace source: a fake "demo-app" sending 5 traces/s with child spans, some failing.
-  # Not started by default:  docker compose --profile demo up -d telemetrygen
-  telemetrygen:  # demo trace generator
-    container_name: grafana-s-telemetrygen  # fixed name; grafana-s-* = this stack (small)
-    image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.111.0  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [demo]  # started only with --profile demo
-    command:  # arguments passed to the program at start
-      - traces  # generate traces (not metrics/logs)
-      - --otlp-endpoint=vector:4317  # send to Vector, same path a real app uses
-      - --otlp-insecure  # plain gRPC inside the Docker network
-      - --service=demo-app  # service.name of the generated spans
-      - --rate=5  # traces per second
-      - --child-spans=3  # spans per trace besides the root
-      - --duration=87600h  # run "forever" (10 years)
-    depends_on: [vector]  # start after vector (start order only, not readiness)
-
   # Evaluates log alert rules (LogsQL) against VictoriaLogs and sends firing alerts to
   # the same Alertmanager as Prometheus, so routing, silences and Telegram are shared.
   vmalert:  # log alert rule evaluator
@@ -568,200 +343,13 @@ services:  # containers this file runs; each key below is one service
     ports: ["38880:8880"]            # UI: http://localhost:38880 (rules, alerts, last evaluations)
     depends_on: [victorialogs, alertmanager, victoriametrics]  # start after victorialogs, alertmanager, victoriametrics (start order only, not readiness)
 
-  # Demo web server for the file-log pipeline: writes access/error logs to files, as nginx does
-  # when run by systemd. Probed by blackbox (sites.yml) so there is steady traffic.
-  # Distinct from the "nginx-exporter" service (profile nginx), which reads stub_status instead.
-  nginx-demo:  # demo nginx with file logs
-    container_name: grafana-s-nginx-demo  # fixed name; grafana-s-* = this stack (small)
-    image: nginx:1.27.5-alpine  # pinned version: upgrades only happen when you change this tag
-    labels:  # container.* labels: the Docker projects dashboard opens the Frontend dashboard for it
-      container.type: frontend
-      container.lang: static
-    volumes:
-      - ./nginx-demo/nginx.conf:/etc/nginx/nginx.conf:ro  # demo config: file logs + test endpoints
-      - nginx-demo-logs:/var/log/nginx-demo               # log files, shared read-only with Vector
-    # No ports: reachable only inside the Docker network (http://nginx-demo).
-
-  # ── Demo queue and proxy (profiles "queue" and "proxy") ─────────────────────
-  # Something real for the Queue and Proxy dashboards:  docker compose --profile queue --profile proxy up -d
-
-  # RabbitMQ with its built-in Prometheus plugin (port 15692). Per-queue numbers come from /metrics/per-object.
-  rabbitmq:  # demo message broker
-    container_name: grafana-s-rabbitmq  # fixed name; grafana-s-* = this stack (small)
-    image: rabbitmq:3.13.7-management-alpine  # pinned version: upgrades only happen when you change this tag
-    profiles: [queue]  # started only with --profile queue
-    labels:  # container.* labels: Docker projects opens the Queue dashboard for it
-      container.type: queue
-      container.lang: erlang
-    # UI: http://localhost:15672 (guest / guest). No other ports on the host.
-    ports: ["15672:15672"]
-
-  # Demo traffic: 2 producers at 30 msg/s, 1 consumer at 25 msg/s, so the "orders" queue slowly grows
-  # (backlog, consumer lag) and the Queue alerts have something to show.
-  rabbitmq-loadgen:  # demo producers and consumer
-    container_name: grafana-s-rabbitmq-loadgen  # fixed name; grafana-s-* = this stack (small)
-    image: pivotalrabbitmq/perf-test:2.21.0  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
-    profiles: [queue]  # started only with --profile queue
-    command: ["--uri", "amqp://guest:guest@rabbitmq:5672", "--queue", "orders", "--auto-delete", "false", "--flag", "persistent",
-              "--producers", "2", "--consumers", "1", "--rate", "15", "--consumer-rate", "25", "--size", "512",
-              "--queue-args", "x-max-length=50000"]
-    restart: unless-stopped  # retries until RabbitMQ accepts connections
-    depends_on: [rabbitmq]  # start after rabbitmq (start order only, not readiness)
-
-  # Traefik in front of nginx-demo: built-in metrics on :8082 (job "traefik"), access log on stdout.
-  traefik-demo:  # demo reverse proxy
-    container_name: grafana-s-traefik-demo  # fixed name; grafana-s-* = this stack (small)
-    image: traefik:v3.1.6  # pinned version: upgrades only happen when you change this tag
-    profiles: [proxy]  # started only with --profile proxy
-    command:  # static configuration as flags
-      - --entrypoints.web.address=:80  # proxied traffic
-      - --entrypoints.metrics.address=:8082  # Prometheus metrics
-      - --metrics.prometheus=true  # traefik_* metrics
-      - --metrics.prometheus.entrypoint=metrics  # served on :8082/metrics
-      - --metrics.prometheus.addrouterslabels=true  # per-router numbers
-      - --providers.file.filename=/etc/traefik/dynamic.yml  # routes from this repo
-      - --accesslog=true  # one line per request on stdout
-    labels:  # container.* labels: Docker projects opens the Proxy dashboard for it
-      container.type: proxy
-      container.lang: go
-    volumes:
-      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro  # routes
-    depends_on: [nginx-demo]  # start after nginx-demo (start order only, not readiness)
-
-  # ── Demo search, NoSQL and cron (profiles "search", "nosql", "cron") ──────────
-  #   docker compose --profile search --profile nosql --profile cron up -d
-
-  # Elasticsearch, single node, small heap. elasticsearch-exporter → job "elasticsearch" → "Search" dashboard.
-  elasticsearch:  # demo search engine
-    container_name: grafana-s-elasticsearch  # fixed name; grafana-s-* = this stack (small)
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: search, container.lang: java }  # which dashboard Docker projects opens for it
-    profiles: [search]  # started only with --profile search
-    environment:
-      - discovery.type=single-node  # no cluster
-      - xpack.security.enabled=false  # demo only: no TLS / passwords
-      - ES_JAVA_OPTS=-Xms256m -Xmx256m  # small heap for a laptop
-    mem_limit: 768m  # hard cap for the whole container
-
-  elasticsearch-exporter:  # Elasticsearch metrics
-    container_name: grafana-s-elasticsearch-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.8.0  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: exporter }  # which dashboard Docker projects opens for it
-    profiles: [search]  # started only with --profile search
-    command: ["--es.uri=http://elasticsearch:9200", "--es.indices", "--es.shards"]  # cluster + per-index stats
-    restart: unless-stopped  # retries until Elasticsearch is up
-    depends_on: [elasticsearch]  # start after elasticsearch (start order only, not readiness)
-
-  # Demo traffic: index a document and run a search every second, sometimes a slow wildcard query.
-  search-loadgen:  # demo search traffic
-    container_name: grafana-s-search-loadgen  # fixed name; grafana-s-* = this stack (small)
-    image: curlimages/curl:8.10.1  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: loadgen }  # which dashboard Docker projects opens for it
-    profiles: [search]  # started only with --profile search
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        until curl -s http://elasticsearch:9200 >/dev/null; do sleep 3; done
-        i=0
-        while true; do
-          i=$$((i+1))
-          curl -s -o /dev/null -XPOST http://elasticsearch:9200/products/_doc -H 'Content-Type: application/json' -d "{\"name\":\"item $$i\",\"price\":$$((i % 500))}"
-          curl -s -o /dev/null "http://elasticsearch:9200/products/_search?q=name:item"
-          [ $$((i % 20)) -eq 0 ] && curl -s -o /dev/null "http://elasticsearch:9200/products/_search?q=name:*tem*"
-          sleep 1
-        done
-    depends_on: [elasticsearch]  # start after elasticsearch (start order only, not readiness)
-
-  # MongoDB (no replica set). The mongodb-exporter above connects with MONGODB_EXPORTER_URI (exporter / password).
-  mongodb:  # demo document database
-    container_name: grafana-s-mongodb  # fixed name; grafana-s-* = this stack (small)
-    image: mongo:7.0.14  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: nosql }  # which dashboard Docker projects opens for it
-    profiles: [mongodb, nosql]  # started only with --profile mongodb or nosql
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=exporter  # demo only, matches .env.example
-      - MONGO_INITDB_ROOT_PASSWORD=password
-
-  memcached:  # demo key-value cache
-    container_name: grafana-s-memcached  # fixed name; grafana-s-* = this stack (small)
-    image: memcached:1.6.32-alpine  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: nosql }  # which dashboard Docker projects opens for it
-    profiles: [nosql]  # started only with --profile nosql
-    command: ["memcached", "-m", "32"]  # 32 MB, so evictions show up
-
-  memcached-exporter:  # Memcached metrics
-    container_name: grafana-s-memcached-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: prom/memcached-exporter:v0.15.0  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: exporter }  # which dashboard Docker projects opens for it
-    profiles: [nosql]  # started only with --profile nosql
-    command: ["--memcached.address=memcached:11211"]
-    depends_on: [memcached]  # start after memcached (start order only, not readiness)
-
-  # Demo traffic for MongoDB and Memcached: writes, reads (hits and misses), a big value now and then.
-  nosql-loadgen:  # demo NoSQL traffic
-    container_name: grafana-s-nosql-loadgen  # fixed name; grafana-s-* = this stack (small)
-    image: mongo:7.0.14  # same image: brings mongosh; bash + /dev/tcp for memcached
-    labels: { container.type: loadgen }  # which dashboard Docker projects opens for it
-    profiles: [nosql]  # started only with --profile nosql
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        until mongosh --quiet "mongodb://exporter:password@mongodb:27017/admin" --eval 1 >/dev/null 2>&1; do sleep 3; done
-        mongosh --quiet "mongodb://exporter:password@mongodb:27017/shop?authSource=admin" --eval '
-          let i = 0;
-          while (true) {
-            i++;
-            db.orders.insertOne({ n: i, at: new Date(), total: i % 300 });
-            db.orders.find({ total: { $$gt: 250 } }).limit(20).toArray();
-            if (i % 30 === 0) db.orders.find({ note: /slow/ }).toArray();
-            sleep(500);
-          }' &
-        i=0
-        while true; do
-          i=$$((i+1))
-          exec 3<>/dev/tcp/memcached/11211
-          printf "set k$$i 0 300 5\r\nhello\r\nget k$$((i-5))\r\nget miss$$i\r\nquit\r\n" >&3
-          cat <&3 >/dev/null
-          sleep 0.2
-        done
-    depends_on: [mongodb, memcached]  # start after them (start order only, not readiness)
-
-  # Demo cron jobs: "backup" every 2 minutes and "report" every minute push their result to the
-  # Pushgateway (last run, last success, duration, exit code), the usual pattern for batch jobs.
-  # backup fails now and then, so the Cron dashboard and the CronJobFailed alert have something to show.
-  cron-demo:  # demo scheduled jobs
-    container_name: grafana-s-cron-demo  # fixed name; grafana-s-* = this stack (small)
-    image: curlimages/curl:8.10.1  # pinned version: upgrades only happen when you change this tag
-    labels: { container.type: cron }  # which dashboard Docker projects opens for it
-    profiles: [cron]  # started only with --profile cron
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        push() {  # job, duration, exit code
-          now=$$(date +%s)
-          ok=""; [ "$$3" -eq 0 ] && ok="cron_job_last_success_timestamp_seconds $$now"
-          printf "cron_job_last_run_timestamp_seconds $$now\ncron_job_duration_seconds $$2\ncron_job_exit_code $$3\n$$ok\n" |
-            curl -s --data-binary @- "http://pushgateway:9091/metrics/job/$$1/instance/cron-demo"
-        }
-        t=0
-        while true; do
-          d=$$(( (t * 7) % 9 + 1 )); push report $$d 0
-          if [ $$((t % 2)) -eq 0 ]; then
-            d=$$(( (t * 13) % 40 + 20 )); rc=0; [ $$((t % 10)) -eq 4 ] && rc=1
-            push backup $$d $$rc
-          fi
-          t=$$((t+1)); sleep 60
-        done
-    depends_on: [pushgateway]  # start after pushgateway (start order only, not readiness)
-
-# Named volumes managed by Docker. `docker compose down` keeps them; `down -v` deletes them.
 # One network for the whole stack. Apps can join it as an external network:
 #   networks: { grafana-s-network: { external: true } }
 networks:
   default:
     name: grafana-s-network
 
+# Named volumes managed by Docker. `docker compose down` keeps them; `down -v` deletes them.
 volumes:  # named volumes; data here survives `docker compose down`
   alertmanager-data:  # named volume (see the service that mounts it)
   vm-data:  # named volume (see the service that mounts it)
@@ -770,10 +358,5 @@ volumes:  # named volumes; data here survives `docker compose down`
   vlogs-data:  # named volume (see the service that mounts it)
   vector-data:  # Vector read positions + disk buffer
   tempo-data:  # named volume (see the service that mounts it)
-  nginx-demo-logs:  # named volume (see the service that mounts it)
   pushgateway-data:  # named volume (see the service that mounts it)
-  postgres-data:  # demo PostgreSQL data
-  scrutiny-config:  # named volume (see the service that mounts it)
-  scrutiny-influxdb:  # named volume (see the service that mounts it)
   auto-targets:  # discoverer -> Prometheus target list
-  mysql-data:  # demo MySQL data

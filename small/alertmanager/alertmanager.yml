@@ -38,13 +38,9 @@ route:  # root of the routing tree
     - matchers: [alertname="Watchdog"]  # only the Watchdog alert
       receiver: blackhole  # drop it (Grafana watches Watchdog instead)
 
-    # Demo databases (profiles postgres/mysql/redis) cause deadlocks, slow queries and lock waits on
-    # purpose. Their alerts stay visible in Grafana and Alertmanager but are not sent to Telegram.
-    # env="demo" comes from prometheus/exporters/*.yml; pg_app = application_name of postgres/loadgen.sh
-    # (log-based alerts carry no target labels).
-    - matchers: [env="demo"]  # alerts from demo exporter targets
-      receiver: blackhole  # drop them
-    - matchers: ['pg_app=~"shop-api|shop-catalog|billing-worker|reports|legacy-cron"']  # demo load generator
+    # Demo containers and exporters (env="demo" in prometheus/exporters/*.yml and sites.yml) are
+    # down or noisy on purpose. Their alerts stay visible in Grafana but are not sent to Telegram.
+    - matchers: [env="demo"]  # alerts from demo targets
       receiver: blackhole  # drop them
 
     # Critical: loud Telegram message, reminder every hour while unresolved.
