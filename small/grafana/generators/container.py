@@ -16,7 +16,9 @@ d = Dash(UID, "Container",
          ["docker", "container"], time_from="now-6h",
          variables=[{"name": "project", "label": "Project", "type": "textbox", "query": "", "hide": 2, "current": {"text": "", "value": ""}},
                     query_var("container", "Container", 'label_values(container_last_seen{name!=""}, name)', multi=False, include_all=False,
-                              desc="Any running container on this Docker host.")])
+                              desc="Any running container on this Docker host."),
+                    query_var("lang", "Language", 'label_values(container_last_seen{name="$container"}, container_label_container_lang)',
+                              multi=False, include_all=False, hide=2, desc="container.lang label of the container: picks the Runtime row.")])
 
 d.row("Health")
 d.add(stat("Status", f"max(time() - container_last_seen{{{N}}} < bool 60)", graph=False,
@@ -82,26 +84,31 @@ d.add(table("Endpoints (slowest p95 first)", [
                col("requests", decimals=0)]), 14, 10)
 d.add(ts("Responses/s by status", [tgt(f"sum by (status) (rate(http_requests_total{{{H}}}[5m]))", "{{status}}")], unit="reqps", stack=True), 10, 10)
 
-# Language runtime of the container (container.lang). One set of panels for every language: each query
-# is the same idea in Node.js / Go / Java / Python / .NET / Ruby, so only the app's own numbers show.
+# Language runtime of the container, picked by its container.lang label: each line only shows when the
+# label matches (Node.js lines for lang=node, Go lines for lang=go, ...). Values from the app's own /metrics.
 R = 'container="$container"'
-d.row("Runtime")
-d.add(ts("Heap used", [tgt(f"sum(nodejs_heap_size_used_bytes{{{R}}})", "node heap"),
-                       tgt(f"sum(go_memstats_heap_inuse_bytes{{{R}}})", "go heap"),
-                       tgt(f'sum(jvm_memory_used_bytes{{{R}, area="heap"}})', "jvm heap"),
-                       tgt(f"sum(dotnet_total_memory_bytes{{{R}}})", ".net managed"),
-                       tgt(f"sum(process_resident_memory_bytes{{{R}}})", "process resident")], unit="bytes", fill=0), 8, 8)
-d.add(ts("GC time (share of wall time)", [tgt(f"sum(rate(nodejs_gc_duration_seconds_sum{{{R}}}[5m]))", "node"),
-                                          tgt(f"sum(rate(go_gc_duration_seconds_sum{{{R}}}[5m]))", "go"),
-                                          tgt(f"sum(rate(jvm_gc_pause_seconds_sum{{{R}}}[5m]))", "jvm"),
-                                          tgt(f"sum(rate(python_gc_collections_total{{{R}}}[5m]))", "python collections/s")],
+def lang(expr, *langs):
+    """expr, kept only when the container's container.lang is one of langs."""
+    sel = "|".join(langs)
+    return f'({expr}) and on() group(container_last_seen{{name="$container", container_label_container_lang=~"{sel}"}})'
+d.row("Runtime ($lang)")
+d.add(ts("Heap used", [tgt(lang(f"sum(nodejs_heap_size_used_bytes{{{R}}})", "node", "javascript", "typescript", "bun"), "heap"),
+                       tgt(lang(f"sum(go_memstats_heap_inuse_bytes{{{R}}})", "go"), "heap"),
+                       tgt(lang(f'sum(jvm_memory_used_bytes{{{R}, area="heap"}})', "java", "kotlin"), "heap"),
+                       tgt(lang(f"sum(dotnet_total_memory_bytes{{{R}}})", "dotnet"), "managed memory"),
+                       tgt(lang(f"sum(process_resident_memory_bytes{{{R}}})", "python", "php", "ruby", "rust"), "resident memory")],
+         unit="bytes", fill=0), 8, 8)
+d.add(ts("GC time (share of wall time)", [tgt(lang(f"sum(rate(nodejs_gc_duration_seconds_sum{{{R}}}[5m]))", "node", "javascript", "typescript", "bun"), "gc"),
+                                          tgt(lang(f"sum(rate(go_gc_duration_seconds_sum{{{R}}}[5m]))", "go"), "gc"),
+                                          tgt(lang(f"sum(rate(jvm_gc_pause_seconds_sum{{{R}}}[5m]))", "java", "kotlin"), "gc"),
+                                          tgt(lang(f"sum(rate(python_gc_collections_total{{{R}}}[5m]))", "python"), "collections/s")],
          unit="percentunit", fill=0, desc="Time spent collecting garbage per second. Above 10% the app is starving for memory."), 8, 8)
-d.add(ts("Concurrency", [tgt(f"max(nodejs_eventloop_lag_p99_seconds{{{R}}})", "node event loop lag p99 (s)"),
-                         tgt(f"sum(go_goroutines{{{R}}})", "goroutines"),
-                         tgt(f"sum(jvm_threads_live_threads{{{R}}})", "jvm threads"),
-                         tgt(f"sum(nodejs_active_handles_total{{{R}}})", "node active handles")], fill=0,
+d.add(ts("Concurrency", [tgt(lang(f"max(nodejs_eventloop_lag_p99_seconds{{{R}}})", "node", "javascript", "typescript", "bun"), "event loop lag p99 (s)"),
+                         tgt(lang(f"sum(go_goroutines{{{R}}})", "go"), "goroutines"),
+                         tgt(lang(f"sum(jvm_threads_live_threads{{{R}}})", "java", "kotlin"), "threads"),
+                         tgt(lang(f"sum(dotnet_threadpool_num_threads{{{R}}})", "dotnet"), "thread pool")], fill=0,
          desc="Node.js: event loop lag above 100ms = the app is blocked. Go: goroutines growing forever = leak."), 8, 8)
 for p in d.panels[-3:]:
-    p["fieldConfig"]["defaults"]["noValue"] = "No runtime metrics (the app has no /metrics)"
+    p["fieldConfig"]["defaults"]["noValue"] = "No runtime metrics for $lang (needs the app's /metrics)"
 
 d.write("Infra/container.json")

@@ -205,6 +205,26 @@
         "description": "Any running container on this Docker host.",
         "hide": 0,
         "allowCustomValue": false
+      },
+      {
+        "name": "lang",
+        "label": "Language",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "victoriametrics"
+        },
+        "query": {
+          "query": "label_values(container_last_seen{name=\"$container\"}, container_label_container_lang)",
+          "refId": "lang"
+        },
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false,
+        "sort": 1,
+        "description": "container.lang label of the container: picks the Runtime row.",
+        "hide": 2,
+        "allowCustomValue": false
       }
     ]
   },
@@ -2109,7 +2129,7 @@
     {
       "type": "row",
       "id": 28,
-      "title": "Runtime",
+      "title": "Runtime ($lang)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -2130,8 +2150,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(nodejs_heap_size_used_bytes{container=\"$container\"})",
-          "legendFormat": "node heap",
+          "expr": "(sum(nodejs_heap_size_used_bytes{container=\"$container\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"node|javascript|typescript|bun\"})",
+          "legendFormat": "heap",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2139,8 +2159,8 @@
         },
         {
           "refId": "B",
-          "expr": "sum(go_memstats_heap_inuse_bytes{container=\"$container\"})",
-          "legendFormat": "go heap",
+          "expr": "(sum(go_memstats_heap_inuse_bytes{container=\"$container\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"go\"})",
+          "legendFormat": "heap",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2148,8 +2168,8 @@
         },
         {
           "refId": "C",
-          "expr": "sum(jvm_memory_used_bytes{container=\"$container\", area=\"heap\"})",
-          "legendFormat": "jvm heap",
+          "expr": "(sum(jvm_memory_used_bytes{container=\"$container\", area=\"heap\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"java|kotlin\"})",
+          "legendFormat": "heap",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2157,8 +2177,8 @@
         },
         {
           "refId": "D",
-          "expr": "sum(dotnet_total_memory_bytes{container=\"$container\"})",
-          "legendFormat": ".net managed",
+          "expr": "(sum(dotnet_total_memory_bytes{container=\"$container\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"dotnet\"})",
+          "legendFormat": "managed memory",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2166,8 +2186,8 @@
         },
         {
           "refId": "E",
-          "expr": "sum(process_resident_memory_bytes{container=\"$container\"})",
-          "legendFormat": "process resident",
+          "expr": "(sum(process_resident_memory_bytes{container=\"$container\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"python|php|ruby|rust\"})",
+          "legendFormat": "resident memory",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2205,7 +2225,7 @@
             ]
           },
           "links": [],
-          "noValue": "No runtime metrics (the app has no /metrics)"
+          "noValue": "No runtime metrics for $lang (needs the app's /metrics)"
         },
         "overrides": []
       },
@@ -2244,8 +2264,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(nodejs_gc_duration_seconds_sum{container=\"$container\"}[5m]))",
-          "legendFormat": "node",
+          "expr": "(sum(rate(nodejs_gc_duration_seconds_sum{container=\"$container\"}[5m]))) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"node|javascript|typescript|bun\"})",
+          "legendFormat": "gc",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2253,8 +2273,8 @@
         },
         {
           "refId": "B",
-          "expr": "sum(rate(go_gc_duration_seconds_sum{container=\"$container\"}[5m]))",
-          "legendFormat": "go",
+          "expr": "(sum(rate(go_gc_duration_seconds_sum{container=\"$container\"}[5m]))) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"go\"})",
+          "legendFormat": "gc",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2262,8 +2282,8 @@
         },
         {
           "refId": "C",
-          "expr": "sum(rate(jvm_gc_pause_seconds_sum{container=\"$container\"}[5m]))",
-          "legendFormat": "jvm",
+          "expr": "(sum(rate(jvm_gc_pause_seconds_sum{container=\"$container\"}[5m]))) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"java|kotlin\"})",
+          "legendFormat": "gc",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2271,8 +2291,8 @@
         },
         {
           "refId": "D",
-          "expr": "sum(rate(python_gc_collections_total{container=\"$container\"}[5m]))",
-          "legendFormat": "python collections/s",
+          "expr": "(sum(rate(python_gc_collections_total{container=\"$container\"}[5m]))) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"python\"})",
+          "legendFormat": "collections/s",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2310,7 +2330,7 @@
             ]
           },
           "links": [],
-          "noValue": "No runtime metrics (the app has no /metrics)"
+          "noValue": "No runtime metrics for $lang (needs the app's /metrics)"
         },
         "overrides": []
       },
@@ -2349,8 +2369,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "max(nodejs_eventloop_lag_p99_seconds{container=\"$container\"})",
-          "legendFormat": "node event loop lag p99 (s)",
+          "expr": "(max(nodejs_eventloop_lag_p99_seconds{container=\"$container\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"node|javascript|typescript|bun\"})",
+          "legendFormat": "event loop lag p99 (s)",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2358,7 +2378,7 @@
         },
         {
           "refId": "B",
-          "expr": "sum(go_goroutines{container=\"$container\"})",
+          "expr": "(sum(go_goroutines{container=\"$container\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"go\"})",
           "legendFormat": "goroutines",
           "datasource": {
             "type": "prometheus",
@@ -2367,8 +2387,8 @@
         },
         {
           "refId": "C",
-          "expr": "sum(jvm_threads_live_threads{container=\"$container\"})",
-          "legendFormat": "jvm threads",
+          "expr": "(sum(jvm_threads_live_threads{container=\"$container\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"java|kotlin\"})",
+          "legendFormat": "threads",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2376,8 +2396,8 @@
         },
         {
           "refId": "D",
-          "expr": "sum(nodejs_active_handles_total{container=\"$container\"})",
-          "legendFormat": "node active handles",
+          "expr": "(sum(dotnet_threadpool_num_threads{container=\"$container\"})) and on() group(container_last_seen{name=\"$container\", container_label_container_lang=~\"dotnet\"})",
+          "legendFormat": "thread pool",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2415,7 +2435,7 @@
             ]
           },
           "links": [],
-          "noValue": "No runtime metrics (the app has no /metrics)"
+          "noValue": "No runtime metrics for $lang (needs the app's /metrics)"
         },
         "overrides": []
       },
