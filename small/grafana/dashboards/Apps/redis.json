@@ -40,13 +40,6 @@
       "targetBlank": false
     },
     {
-      "title": "Node",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/node-overview/node-overview?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
       "title": "Services",
       "type": "link",
       "icon": "dashboard",

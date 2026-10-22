@@ -4,7 +4,7 @@
     icon + name + severity, summary, description, start/resolve time (TZ from docker-compose),
     links to the Prometheus query, the Grafana dashboard and a pre-filled silence.
   ${GRAFANA_URL} is filled in by entrypoint.sh. The dashboard uid comes from the rule's
-  "dashboard" annotation (falls back to node-overview).
+  "dashboard" annotation (falls back to overview).
 */}}
 {{ define "telegram.message" }}
 {{- range .Alerts }}
@@ -25,7 +25,7 @@
 {{- /* Logs link: log alerts carry "container", cadvisor alerts carry "name". Opens the Logs dashboard
        filtered to that container for the last hour. Omitted for alerts without a container. */}}
 {{- $c := or .Labels.container .Labels.name }}
-🔗 <a href="{{ .GeneratorURL }}">Query</a> | <a href="${GRAFANA_URL}/d/{{ or .Annotations.dashboard "node-overview" }}">Dashboard</a>
+🔗 <a href="{{ .GeneratorURL }}">Query</a> | <a href="${GRAFANA_URL}/d/{{ or .Annotations.dashboard "overview" }}">Dashboard</a>
 {{- if $c }} | <a href="${GRAFANA_URL}/d/logs?var-container={{ $c | urlquery }}&from=now-1h&to=now">Logs</a>{{ end }}
 {{- if eq .Status "firing" }} | <a href="{{ $.ExternalURL }}/#/silences/new?filter={{ printf "{alertname=\"%s\"}" .Labels.alertname | urlquery }}">Silence</a>{{ end }}
 

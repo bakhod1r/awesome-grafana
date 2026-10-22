@@ -89,7 +89,7 @@ transforms:
       # container.project overrides it (same rule as the cadvisor job in prometheus.yml).
       .project = l."container.project" || l."com.docker.compose.project" || ""
       # container.* labels (docker-compose labels:) → type, lang, team, env, the same filters as
-      # the Docker projects dashboard. Containers without them get "" (dropped by VictoriaLogs and Prometheus).
+      # the Docker Projects dashboard. Containers without them get "" (dropped by VictoriaLogs and Prometheus).
       .type = l."container.type" || ""   # backend, frontend, db, ...
       .lang = l."container.lang" || ""   # go, java, node, ...
       .team = l."container.team" || ""   # owning team

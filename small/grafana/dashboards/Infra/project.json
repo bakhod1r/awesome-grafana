@@ -40,13 +40,6 @@
       "targetBlank": false
     },
     {
-      "title": "Node",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/node-overview/node-overview?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
       "title": "Services",
       "type": "link",
       "icon": "dashboard",
@@ -771,7 +764,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name, image, container_label_container_type, container_label_container_lang, container_label_container_team, container_label_container_env) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"container_label_com_docker_compose_project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"), \"type\", \"$1\", \"container_label_container_type\", \"(.+)\"), \"lang\", \"$1\", \"container_label_container_lang\", \"(.+)\"), \"team\", \"$1\", \"container_label_container_team\", \"(.+)\"), \"env\", \"$1\", \"container_label_container_env\", \"(.+)\"), \"key\", \"|\", \"type\", \"image\"), \"dash\", \"container\", \"name\", \".*\"), \"dash\", \"endpoints\", \"key\", \"(backend|service|api)\\\\|.*\"), \"dash\", \"frontend\", \"key\", \"frontend\\\\|.*\"), \"dash\", \"postgres\", \"key\", \"db\\\\|.*postgres.*\"), \"dash\", \"mysql\", \"key\", \"db\\\\|.*(mysql|mariadb).*\"), \"dash\", \"redis\", \"key\", \"cache\\\\|.*\"), \"dash\", \"storage\", \"key\", \"storage\\\\|.*\"), \"dash\", \"queue\", \"key\", \"queue\\\\|.*\"), \"dash\", \"worker\", \"key\", \"worker\\\\|.*\"), \"dash\", \"proxy\", \"key\", \"proxy\\\\|.*\"), \"dash\", \"search\", \"key\", \"search\\\\|.*\"), \"dash\", \"nosql\", \"key\", \"nosql\\\\|.*\"), \"dash\", \"cron\", \"key\", \"cron\\\\|.*\"), \"dash\", \"self\", \"key\", \"monitoring\\\\|.*\"), \"appsvc\", \"-\", \"project\", \"service\"), \"lsvc\", \"$1\", \"service\", \"(.+)\"), \"k2\", \"|\", \"dash\", \"appsvc\"), \"lsvc\", \"$1\", \"k2\", \"endpoints\\\\|(.+)\"), \"pj\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"link_dash\", \"$1\", \"dash\", \"(.*)\"), \"link_name\", \"$1\", \"name\", \"(.*)\"), \"opens\", \"$1\", \"dash\", \"(.*)\"), \"opens\", \"Container\", \"dash\", \"container\"), \"opens\", \"App Endpoints\", \"dash\", \"endpoints\"), \"opens\", \"Frontend\", \"dash\", \"frontend\"), \"opens\", \"PostgreSQL\", \"dash\", \"postgres\"), \"opens\", \"MySQL\", \"dash\", \"mysql\"), \"opens\", \"Redis\", \"dash\", \"redis\"), \"opens\", \"Storage\", \"dash\", \"storage\"), \"opens\", \"Queue\", \"dash\", \"queue\"), \"opens\", \"Worker\", \"dash\", \"worker\"), \"opens\", \"Proxy\", \"dash\", \"proxy\"), \"opens\", \"Search\", \"dash\", \"search\"), \"opens\", \"NoSQL\", \"dash\", \"nosql\"), \"opens\", \"Cron\", \"dash\", \"cron\"), \"opens\", \"Self Monitoring\", \"dash\", \"self\")",
+          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name, image, container_label_container_type, container_label_container_lang, container_label_container_team, container_label_container_env) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"container_label_com_docker_compose_project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"), \"type\", \"$1\", \"container_label_container_type\", \"(.+)\"), \"lang\", \"$1\", \"container_label_container_lang\", \"(.+)\"), \"team\", \"$1\", \"container_label_container_team\", \"(.+)\"), \"env\", \"$1\", \"container_label_container_env\", \"(.+)\"), \"key\", \"|\", \"type\", \"image\"), \"dash\", \"container\", \"name\", \".*\"), \"dash\", \"endpoints\", \"key\", \"(backend|service|api)\\\\|.*\"), \"dash\", \"frontend\", \"key\", \"frontend\\\\|.*\"), \"dash\", \"postgres\", \"key\", \"db\\\\|.*postgres.*\"), \"dash\", \"redis\", \"key\", \"cache\\\\|.*\"), \"dash\", \"storage\", \"key\", \"storage\\\\|.*\"), \"dash\", \"worker\", \"key\", \"worker\\\\|.*\"), \"dash\", \"self\", \"key\", \"monitoring\\\\|.*\"), \"appsvc\", \"-\", \"project\", \"service\"), \"lsvc\", \"$1\", \"service\", \"(.+)\"), \"k2\", \"|\", \"dash\", \"appsvc\"), \"lsvc\", \"$1\", \"k2\", \"endpoints\\\\|(.+)\"), \"pj\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"link_dash\", \"$1\", \"dash\", \"(.*)\"), \"link_name\", \"$1\", \"name\", \"(.*)\"), \"opens\", \"$1\", \"dash\", \"(.*)\"), \"opens\", \"Container\", \"dash\", \"container\"), \"opens\", \"App Endpoints\", \"dash\", \"endpoints\"), \"opens\", \"Frontend\", \"dash\", \"frontend\"), \"opens\", \"PostgreSQL\", \"dash\", \"postgres\"), \"opens\", \"Redis\", \"dash\", \"redis\"), \"opens\", \"Storage\", \"dash\", \"storage\"), \"opens\", \"Worker\", \"dash\", \"worker\"), \"opens\", \"Self Monitoring\", \"dash\", \"self\")",
           "legendFormat": "",
           "datasource": {
             "type": "prometheus",
@@ -1665,13 +1658,167 @@
       }
     },
     {
-      "type": "row",
+      "type": "timeseries",
+      "title": "Disk read by container",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(sum by (name) (rate(container_fs_reads_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])), \"name\", \"(none)\", \"name\", \"\")",
+          "legendFormat": "{{name}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "id": 17,
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk write by container",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(sum by (name) (rate(container_fs_writes_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])), \"name\", \"(none)\", \"name\", \"\")",
+          "legendFormat": "{{name}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 18,
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "type": "row",
+      "id": 19,
       "title": "Logs",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 37,
+        "y": 46,
         "w": 24,
         "h": 1
       },
@@ -1746,10 +1893,10 @@
           "sort": "desc"
         }
       },
-      "id": 18,
+      "id": 20,
       "gridPos": {
         "x": 0,
-        "y": 38,
+        "y": 47,
         "w": 12,
         "h": 9
       }
@@ -1854,10 +2001,10 @@
           "sort": "desc"
         }
       },
-      "id": 19,
+      "id": 21,
       "gridPos": {
         "x": 12,
-        "y": 38,
+        "y": 47,
         "w": 12,
         "h": 9
       }
@@ -1891,10 +2038,10 @@
         "showLabels": false,
         "showCommonLabels": false
       },
-      "id": 20,
+      "id": 22,
       "gridPos": {
         "x": 0,
-        "y": 47,
+        "y": 56,
         "w": 24,
         "h": 12
       }

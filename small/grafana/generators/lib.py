@@ -27,7 +27,6 @@ BAR = {"type": "gauge", "mode": "basic", "valueDisplayMode": "text"}
 NAV = [
     ("Home", "overview", "overview", "apps"),
     ("Docker", "docker-projects", "docker-projects", "docker"),
-    ("Node", "node-overview", "node-overview", "dashboard"),
     ("Services", "services", "services", "dashboard"),
     ("PostgreSQL", "postgres", "postgresql", "dashboard"),
     ("Logs", "logs", "logs", "doc"),
@@ -246,7 +245,7 @@ def query_var(name, label, query, multi=True, include_all=True, desc="", hide=0,
 
 
 def project_var():
-    """Hidden filter set by links from Docker projects (var-project=shop): the Server list then
+    """Hidden filter set by links from Docker Projects (var-project=shop): the Server list then
     only offers exporters discovered in that compose project. Default .* keeps every server."""
     return {"name": "project", "label": "Project", "type": "textbox", "query": ".*", "hide": 2,
             "current": {"text": ".*", "value": ".*"}}
@@ -258,12 +257,9 @@ CONTAINER_LABELS = ("type", "lang", "team", "env")  # container.* Docker labels 
 
 # container.type → dashboard uid. Regexes match "<type>|<image>", so db can pick PostgreSQL or MySQL from the image.
 TYPE_ROUTES = [("endpoints", "(backend|service|api)"), ("frontend", "frontend"), ("postgres", "db\\\\|.*postgres.*"),
-               ("mysql", "db\\\\|.*(mysql|mariadb).*"), ("redis", "cache"), ("storage", "storage"),
-               ("queue", "queue"), ("worker", "worker"), ("proxy", "proxy"), ("search", "search"), ("nosql", "nosql"),
-               ("cron", "cron"), ("self", "monitoring")]
+               ("redis", "cache"), ("storage", "storage"), ("worker", "worker"), ("self", "monitoring")]
 DASH_NAMES = {"container": "Container", "endpoints": "App Endpoints", "frontend": "Frontend", "postgres": "PostgreSQL",
-              "mysql": "MySQL", "redis": "Redis", "storage": "Storage", "queue": "Queue", "worker": "Worker", "proxy": "Proxy",
-              "search": "Search", "nosql": "NoSQL", "cron": "Cron", "self": "Self Monitoring"}
+              "redis": "Redis", "storage": "Storage", "worker": "Worker", "self": "Self Monitoring"}
 
 
 def R(e, dst, rep, src, rx):
@@ -298,7 +294,7 @@ def type_routing(e):
 
 
 def container_var():
-    """Hidden filter set by links from Docker projects / Project (var-container=<name>). Default .* = all."""
+    """Hidden filter set by links from Docker Projects / Project (var-container=<name>). Default .* = all."""
     return {"name": "container", "label": "Container", "type": "textbox", "query": ".*", "hide": 2,
             "current": {"text": ".*", "value": ".*"}}
 

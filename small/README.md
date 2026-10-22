@@ -123,7 +123,7 @@ Run your app with Docker on the same host (any compose project, or plain `docker
 | Traces | send OTLP to `http://vector:4318` (HTTP) or `vector:4317` (gRPC); set `OTEL_SERVICE_NAME` |
 | Uptime and SSL checks | add the URL to `prometheus/sites.yml` (re-read every 30s) |
 | Deploy markers on graphs | call `scripts/annotate-deploy.sh <service> <version>` from CI |
-| Cron / batch jobs | push `cron_job_*` metrics to the Pushgateway at the end of each run (see the **Cron** dashboard description) |
+| Cron / batch jobs | push metrics to the Pushgateway at the end of each run |
 
 Example compose service:
 
@@ -144,7 +144,7 @@ services:
 ### 3. Find things in Grafana
 
 - **Home** (Server Overview): the host — CPU, memory, disks, network, internet speed, sites, Docker totals.
-- **Docker** (Docker projects): every compose project with its resource use. Click a project →
+- **Docker** (Docker Projects): every compose project with its resource use. Click a project →
   **Project** dashboard: summary plus a table of its containers. Click a container → the dashboard for its
   `container.type` (backend → App Endpoints, db → PostgreSQL, ...; unlabelled → **Container**).
   Click its *lang* cell → the **Container** dashboard, whose HTTP and Runtime rows show that app's traffic and runtime.
@@ -191,9 +191,9 @@ history matters to you.
 |------|-------|
 | App SLO — availability 99.5% (non-5xx) and latency 99% within 1s per service, error budget, multi-window burn-rate alerts `AppErrorBudget*` / `AppLatencyBudget*` | dashboard **App SLO**, `prometheus/rules/{recording,alerts}.yml` |
 | Probe SLO — 99.9% of blackbox probes, certificate expiry (`SslExpiresSoon` at 14 days, `SslExpiresCritical` at 3) | dashboard **Probes & SLO** |
-| Disk forecast — `DiskWillFillIn24h` / `DiskWillFillIn4h` (`predict_linear`), hours-until-full panel | dashboard **Node Overview** |
+| Disk forecast — `DiskWillFillIn24h` / `DiskWillFillIn4h` (`predict_linear`), hours-until-full panel | dashboard **Server Overview** (Disks) |
 | Redis, PostgreSQL | dashboards **Redis**, **PostgreSQL** |
-| One project, one container | **Docker projects → Project → Container** (or the type dashboard: App Endpoints, Frontend, Queue, Worker, Proxy, Search, NoSQL, Storage, Cron) |
+| One project, one container | **Docker Projects → Project → Container** (or the type dashboard: App Endpoints, Frontend, Queue, Worker, Proxy, Search, NoSQL, Storage, Cron) |
 | Language runtime (Go, Java, Node, Python, PHP, .NET, Rust, Ruby) | dashboards **Runtime: <language>** |
 
 Every dashboard marks events on its graphs: container (re)starts, a container running a new image (deploy or rollback), and deploys you post yourself:
@@ -275,15 +275,10 @@ services:
 |------------------|-------|
 | `backend`, `service`, `api` | **App Endpoints**: per endpoint 2xx/3xx/4xx/5xx and p50/p95/p99, status codes, Apdex, week-over-week, top errors |
 | `frontend` | **Frontend**: requests, 4xx/5xx, latency, top pages and 404s, humans vs bots, referrers, broken assets, 499s (nginx-style access logs) |
-| `db` | **PostgreSQL** or **MySQL**, picked from the image |
+| `db` | **PostgreSQL** (other databases: **Container**) |
 | `cache` | **Redis** |
 | `storage` | **Storage** (MinIO): capacity and forecast, S3 requests, errors, latency |
-| `queue` | **Queue**: backlog, in vs out, consumers, dead-lettered (RabbitMQ; Kafka and NATS sections) |
 | `worker` | **Worker**: jobs done/failed, backlog, retries, job time (asynq, Celery, Sidekiq, BullMQ) + log-based view |
-| `proxy` | **Proxy**: traffic per upstream, 502/503/504, latency (Traefik; Caddy, HAProxy, nginx sections) |
-| `search` | **Search**: Elasticsearch / OpenSearch health, shards, search and indexing speed, JVM heap, disk watermarks |
-| `nosql` | **NoSQL**: MongoDB operations, latency, scanned vs returned, cache; Memcached hit ratio, memory, evictions |
-| `cron` | **Cron**: last run, last success, duration, exit code per job (jobs push `cron_job_*` to the Pushgateway) |
 | `monitoring` | **Self Monitoring** (the stack's own services) |
 | anything else (`mail`, `exporter`, `loadgen`, ...) | **Container**: status, restarts, CPU, memory vs limit, network, disk, logs |
 
@@ -294,7 +289,7 @@ container (heap, GC, event loop lag / goroutines / threads) is the **Runtime** r
 dashboard: the app's own `/metrics` (prom-client, client_golang, Micrometer, ...) fill it; Beyla gives HTTP
 numbers but no runtime ones.
 
-Where to click: **Docker projects → a project** (Project dashboard) **→ a container**, or **Docker projects → Containers by type**. The *Opens* column opens the type's dashboard,
+Where to click: **Docker Projects → a project** (Project dashboard) **→ a container**, or **Docker Projects → Containers by type**. The *Opens* column opens the type's dashboard,
 the *lang* column its Container dashboard (HTTP + Runtime rows). Type, Language, Team and Env are also filters on that dashboard and
 fields on every log line (`type:backend`, `team:payments`).
 

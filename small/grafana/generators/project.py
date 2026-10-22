@@ -1,7 +1,7 @@
 """Project: one compose project at a glance — summary, its containers, and a click-through per container.
 
-Opened from Docker projects (click a project name). Clicking a container opens the dashboard that fits its
-container.type label (same routing as "Containers by type" on Docker projects); the lang column opens the
+Opened from Docker Projects (click a project name). Clicking a container opens the dashboard that fits its
+container.type label (same routing as "Containers by type" on Docker Projects); the lang column opens the
 Container dashboard (HTTP + Runtime rows) for container.lang. Containers started without compose show up as "(standalone)".
 """
 from lib import *
@@ -97,6 +97,8 @@ d.add(ts("CPU by container", [tgt(f"sum by (name) (rate(container_cpu_usage_seco
 d.add(ts("Memory by container", [tgt(f"sum by (name) (container_memory_working_set_bytes{{{SEL}}})", "{{name}}")], unit="bytes", stack=True), 12, 9)
 d.add(ts("Network in by container", [tgt(f"sum by (name) (rate(container_network_receive_bytes_total{{{SEL}}}[5m]))", "{{name}}")], unit="Bps", stack=True), 12, 9)
 d.add(ts("Network out by container", [tgt(f"sum by (name) (rate(container_network_transmit_bytes_total{{{SEL}}}[5m]))", "{{name}}")], unit="Bps", stack=True), 12, 9)
+d.add(ts("Disk read by container", [tgt(f"sum by (name) (rate(container_fs_reads_bytes_total{{{SEL}}}[5m]))", "{{name}}")], unit="Bps", stack=True), 12, 9)
+d.add(ts("Disk write by container", [tgt(f"sum by (name) (rate(container_fs_writes_bytes_total{{{SEL}}}[5m]))", "{{name}}")], unit="Bps", stack=True), 12, 9)
 
 d.row("Logs")
 d.add(ts("Error logs/min by container",

@@ -1,4 +1,4 @@
-"""Docker projects: every running compose project and its services (cAdvisor + Vector logs)."""
+"""Docker Projects: every running compose project and its services (cAdvisor + Vector logs)."""
 from lib import *
 
 UID, SLUG = "docker-projects", "docker-projects"
@@ -52,7 +52,7 @@ SERVICE_LINK = [{"title": "Only this service", "url": f"/d/{UID}/{SLUG}?${{__url
 
 P_PROJ, P_SVC, P_GONE, P_OOM, P_ERRLOG, P_MEM = 901, 902, 903, 904, 905, 906
 
-d = Dash(UID, "Docker projects",
+d = Dash(UID, "Docker Projects",
          "Every running docker compose project and its services: status, uptime, CPU, RAM, network, disk, restarts, OOM, logs. "
          "New projects appear on their own (from cAdvisor docker labels).",
          ["docker", "containers", "projects", "overview", "cadvisor"],

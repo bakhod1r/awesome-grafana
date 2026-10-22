@@ -121,6 +121,10 @@ def main():
                 project = labels.get("container.project") or labels.get("com.docker.compose.project", "")
                 if project == SELF_PROJECT or labels.get("prometheus.scrape") == "false":
                     continue
+                # Static frontends (nginx serving a JS bundle) have no /metrics: probing them only adds
+                # "/metrics" 404 lines to their access log and the Frontend dashboard. Opt in with prometheus.port.
+                if labels.get("container.type") == "frontend" and "prometheus.port" not in labels:
+                    continue
                 if cid in found and (found[cid] or time.time() - checked[cid] < RETRY_AFTER):
                     continue
                 name = c["Names"][0].lstrip("/")

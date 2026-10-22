@@ -102,49 +102,6 @@
     },
     {
       "type": "stat",
-      "title": "Uptime",
-      "gridPos": {
-        "x": 0,
-        "y": 7,
-        "w": 5,
-        "h": 4
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "time() - max(node_boot_time_seconds)",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "dtdurations",
-          "decimals": 0,
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#5794F2"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false
-        }
-      }
-    },
-    {
-      "type": "stat",
       "title": "Containers running",
       "gridPos": {
         "x": 5,
@@ -167,106 +124,6 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "green"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false
-        }
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Critical alerts",
-      "gridPos": {
-        "x": 5,
-        "y": 5,
-        "w": 3,
-        "h": 3
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "count(ALERTS{alertstate=\"firing\", severity=\"critical\"}) or vector(0)",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "textMode": "value",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false
-        }
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Warning alerts",
-      "gridPos": {
-        "x": 5,
-        "y": 8,
-        "w": 3,
-        "h": 3
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "count(ALERTS{alertstate=\"firing\", severity=\"warning\"}) or vector(0)",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 1
-              }
-            ]
           }
         },
         "overrides": []
@@ -505,6 +362,166 @@
       }
     },
     {
+      "type": "stat",
+      "title": "Load (1min)",
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "expr": "max(node_load1)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 8
+              },
+              {
+                "color": "red",
+                "value": 12
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Load (5min)",
+      "gridPos": {
+        "x": 20,
+        "y": 4,
+        "w": 4,
+        "h": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "expr": "max(node_load5)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 8
+              },
+              {
+                "color": "red",
+                "value": 12
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Critical alerts",
+      "gridPos": {
+        "x": 5,
+        "y": 5,
+        "w": 3,
+        "h": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "expr": "count(ALERTS{alertstate=\"firing\", severity=\"critical\"}) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      }
+    },
+    {
       "type": "gauge",
       "title": "CPU I/O Wait",
       "gridPos": {
@@ -726,12 +743,12 @@
     },
     {
       "type": "stat",
-      "title": "Load (1min)",
+      "title": "Uptime",
       "gridPos": {
-        "x": 20,
-        "y": 1,
-        "w": 4,
-        "h": 3
+        "x": 0,
+        "y": 7,
+        "w": 5,
+        "h": 4
       },
       "datasource": {
         "type": "prometheus",
@@ -739,91 +756,24 @@
       },
       "targets": [
         {
-          "expr": "max(node_load1)",
+          "expr": "time() - max(node_boot_time_seconds)",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 8
-              },
-              {
-                "color": "red",
-                "value": 12
-              }
-            ]
+          "unit": "dtdurations",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#5794F2"
           }
         },
         "overrides": []
       },
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "textMode": "value",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false
-        }
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Load (5min)",
-      "gridPos": {
-        "x": 20,
-        "y": 4,
-        "w": 4,
-        "h": 3
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "max(node_load5)",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 8
-              },
-              {
-                "color": "red",
-                "value": 12
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "reduceOptions": {
@@ -879,6 +829,56 @@
       "options": {
         "colorMode": "background",
         "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Warning alerts",
+      "gridPos": {
+        "x": 5,
+        "y": 8,
+        "w": 3,
+        "h": 3
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "expr": "count(ALERTS{alertstate=\"firing\", severity=\"warning\"}) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
         "textMode": "value",
         "justifyMode": "center",
         "reduceOptions": {
@@ -1309,7 +1309,7 @@
     },
     {
       "type": "row",
-      "title": "Speed Tests",
+      "title": "Disks",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -1320,221 +1320,11 @@
       "panels": []
     },
     {
-      "type": "stat",
-      "title": "Speed Test Download",
-      "gridPos": {
-        "x": 0,
-        "y": 71,
-        "w": 8,
-        "h": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "last_over_time(speedtest_download_bits_per_second[1h])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bps",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 20000000.0
-              },
-              {
-                "color": "green",
-                "value": 50000000.0
-              }
-            ]
-          },
-          "noValue": "Waiting for first test",
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "value",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false
-        },
-        "text": {
-          "valueSize": 64
-        }
-      },
-      "interval": "30m",
-      "timeFrom": "24h",
-      "hideTimeOverride": true
-    },
-    {
-      "type": "stat",
-      "title": "Speed Test Upload",
-      "gridPos": {
-        "x": 8,
-        "y": 71,
-        "w": 8,
-        "h": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "last_over_time(speedtest_upload_bits_per_second[1h])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bps",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 10000000.0
-              },
-              {
-                "color": "green",
-                "value": 30000000.0
-              }
-            ]
-          },
-          "noValue": "Waiting for first test",
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "value",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false
-        },
-        "text": {
-          "valueSize": 64
-        }
-      },
-      "interval": "30m",
-      "timeFrom": "24h",
-      "hideTimeOverride": true
-    },
-    {
-      "type": "stat",
-      "title": "Ping Rate",
-      "gridPos": {
-        "x": 16,
-        "y": 71,
-        "w": 8,
-        "h": 7
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "last_over_time(speedtest_ping_latency_milliseconds[1h])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ms",
-          "decimals": 1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 30
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "noValue": "Waiting for first test",
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "value",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false
-        },
-        "text": {
-          "valueSize": 64
-        }
-      },
-      "interval": "30m",
-      "timeFrom": "24h",
-      "hideTimeOverride": true
-    },
-    {
-      "type": "row",
-      "title": "Disks",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 78,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
       "type": "gauge",
       "title": "Storage Used",
       "gridPos": {
         "x": 0,
-        "y": 79,
+        "y": 71,
         "w": 5,
         "h": 9
       },
@@ -1589,7 +1379,7 @@
       "title": "Storage Space",
       "gridPos": {
         "x": 5,
-        "y": 79,
+        "y": 71,
         "w": 7,
         "h": 9
       },
@@ -1670,125 +1460,177 @@
       }
     },
     {
-      "type": "bargauge",
-      "title": "Drive Temperatures",
-      "gridPos": {
-        "x": 12,
-        "y": 79,
-        "w": 6,
-        "h": 9
-      },
+      "id": 900,
+      "type": "stat",
+      "title": "Disk full in (forecast)",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
       },
+      "description": "Hours until each real filesystem is full at the pace of the last 6 hours. Only filesystems that are filling up are shown; 'Not filling up' = free space is stable or growing. Alerts: DiskWillFillIn24h (warning), DiskWillFillIn4h (critical).",
+      "gridPos": {
+        "x": 12,
+        "y": 71,
+        "w": 6,
+        "h": 9
+      },
       "targets": [
         {
-          "expr": "smartctl_device_temperature{temperature_type=\"current\"}",
           "refId": "A",
-          "legendFormat": "{{device}}"
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "min by (instance, device) (device:node_filesystem_full_in:hours)",
+          "legendFormat": "{{device}}",
+          "instant": true,
+          "range": false
         }
       ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "celsius",
-          "min": 20,
-          "max": 70,
-          "noValue": "No SMART data (profile \"smart\", Linux only)",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 45
-              },
-              {
-                "color": "red",
-                "value": 55
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
       "options": {
-        "displayMode": "lcd",
-        "orientation": "horizontal",
-        "showUnfilled": true,
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
-          ]
-        }
-      }
-    },
-    {
-      "type": "stat",
-      "title": "SMART status",
-      "gridPos": {
-        "x": 18,
-        "y": 79,
-        "w": 6,
-        "h": 9
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "smartctl_device_smart_status",
-          "refId": "A",
-          "legendFormat": "{{device}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "No SMART data",
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "FAILED",
-                  "color": "red"
-                },
-                "1": {
-                  "text": "PASSED",
-                  "color": "green"
-                }
-              }
-            }
           ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#5f6b78",
-                "value": null
-              }
-            ]
-          }
+          "fields": "",
+          "values": false
         },
-        "overrides": []
-      },
-      "options": {
         "colorMode": "background",
         "graphMode": "none",
         "textMode": "value_and_name",
-        "justifyMode": "center",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "values": false
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 0,
+          "noValue": "Not filling up",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 4
+              },
+              {
+                "color": "yellow",
+                "value": 24
+              },
+              {
+                "color": "green",
+                "value": 168
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 901,
+      "type": "timeseries",
+      "title": "Free space and 24h forecast",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "description": "Solid: free space now. Dashed: where predict_linear (6h trend) says it will be in 24 hours. Dashed line reaching 0 = DiskWillFillIn24h.",
+      "gridPos": {
+        "x": 18,
+        "y": 71,
+        "w": 6,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "max by (device) (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*\", mountpoint!~\"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*\"})",
+          "legendFormat": "{{device}} free"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "max by (device) (predict_linear(node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*\", mountpoint!~\"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*\"}[6h], 24 * 3600))",
+          "legendFormat": "{{device}} in 24h"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".* in 24h"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    8,
+                    6
+                  ]
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
         }
       }
     },
@@ -1797,7 +1639,7 @@
       "title": "Drive Read Rates",
       "gridPos": {
         "x": 0,
-        "y": 88,
+        "y": 80,
         "w": 24,
         "h": 10
       },
@@ -1846,7 +1688,7 @@
       "title": "Drive Write Rates",
       "gridPos": {
         "x": 0,
-        "y": 98,
+        "y": 90,
         "w": 24,
         "h": 10
       },
@@ -1896,66 +1738,18 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 108,
+        "y": 100,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "type": "timeseries",
-      "title": "Docker CPU Usage",
-      "gridPos": {
-        "x": 0,
-        "y": 113,
-        "w": 24,
-        "h": 10
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "label_replace(topk(10, name:container_cpu_usage:rate1m) * 100, \"name\", \"(none)\", \"name\", \"\")",
-          "refId": "A",
-          "legendFormat": "{{name}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 15,
-            "gradientMode": "opacity",
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "lastNotNull"
-          ],
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
       "type": "stat",
       "title": "Containers Running",
       "gridPos": {
         "x": 0,
-        "y": 109,
+        "y": 101,
         "w": 12,
         "h": 4
       },
@@ -1996,7 +1790,7 @@
       "title": "Restarts (24h)",
       "gridPos": {
         "x": 12,
-        "y": 109,
+        "y": 101,
         "w": 12,
         "h": 4
       },
@@ -2047,10 +1841,58 @@
     },
     {
       "type": "timeseries",
+      "title": "Docker CPU Usage",
+      "gridPos": {
+        "x": 0,
+        "y": 105,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "expr": "label_replace(topk(10, name:container_cpu_usage:rate1m) * 100, \"name\", \"(none)\", \"name\", \"\")",
+          "refId": "A",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
       "title": "Docker RAM Usage",
       "gridPos": {
         "x": 0,
-        "y": 123,
+        "y": 115,
         "w": 24,
         "h": 10
       },
@@ -2099,7 +1941,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 133,
+        "y": 125,
         "w": 24,
         "h": 1
       },
@@ -2110,7 +1952,7 @@
       "title": "Site status",
       "gridPos": {
         "x": 0,
-        "y": 134,
+        "y": 126,
         "w": 24,
         "h": 8
       },
@@ -2176,7 +2018,7 @@
       "title": "Response time",
       "gridPos": {
         "x": 0,
-        "y": 142,
+        "y": 134,
         "w": 24,
         "h": 10
       },
@@ -2273,13 +2115,6 @@
       "type": "link",
       "icon": "docker",
       "url": "/d/docker-projects/docker-projects?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
-      "title": "Node",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/node-overview/node-overview?${__url_time_range}",
       "targetBlank": false
     },
     {

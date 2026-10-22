@@ -1,6 +1,6 @@
 """Container: everything about one container, for any container (with or without labels or compose).
 
-Opened when a container is clicked on the Project / Docker projects dashboards and its container.type has no
+Opened when a container is clicked on the Project / Docker Projects dashboards and its container.type has no
 dedicated dashboard (or no label at all). cAdvisor for resources, Vector log metrics + VictoriaLogs for logs,
 HTTP metrics (Beyla or the app's /metrics) and the language runtime (heap, GC, event loop / goroutines / threads).
 """
