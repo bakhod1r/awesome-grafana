@@ -1,7 +1,7 @@
 {
   "title": "Docker Projects",
   "uid": "docker-projects",
-  "description": "Every running docker compose project and its services: status, uptime, CPU, RAM, network, disk, restarts, OOM, logs. New projects appear on their own (from cAdvisor docker labels). Per-container detail (resources, logs) is on the Project and Container dashboards.",
+  "description": "Every running docker compose project and its services: status, uptime, CPU, RAM, network, disk, restarts, OOM, logs. New projects appear on their own (from cAdvisor docker labels).",
   "tags": [
     "docker",
     "containers",
@@ -27,27 +27,6 @@
     ]
   },
   "links": [
-    {
-      "title": "Services",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/overview/overview?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
-      "title": "Traces",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/endpoints/endpoints?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
-      "title": "App SLO",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/probes-slo/probes-slo?${__url_time_range}",
-      "targetBlank": false
-    },
     {
       "title": "Home",
       "type": "link",
@@ -1177,7 +1156,7 @@
                 "value": [
                   {
                     "title": "Project overview: ${__data.fields.project}",
-                    "url": "/d/docker-projects/docker-projects?${__url_time_range}&var-project=${__data.fields.project}"
+                    "url": "/d/project/project?${__url_time_range}&var-project=${__data.fields.project}"
                   }
                 ]
               }
@@ -1511,18 +1490,18 @@
     },
     {
       "type": "table",
-      "title": "Containers — report (pick a project above, click a container for its own report)",
+      "title": "Containers (all running)",
       "gridPos": {
         "x": 0,
         "y": 15,
         "w": 24,
-        "h": 14
+        "h": 12
       },
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
       },
-      "description": "One row per running container of the selected project: resources, uptime, restarts, OOM kills, error logs and HTTP traffic (Beyla, the app's /metrics, or frontend access logs). Click a container name: its Container dashboard (health, resources, HTTP, runtime, logs).",
+      "description": "Every running container on the Docker host, one row each. Filter with the project/service variables or the column filters.",
       "targets": [
         {
           "refId": "A",
@@ -1589,72 +1568,6 @@
           "instant": true,
           "range": false,
           "format": "table"
-        },
-        {
-          "refId": "G",
-          "expr": "label_replace(label_replace(sum by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (resets(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[24h])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\")",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "H",
-          "expr": "label_replace(label_replace(sum by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (increase(container_oom_events_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[24h])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\")",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "I",
-          "expr": "(sum by (name) (label_replace(rate(vector_log_lines_total{level=~\"error|fatal|panic\"}[5m]) * 60, \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "J",
-          "expr": "(sum by (name) (label_replace(rate(http_requests_total{job=\"apps\"}[5m]) or rate(vector_frontend_http_requests_total[5m]), \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "K",
-          "expr": "((sum by (name) (label_replace(rate(http_requests_total{job=\"apps\", status=~\"5..\"}[5m]) or rate(vector_frontend_http_requests_total{status_class=\"5xx\"}[5m]), \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))) / ((sum by (name) (label_replace(rate(http_requests_total{job=\"apps\"}[5m]) or rate(vector_frontend_http_requests_total[5m]), \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))) * 100",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "L",
-          "expr": "histogram_quantile(0.95, sum by (name, le) (label_replace(rate(http_request_duration_seconds_bucket{job=\"apps\"}[5m]) or rate(vector_frontend_http_request_duration_seconds_bucket[5m]), \"name\", \"$1\", \"container\", \"(.+)\"))) * on(name) group_left(project, service) (label_replace(label_replace(max by (name, container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} * 0 + 1), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.*)\"))",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
         }
       ],
       "transformations": [
@@ -1679,13 +1592,7 @@
               "Value #C": 4,
               "Value #D": 5,
               "Value #E": 6,
-              "Value #F": 7,
-              "Value #G": 8,
-              "Value #H": 9,
-              "Value #I": 10,
-              "Value #J": 11,
-              "Value #K": 12,
-              "Value #L": 13
+              "Value #F": 7
             },
             "renameByName": {
               "name": "Container",
@@ -1695,13 +1602,7 @@
               "Value #C": "Memory",
               "Value #D": "Net in",
               "Value #E": "Net out",
-              "Value #F": "Uptime",
-              "Value #G": "Restarts 24h",
-              "Value #H": "OOM 24h",
-              "Value #I": "Errors/min",
-              "Value #J": "Req/s",
-              "Value #K": "5xx %",
-              "Value #L": "p95"
+              "Value #F": "Uptime"
             }
           }
         }
@@ -1807,233 +1708,6 @@
                         "text": "(standalone)"
                       }
                     }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Restarts 24h"
-            },
-            "properties": [
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 1
-                    },
-                    {
-                      "color": "red",
-                      "value": 5
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "OOM 24h"
-            },
-            "properties": [
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Errors/min"
-            },
-            "properties": [
-              {
-                "id": "decimals",
-                "value": 1
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 0.1
-                    },
-                    {
-                      "color": "red",
-                      "value": 5
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Req/s"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "reqps"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "5xx %"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "decimals",
-                "value": 2
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 1
-                    },
-                    {
-                      "color": "red",
-                      "value": 5
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "p95"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 3
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "transparent",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 0.5
-                    },
-                    {
-                      "color": "red",
-                      "value": 1
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Container"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "Report for this container",
-                    "url": "/d/container/container?${__url_time_range}&var-container=${__value.raw}"
                   }
                 ]
               }
@@ -2207,589 +1881,6 @@
       }
     },
     {
-      "type": "table",
-      "title": "Containers of the project — click one to open its dashboard (by container.type)",
-      "description": "Every container of the project. Click the container (or Opens) for its dashboard, lang for its runtime (Container dashboard, Runtime row). Labels come from docker-compose: container.type / lang / team / env.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_join(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_join(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name, image, container_label_container_type, container_label_container_lang, container_label_container_team, container_label_container_env) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"container_label_com_docker_compose_project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"), \"type\", \"$1\", \"container_label_container_type\", \"(.+)\"), \"lang\", \"$1\", \"container_label_container_lang\", \"(.+)\"), \"team\", \"$1\", \"container_label_container_team\", \"(.+)\"), \"env\", \"$1\", \"container_label_container_env\", \"(.+)\"), \"key\", \"|\", \"type\", \"image\"), \"dash\", \"container\", \"name\", \".*\"), \"dash\", \"endpoints\", \"key\", \"(backend|service|api)\\\\|.*\"), \"dash\", \"frontend\", \"key\", \"frontend\\\\|.*\"), \"dash\", \"postgres\", \"key\", \"db\\\\|.*postgres.*\"), \"dash\", \"redis\", \"key\", \"cache\\\\|.*\"), \"dash\", \"storage\", \"key\", \"storage\\\\|.*\"), \"dash\", \"worker\", \"key\", \"worker\\\\|.*\"), \"dash\", \"self\", \"key\", \"monitoring\\\\|.*\"), \"appsvc\", \"-\", \"project\", \"service\"), \"lsvc\", \"$1\", \"service\", \"(.+)\"), \"k2\", \"|\", \"dash\", \"appsvc\"), \"lsvc\", \"$1\", \"k2\", \"endpoints\\\\|(.+)\"), \"pj\", \"$1\", \"container_label_com_docker_compose_project\", \"(.*)\"), \"link_dash\", \"$1\", \"dash\", \"(.*)\"), \"link_name\", \"$1\", \"name\", \"(.*)\"), \"opens\", \"$1\", \"dash\", \"(.*)\"), \"opens\", \"Container\", \"dash\", \"container\"), \"opens\", \"App Endpoints\", \"dash\", \"endpoints\"), \"opens\", \"Frontend\", \"dash\", \"frontend\"), \"opens\", \"PostgreSQL\", \"dash\", \"postgres\"), \"opens\", \"Redis\", \"dash\", \"redis\"), \"opens\", \"Storage\", \"dash\", \"storage\"), \"opens\", \"Worker\", \"dash\", \"worker\"), \"opens\", \"Self Monitoring\", \"dash\", \"self\")",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "B",
-          "expr": "max by (name) (time() - container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\"} < bool 60)",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "C",
-          "expr": "max by (name) (time() - container_start_time_seconds{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "D",
-          "expr": "max by (name) (rate(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])) * 100",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "E",
-          "expr": "max by (name) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "F",
-          "expr": "max by (name) (resets(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[24h]))",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        },
-        {
-          "refId": "G",
-          "expr": "label_replace(sum by (container) (rate(vector_log_lines_total{project=~\"$project\", level=~\"error|fatal|panic\"}[5m])) * 60, \"name\", \"$1\", \"container\", \"(.+)\") and on (name) max by (name) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\"})",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "job": true,
-              "instance": true,
-              "server": true,
-              "Value #A": true,
-              "image": true,
-              "key": true,
-              "k2": true,
-              "appsvc": true,
-              "container": true,
-              "container_label_com_docker_compose_project": true,
-              "container_label_com_docker_compose_service": true,
-              "container_label_container_type": true,
-              "container_label_container_lang": true,
-              "container_label_container_team": true,
-              "container_label_container_env": true
-            },
-            "renameByName": {
-              "Value #B": "Status",
-              "Value #C": "Uptime",
-              "Value #D": "CPU %",
-              "Value #E": "Memory",
-              "Value #F": "Restarts 24h",
-              "Value #G": "Errors/min"
-            },
-            "indexByName": {
-              "name": 0,
-              "service": 1,
-              "type": 2,
-              "lang": 3,
-              "team": 4,
-              "env": 5,
-              "opens": 6,
-              "Value #B": 7,
-              "Value #C": 8,
-              "Value #D": 9,
-              "Value #E": 10,
-              "Value #F": 11,
-              "Value #G": 12,
-              "project": 13
-            }
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "name"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 230
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "Open the dashboard for this container (by container.type)",
-                    "url": "/d/${__data.fields.link_dash}?${__url_time_range}&var-project=${__data.fields.pj}&var-service=${__data.fields.lsvc}&var-container=${__data.fields.link_name}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "container"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "opens"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 150
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "Open the dashboard for this container (by container.type)",
-                    "url": "/d/${__data.fields.link_dash}?${__url_time_range}&var-project=${__data.fields.pj}&var-service=${__data.fields.lsvc}&var-container=${__data.fields.link_name}"
-                  }
-                ]
-              },
-              {
-                "id": "displayName",
-                "value": "Opens"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "dash"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "lsvc"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "pj"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "link_dash"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "link_name"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "service"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 130
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "type"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "team"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "env"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 80
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "lang"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 80
-              },
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "title": "Runtime: ${__data.fields.lang}",
-                    "url": "/d/container/container?${__url_time_range}&var-project=${__data.fields.pj}&var-container=${__data.fields.link_name}"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Status"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-background",
-                  "mode": "basic"
-                }
-              },
-              {
-                "id": "custom.width",
-                "value": 80
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "type": "value",
-                    "options": {
-                      "0": {
-                        "text": "DOWN",
-                        "color": "red",
-                        "index": 0
-                      },
-                      "1": {
-                        "text": "UP",
-                        "color": "green",
-                        "index": 1
-                      }
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Uptime"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "CPU %"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "gauge",
-                  "mode": "basic"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 50
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "decimals",
-                "value": 1
-              },
-              {
-                "id": "min",
-                "value": 0
-              },
-              {
-                "id": "max",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Memory"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Restarts 24h"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 1
-                    },
-                    {
-                      "color": "red",
-                      "value": 5
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Errors/min"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "orange",
-                      "value": 0.1
-                    },
-                    {
-                      "color": "red",
-                      "value": 5
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "decimals",
-                "value": 1
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false
-        },
-        "sortBy": [
-          {
-            "displayName": "CPU %",
-            "desc": true
-          }
-        ]
-      },
-      "id": 950,
-      "gridPos": {
-        "x": 0,
-        "y": 29,
-        "w": 24,
-        "h": 12
-      }
-    },
-    {
       "type": "timeseries",
       "title": "Network by project",
       "description": "Yuqori = kirgan, past = chiqqan trafik.",
@@ -2870,7 +1961,7 @@
       "id": 14,
       "gridPos": {
         "x": 0,
-        "y": 49,
+        "y": 37,
         "w": 24,
         "h": 10
       }
@@ -2878,15 +1969,2489 @@
     {
       "type": "row",
       "id": 15,
-      "title": "Containers — by type, up / gone",
+      "title": "Services — inside the project",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 59,
+        "y": 47,
         "w": 24,
         "h": 1
       },
       "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Services",
+      "description": "Every container: uptime, healthcheck, resources, errors. Red uptime = recently restarted. RAM % limit only for containers with mem_limit. CPU wait = time queued for CPU (PSI): high = not enough CPU.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (time() - container_start_time_seconds{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "B",
+          "expr": "label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_health_state{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "C",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (rate(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "D",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "E",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\") / label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_spec_memory_limit_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"} > 0), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "F",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (rate(container_network_receive_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "G",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (rate(container_network_transmit_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "H",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (rate(container_fs_reads_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "I",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (rate(container_fs_writes_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "J",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (rate(container_pressure_cpu_waiting_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "K",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (increase(container_oom_events_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[$__range])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        },
+        {
+          "refId": "L",
+          "expr": "sum by (project, service) (rate(vector_log_lines_total{project=~\"$project\", service=~\"$service\", level=~\"error|fatal|panic\"}[5m])) * 60",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "server": true,
+              "container_label_com_docker_compose_project": true,
+              "container_label_com_docker_compose_service": true
+            },
+            "renameByName": {
+              "Value #A": "Uptime",
+              "Value #B": "Health",
+              "Value #C": "CPU",
+              "Value #D": "Memory",
+              "Value #E": "RAM % limit",
+              "Value #F": "Net in",
+              "Value #G": "Net out",
+              "Value #H": "Disk read",
+              "Value #I": "Disk write",
+              "Value #J": "CPU wait",
+              "Value #K": "OOM",
+              "Value #L": "Errors/min"
+            },
+            "indexByName": {
+              "project": 0,
+              "service": 1,
+              "name": 2
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "service"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open this service",
+                    "oneClick": true,
+                    "url": "/d/container/container?${__url_time_range}&var-container=${__data.fields.name}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "project"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 140
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 230
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Logs of this container",
+                    "url": "/d/logs/logs?${__url_time_range}&var-container=${__data.fields.name}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Uptime"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 600
+                    },
+                    {
+                      "color": "green",
+                      "value": 3600
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Health"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "healthy",
+                        "color": "green",
+                        "index": 0
+                      },
+                      "0": {
+                        "text": "unhealthy",
+                        "color": "red",
+                        "index": 1
+                      },
+                      "-1": {
+                        "text": "no check",
+                        "color": "transparent",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0.5
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RAM % limit"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "lcd",
+                  "valueDisplayMode": "text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0.7
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.9
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Net in"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Net out"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk read"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk write"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU wait"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 0.1
+                    },
+                    {
+                      "color": "red",
+                      "value": 0.3
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "OOM"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors/min"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 20
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "CPU",
+            "desc": true
+          }
+        ]
+      },
+      "id": 902,
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 24,
+        "h": 10
+      }
+    },
+    {
+      "type": "state-timeline",
+      "title": "Container presence (up / gone)",
+      "description": "When each container was running. Gap = stopped or gone, break in colour = restarted.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(count by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{project}} / {{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "text": "up",
+                  "color": "green",
+                  "index": 0
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showValue": "never",
+        "mergeValues": true,
+        "rowHeight": 0.85,
+        "alignValue": "left",
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "id": 16,
+      "gridPos": {
+        "x": 0,
+        "y": 66,
+        "w": 24,
+        "h": 8
+      }
+    },
+    {
+      "type": "table",
+      "title": "Gone in the last hour",
+      "description": "Containers seen in the last hour that are gone now, and how long ago they disappeared.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (time() - max_over_time(container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[1h])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\") > 120",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "server": true,
+              "container_label_com_docker_compose_project": true,
+              "container_label_com_docker_compose_service": true
+            },
+            "renameByName": {
+              "Value": "Gone for"
+            },
+            "indexByName": {
+              "project": 0,
+              "service": 1,
+              "name": 2
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gone for"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": []
+      },
+      "id": 903,
+      "gridPos": {
+        "x": 0,
+        "y": 74,
+        "w": 8,
+        "h": 7
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Uptime by container",
+      "description": "Sawtooth = repeated restarts (crash loop).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (time() - container_start_time_seconds{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "right",
+          "calcs": [],
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 17,
+      "gridPos": {
+        "x": 8,
+        "y": 74,
+        "w": 16,
+        "h": 7
+      }
+    },
+    {
+      "type": "row",
+      "id": 18,
+      "title": "Resources by service",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 81,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU by service",
+      "description": "CPU cores.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{project}}/{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 19,
+      "gridPos": {
+        "x": 0,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory by service",
+      "description": "Working set. Constant growth = memory leak.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{project}}/{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 906,
+      "gridPos": {
+        "x": 12,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network in by service",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_network_receive_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{project}}/{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 20,
+      "gridPos": {
+        "x": 0,
+        "y": 90,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network out by service",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_network_transmit_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{project}}/{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 21,
+      "gridPos": {
+        "x": 12,
+        "y": 90,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk read by service",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_fs_reads_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{project}}/{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 22,
+      "gridPos": {
+        "x": 0,
+        "y": 98,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk write by service",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_fs_writes_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{project}}/{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 23,
+      "gridPos": {
+        "x": 12,
+        "y": 98,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Top memory",
+      "description": "10 containers using the most RAM.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"))",
+          "legendFormat": "{{project}}/{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "sizing": "auto",
+        "minVizHeight": 12,
+        "maxVizHeight": 24,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 536870912
+              },
+              {
+                "color": "red",
+                "value": 1073741824
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "id": 24,
+      "gridPos": {
+        "x": 0,
+        "y": 106,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Top CPU",
+      "description": "10 containers using the most CPU.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (rate(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"))",
+          "legendFormat": "{{project}}/{{service}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "left",
+        "sizing": "auto",
+        "minVizHeight": 12,
+        "maxVizHeight": 24,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "id": 25,
+      "gridPos": {
+        "x": 8,
+        "y": 106,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "piechart",
+      "title": "Memory share by project",
+      "description": "How RAM is split between projects.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+          "legendFormat": "{{project}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "id": 26,
+      "gridPos": {
+        "x": 16,
+        "y": 106,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "row",
+      "id": 27,
+      "title": "Pressure, network errors, OOM",
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 114,
+        "w": 24,
+        "h": 1
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "CPU pressure (waiting)",
+          "description": "Share of time processes waited for CPU (PSI). High = CPU shortage, latency grows.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_pressure_cpu_waiting_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+              "legendFormat": "{{project}}/{{service}}",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "victoriametrics"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 0,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.1
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.3
+                  }
+                ]
+              },
+              "links": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 28,
+          "gridPos": {
+            "x": 0,
+            "y": 103,
+            "w": 12,
+            "h": 10
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory pressure (stalled)",
+          "description": "Time stalled waiting for memory reclaim. Above 0 = RAM shortage.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_pressure_memory_stalled_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+              "legendFormat": "{{project}}/{{service}}",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "victoriametrics"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 0,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.05
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.2
+                  }
+                ]
+              },
+              "links": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 29,
+          "gridPos": {
+            "x": 12,
+            "y": 103,
+            "w": 12,
+            "h": 10
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "IO pressure (stalled)",
+          "description": "Time stalled waiting for disk.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_pressure_io_stalled_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+              "legendFormat": "{{project}}/{{service}}",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "victoriametrics"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 0,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.1
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.3
+                  }
+                ]
+              },
+              "links": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 30,
+          "gridPos": {
+            "x": 0,
+            "y": 113,
+            "w": 12,
+            "h": 10
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "OOM kills",
+          "description": "Processes killed for lack of memory. Raise mem_limit or look for a leak.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (increase(container_oom_events_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\") > 0",
+              "legendFormat": "{{project}}/{{service}}",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "victoriametrics"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "bars",
+                "lineWidth": 1,
+                "fillOpacity": 80,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "links": [],
+              "noValue": "0 — no container was OOM-killed"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 904,
+          "gridPos": {
+            "x": 12,
+            "y": 113,
+            "w": 12,
+            "h": 10
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Network errors & drops",
+          "description": "Normally 0.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_network_receive_errors_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m]) + rate(container_network_transmit_errors_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+              "legendFormat": "{{project}}/{{service}} errors",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "victoriametrics"
+              }
+            },
+            {
+              "refId": "B",
+              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_network_receive_packets_dropped_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m]) + rate(container_network_transmit_packets_dropped_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+              "legendFormat": "{{project}}/{{service}} drops",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "victoriametrics"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "pps",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 0,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "links": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 31,
+          "gridPos": {
+            "x": 0,
+            "y": 123,
+            "w": 12,
+            "h": 10
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory: RSS vs cache",
+          "description": "RSS = real process memory, cache = file cache (reclaimable).",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_memory_rss{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+              "legendFormat": "{{project}}/{{service}} rss",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "victoriametrics"
+              }
+            },
+            {
+              "refId": "B",
+              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_memory_cache{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
+              "legendFormat": "{{project}}/{{service}} cache",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "victoriametrics"
+              }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "drawStyle": "line",
+                "lineWidth": 2,
+                "fillOpacity": 0,
+                "gradientMode": "opacity",
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "mode": "none",
+                  "group": "A"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "links": []
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "bottom",
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "id": 32,
+          "gridPos": {
+            "x": 12,
+            "y": 123,
+            "w": 12,
+            "h": 10
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 33,
+      "title": "Logs",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 131,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Log lines by service",
+      "description": "Log volume per service.",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "statsRange",
+          "expr": "project:~\"${project:regex}\" service:~\"${service:regex}\" type:~\"${type:regex}\" lang:~\"${lang:regex}\" team:~\"${team:regex}\" env:~\"${env:regex}\" | stats by (service) count()",
+          "legendFormat": "{{service}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 34,
+      "gridPos": {
+        "x": 0,
+        "y": 132,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Errors by service",
+      "description": "Error logs by service.",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "statsRange",
+          "expr": "project:~\"${project:regex}\" service:~\"${service:regex}\" type:~\"${type:regex}\" lang:~\"${lang:regex}\" team:~\"${team:regex}\" env:~\"${env:regex}\" level:(error OR fatal OR panic) | stats by (service) count()",
+          "legendFormat": "{{service}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 35,
+      "gridPos": {
+        "x": 12,
+        "y": 132,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Errors & warnings",
+      "description": "error, fatal, panic, warn lines of the selected projects/services.",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "instant",
+          "expr": "project:~\"${project:regex}\" service:~\"${service:regex}\" type:~\"${type:regex}\" lang:~\"${lang:regex}\" team:~\"${team:regex}\" env:~\"${env:regex}\" level:(error OR fatal OR panic OR warn) | sort by (_time desc) | limit 500"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "dedupStrategy": "none",
+        "showLabels": false,
+        "showCommonLabels": false
+      },
+      "id": 905,
+      "gridPos": {
+        "x": 0,
+        "y": 139,
+        "w": 14,
+        "h": 11
+      }
+    },
+    {
+      "type": "table",
+      "title": "Top error messages",
+      "description": "Most repeated errors.",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "project:~\"${project:regex}\" service:~\"${service:regex}\" type:~\"${type:regex}\" lang:~\"${lang:regex}\" team:~\"${team:regex}\" env:~\"${env:regex}\" level:(error OR fatal OR panic) | unpack_logfmt fields (msg, err, error) keep_original_fields | format if (msg:\"\") \"<_msg>\" as msg | stats by (service, msg, err, error) count() hits | sort by (hits desc) | limit 20"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns",
+            "valueLabel": "__name__"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true,
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_msg"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 420
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hits"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 10
+                    },
+                    {
+                      "color": "red",
+                      "value": 100
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": []
+      },
+      "id": 36,
+      "gridPos": {
+        "x": 14,
+        "y": 139,
+        "w": 10,
+        "h": 11
+      }
     },
     {
       "type": "table",
@@ -3088,1801 +4653,9 @@
       "id": 915,
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 48,
         "w": 24,
         "h": 8
-      }
-    },
-    {
-      "type": "state-timeline",
-      "title": "Container presence (up / gone)",
-      "description": "When each container was running. Gap = stopped or gone, break in colour = restarted.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(label_replace(label_replace(label_replace(count by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-          "legendFormat": "{{project}} / {{service}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "1": {
-                  "text": "up",
-                  "color": "green",
-                  "index": 0
-                }
-              }
-            }
-          ],
-          "custom": {
-            "fillOpacity": 80,
-            "lineWidth": 0
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "showValue": "never",
-        "mergeValues": true,
-        "rowHeight": 0.85,
-        "alignValue": "left",
-        "legend": {
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "id": 16,
-      "gridPos": {
-        "x": 0,
-        "y": 68,
-        "w": 24,
-        "h": 8
-      }
-    },
-    {
-      "type": "table",
-      "title": "Gone in the last hour",
-      "description": "Containers seen in the last hour that are gone now, and how long ago they disappeared.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (time() - max_over_time(container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[1h])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\") > 120",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false,
-          "format": "table"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "job": true,
-              "instance": true,
-              "server": true,
-              "container_label_com_docker_compose_project": true,
-              "container_label_com_docker_compose_service": true
-            },
-            "renameByName": {
-              "Value": "Gone for"
-            },
-            "indexByName": {
-              "project": 0,
-              "service": 1,
-              "name": 2
-            }
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": true
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Gone for"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-background",
-                  "mode": "gradient"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "red",
-                      "value": null
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false
-        },
-        "sortBy": []
-      },
-      "id": 903,
-      "gridPos": {
-        "x": 0,
-        "y": 76,
-        "w": 8,
-        "h": 7
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Uptime by container",
-      "description": "Sawtooth = repeated restarts (crash loop).",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(label_replace(label_replace(label_replace(max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (time() - container_start_time_seconds{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-          "legendFormat": "{{service}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 0,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "hidden",
-          "placement": "right",
-          "calcs": [],
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 17,
-      "gridPos": {
-        "x": 8,
-        "y": 76,
-        "w": 16,
-        "h": 7
-      }
-    },
-    {
-      "type": "row",
-      "title": "Resources by container (filter with Project / Service above)",
-      "collapsed": false,
-      "panels": [],
-      "gridPos": {
-        "x": 0,
-        "y": 83,
-        "w": 24,
-        "h": 1
-      },
-      "id": 800
-    },
-    {
-      "type": "timeseries",
-      "title": "CPU by container",
-      "description": "Cores.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(sum by (name) (rate(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])), \"name\", \"(none)\", \"name\", \"\")",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 801,
-      "gridPos": {
-        "x": 0,
-        "y": 84,
-        "w": 12,
-        "h": 9
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Memory by container",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(sum by (name) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}), \"name\", \"(none)\", \"name\", \"\")",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 802,
-      "gridPos": {
-        "x": 12,
-        "y": 84,
-        "w": 12,
-        "h": 9
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Network in by container",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(sum by (name) (rate(container_network_receive_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])), \"name\", \"(none)\", \"name\", \"\")",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 803,
-      "gridPos": {
-        "x": 0,
-        "y": 93,
-        "w": 12,
-        "h": 9
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Network out by container",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(sum by (name) (rate(container_network_transmit_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])), \"name\", \"(none)\", \"name\", \"\")",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 804,
-      "gridPos": {
-        "x": 12,
-        "y": 93,
-        "w": 12,
-        "h": 9
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Disk read by container",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(sum by (name) (rate(container_fs_reads_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])), \"name\", \"(none)\", \"name\", \"\")",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 805,
-      "gridPos": {
-        "x": 0,
-        "y": 102,
-        "w": 12,
-        "h": 9
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Disk write by container",
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(sum by (name) (rate(container_fs_writes_bytes_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\"}[5m])), \"name\", \"(none)\", \"name\", \"\")",
-          "legendFormat": "{{name}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "mean",
-            "max",
-            "lastNotNull"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 806,
-      "gridPos": {
-        "x": 12,
-        "y": 102,
-        "w": 12,
-        "h": 9
-      }
-    },
-    {
-      "type": "bargauge",
-      "title": "Top memory",
-      "description": "10 containers using the most RAM.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "topk(10, label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"))",
-          "legendFormat": "{{project}}/{{service}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false
-        }
-      ],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "showUnfilled": true,
-        "valueMode": "color",
-        "namePlacement": "left",
-        "sizing": "auto",
-        "minVizHeight": 12,
-        "maxVizHeight": 24,
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 536870912
-              },
-              {
-                "color": "red",
-                "value": 1073741824
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "id": 24,
-      "gridPos": {
-        "x": 0,
-        "y": 111,
-        "w": 8,
-        "h": 8
-      }
-    },
-    {
-      "type": "bargauge",
-      "title": "Top CPU",
-      "description": "10 containers using the most CPU.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "topk(10, label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (rate(container_cpu_usage_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"))",
-          "legendFormat": "{{project}}/{{service}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false
-        }
-      ],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "showUnfilled": true,
-        "valueMode": "color",
-        "namePlacement": "left",
-        "sizing": "auto",
-        "minVizHeight": 12,
-        "maxVizHeight": 24,
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.5
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "id": 25,
-      "gridPos": {
-        "x": 8,
-        "y": 111,
-        "w": 8,
-        "h": 8
-      }
-    },
-    {
-      "type": "piechart",
-      "title": "Memory share by project",
-      "description": "How RAM is split between projects.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project) (container_memory_working_set_bytes{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-          "legendFormat": "{{project}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "instant": true,
-          "range": false
-        }
-      ],
-      "options": {
-        "pieType": "donut",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "values": [
-            "value",
-            "percent"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "id": 26,
-      "gridPos": {
-        "x": 16,
-        "y": 111,
-        "w": 8,
-        "h": 8
-      }
-    },
-    {
-      "type": "row",
-      "id": 27,
-      "title": "Pressure, network errors, OOM",
-      "collapsed": true,
-      "gridPos": {
-        "x": 0,
-        "y": 119,
-        "w": 24,
-        "h": 1
-      },
-      "panels": [
-        {
-          "type": "timeseries",
-          "title": "CPU pressure (waiting)",
-          "description": "Share of time processes waited for CPU (PSI). High = CPU shortage, latency grows.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_pressure_cpu_waiting_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-              "legendFormat": "{{project}}/{{service}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "victoriametrics"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percentunit",
-              "color": {
-                "mode": "palette-classic-by-name"
-              },
-              "custom": {
-                "drawStyle": "line",
-                "lineWidth": 2,
-                "fillOpacity": 0,
-                "gradientMode": "opacity",
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "thresholdsStyle": {
-                  "mode": "dashed"
-                }
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 0.1
-                  },
-                  {
-                    "color": "red",
-                    "value": 0.3
-                  }
-                ]
-              },
-              "links": []
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
-              ],
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 28,
-          "gridPos": {
-            "x": 0,
-            "y": 71,
-            "w": 12,
-            "h": 10
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "Memory pressure (stalled)",
-          "description": "Time stalled waiting for memory reclaim. Above 0 = RAM shortage.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_pressure_memory_stalled_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-              "legendFormat": "{{project}}/{{service}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "victoriametrics"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percentunit",
-              "color": {
-                "mode": "palette-classic-by-name"
-              },
-              "custom": {
-                "drawStyle": "line",
-                "lineWidth": 2,
-                "fillOpacity": 0,
-                "gradientMode": "opacity",
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "thresholdsStyle": {
-                  "mode": "dashed"
-                }
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 0.05
-                  },
-                  {
-                    "color": "red",
-                    "value": 0.2
-                  }
-                ]
-              },
-              "links": []
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
-              ],
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 29,
-          "gridPos": {
-            "x": 12,
-            "y": 71,
-            "w": 12,
-            "h": 10
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "IO pressure (stalled)",
-          "description": "Time stalled waiting for disk.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_pressure_io_stalled_seconds_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-              "legendFormat": "{{project}}/{{service}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "victoriametrics"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percentunit",
-              "color": {
-                "mode": "palette-classic-by-name"
-              },
-              "custom": {
-                "drawStyle": "line",
-                "lineWidth": 2,
-                "fillOpacity": 0,
-                "gradientMode": "opacity",
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "thresholdsStyle": {
-                  "mode": "dashed"
-                }
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 0.1
-                  },
-                  {
-                    "color": "red",
-                    "value": 0.3
-                  }
-                ]
-              },
-              "links": []
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
-              ],
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 30,
-          "gridPos": {
-            "x": 0,
-            "y": 78,
-            "w": 12,
-            "h": 10
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "OOM kills",
-          "description": "Processes killed for lack of memory. Raise mem_limit or look for a leak.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (increase(container_oom_events_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\") > 0",
-              "legendFormat": "{{project}}/{{service}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "victoriametrics"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "color": {
-                "mode": "palette-classic-by-name"
-              },
-              "custom": {
-                "drawStyle": "bars",
-                "lineWidth": 1,
-                "fillOpacity": 80,
-                "gradientMode": "opacity",
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "links": [],
-              "noValue": "0 — no container was OOM-killed"
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
-              ],
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 904,
-          "gridPos": {
-            "x": 12,
-            "y": 78,
-            "w": 12,
-            "h": 10
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "Network errors & drops",
-          "description": "Normally 0.",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_network_receive_errors_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m]) + rate(container_network_transmit_errors_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-              "legendFormat": "{{project}}/{{service}} errors",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "victoriametrics"
-              }
-            },
-            {
-              "refId": "B",
-              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_network_receive_packets_dropped_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m]) + rate(container_network_transmit_packets_dropped_total{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[5m])), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-              "legendFormat": "{{project}}/{{service}} drops",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "victoriametrics"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "pps",
-              "color": {
-                "mode": "palette-classic-by-name"
-              },
-              "custom": {
-                "drawStyle": "line",
-                "lineWidth": 2,
-                "fillOpacity": 0,
-                "gradientMode": "opacity",
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "links": []
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
-              ],
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 31,
-          "gridPos": {
-            "x": 0,
-            "y": 80,
-            "w": 12,
-            "h": 10
-          }
-        },
-        {
-          "type": "timeseries",
-          "title": "Memory: RSS vs cache",
-          "description": "RSS = real process memory, cache = file cache (reclaimable).",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "victoriametrics"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_memory_rss{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-              "legendFormat": "{{project}}/{{service}} rss",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "victoriametrics"
-              }
-            },
-            {
-              "refId": "B",
-              "expr": "label_replace(label_replace(label_replace(label_replace(sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_memory_cache{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-              "legendFormat": "{{project}}/{{service}} cache",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "victoriametrics"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "bytes",
-              "color": {
-                "mode": "palette-classic-by-name"
-              },
-              "custom": {
-                "drawStyle": "line",
-                "lineWidth": 2,
-                "fillOpacity": 0,
-                "gradientMode": "opacity",
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "mode": "none",
-                  "group": "A"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "links": []
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "table",
-              "placement": "bottom",
-              "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
-              ],
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "id": 32,
-          "gridPos": {
-            "x": 12,
-            "y": 80,
-            "w": 12,
-            "h": 10
-          }
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "id": 33,
-      "title": "Logs",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 120,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "Log lines by service",
-      "description": "Log volume per service.",
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "victorialogs"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "victorialogs"
-          },
-          "queryType": "statsRange",
-          "expr": "project:~\"${project:regex}\" service:~\"${service:regex}\" type:~\"${type:regex}\" lang:~\"${lang:regex}\" team:~\"${team:regex}\" env:~\"${env:regex}\" | stats by (service) count()",
-          "legendFormat": "{{service}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "lineWidth": 1,
-            "fillOpacity": 80,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "sum"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 34,
-      "gridPos": {
-        "x": 0,
-        "y": 121,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Errors by service",
-      "description": "Error logs by service.",
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "victorialogs"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "victorialogs"
-          },
-          "queryType": "statsRange",
-          "expr": "project:~\"${project:regex}\" service:~\"${service:regex}\" type:~\"${type:regex}\" lang:~\"${lang:regex}\" team:~\"${team:regex}\" env:~\"${env:regex}\" level:(error OR fatal OR panic) | stats by (service) count()",
-          "legendFormat": "{{service}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "lineWidth": 1,
-            "fillOpacity": 80,
-            "gradientMode": "opacity",
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "links": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "sum"
-          ],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "id": 35,
-      "gridPos": {
-        "x": 12,
-        "y": 121,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "type": "logs",
-      "title": "Errors & warnings",
-      "description": "error, fatal, panic, warn lines of the selected projects/services.",
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "victorialogs"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "victorialogs"
-          },
-          "queryType": "instant",
-          "expr": "project:~\"${project:regex}\" service:~\"${service:regex}\" type:~\"${type:regex}\" lang:~\"${lang:regex}\" team:~\"${team:regex}\" env:~\"${env:regex}\" level:(error OR fatal OR panic OR warn) | sort by (_time desc) | limit 500"
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "wrapLogMessage": true,
-        "sortOrder": "Descending",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "dedupStrategy": "none",
-        "showLabels": false,
-        "showCommonLabels": false
-      },
-      "id": 905,
-      "gridPos": {
-        "x": 0,
-        "y": 128,
-        "w": 14,
-        "h": 11
-      }
-    },
-    {
-      "type": "table",
-      "title": "Top error messages",
-      "description": "Most repeated errors.",
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "victorialogs"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "victorialogs"
-          },
-          "queryType": "stats",
-          "expr": "project:~\"${project:regex}\" service:~\"${service:regex}\" type:~\"${type:regex}\" lang:~\"${lang:regex}\" team:~\"${team:regex}\" env:~\"${env:regex}\" level:(error OR fatal OR panic) | unpack_logfmt fields (msg, err, error) keep_original_fields | format if (msg:\"\") \"<_msg>\" as msg | stats by (service, msg, err, error) count() hits | sort by (hits desc) | limit 20"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "mode": "columns",
-            "valueLabel": "__name__"
-          }
-        },
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            }
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "filterable": true,
-            "cellOptions": {
-              "type": "auto"
-            }
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "_msg"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 420
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "hits"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-background",
-                  "mode": "gradient"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 10
-                    },
-                    {
-                      "color": "red",
-                      "value": 100
-                    }
-                  ]
-                }
-              },
-              {
-                "id": "color",
-                "value": {
-                  "mode": "thresholds"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "sortBy": []
-      },
-      "id": 36,
-      "gridPos": {
-        "x": 14,
-        "y": 128,
-        "w": 10,
-        "h": 11
       }
     }
   ]
