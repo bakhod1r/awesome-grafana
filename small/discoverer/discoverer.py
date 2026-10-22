@@ -1,0 +1,146 @@
+"""Finds every container on this Docker host that serves Prometheus metrics and tells Prometheus.
+
+Every SCAN_INTERVAL seconds:
+  1. list running containers (Docker API over /var/run/docker.sock)
+  2. for each new container: connect this container, Prometheus and blackbox to its network,
+     then try GET /metrics on its exposed ports and on a few common metrics ports
+  3. write every container that answered in Prometheus text format to TARGETS_FILE (file_sd JSON)
+Prometheus re-reads that file every 30s (job "apps"), so new projects appear without any edit.
+Stopped containers drop out of the file on the next scan, so they never cause TargetDown.
+
+Per-container overrides (labels on the container, all optional):
+  prometheus.scrape:  "false"   never scrape this container
+  prometheus.port:    "1234"    metrics are on this port (skip probing)
+  prometheus.path:    "/stats"  metrics path (default /metrics)
+  prometheus.service: "name"    service label (default <project>-<compose service>)
+  container.project:  "name"    project label (default: the compose project)
+"""
+
+import http.client
+import json
+import os
+import re
+import socket
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+SOCKET = "/var/run/docker.sock"
+TARGETS_FILE = os.environ.get("TARGETS_FILE", "/targets/auto.json")
+SCAN_INTERVAL = int(os.environ.get("SCAN_INTERVAL", "15"))
+RETRY_AFTER = int(os.environ.get("RETRY_AFTER", "300"))  # re-probe containers without metrics this often
+COMMON_PORTS = [int(p) for p in os.environ.get("COMMON_PORTS", "9090,9100,8080,2112,9464,8000,3000").split(",")]
+SELF_PROJECT = os.environ.get("SELF_PROJECT", "")  # our own compose project: scraped by static jobs
+# Our containers that must follow every app network: Prometheus scrapes, blackbox probes.
+JOINERS = os.environ.get("JOINERS", "prometheus,blackbox-exporter,discoverer").split(",")
+METRICS_RE = re.compile(rb"^# (TYPE|HELP) [a-zA-Z_:][a-zA-Z0-9_:]* ", re.M)
+
+
+class UnixConnection(http.client.HTTPConnection):
+    def connect(self):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.connect(SOCKET)
+
+
+def docker(method, path, body=None):
+    c = UnixConnection("docker", timeout=10)
+    c.request(method, path, json.dumps(body) if body is not None else None,
+              {"Content-Type": "application/json"})
+    r = c.getresponse()
+    data = r.read()
+    c.close()
+    if r.status >= 400 and r.status != 403:  # 403 on network connect = already connected
+        raise RuntimeError(f"{method} {path}: {r.status} {data[:200]!r}")
+    return json.loads(data) if r.headers.get("Content-Type", "").startswith("application/json") and data else None
+
+
+def log(*a):
+    print(time.strftime("%H:%M:%S"), *a, flush=True)
+
+
+def looks_like_metrics(host, port, path):
+    try:
+        with urllib.request.urlopen(f"http://{host}:{port}{path}", timeout=2) as r:
+            return r.status == 200 and bool(METRICS_RE.search(r.read(65536)))
+    except Exception:
+        return False
+
+
+def own_containers():
+    flt = json.dumps({"label": [f"com.docker.compose.project={SELF_PROJECT}"]})
+    return {c["Labels"].get("com.docker.compose.service"): c["Id"]
+            for c in docker("GET", "/containers/json?filters=" + urllib.parse.quote(flt))
+            if c["Labels"].get("com.docker.compose.service") in JOINERS}
+
+
+def main():
+    if not SELF_PROJECT:
+        sys.exit("SELF_PROJECT is not set")
+    found = {}      # container id -> file_sd entry, or None = no metrics found
+    checked = {}    # container id -> time of last probe
+    joined = set()  # (network id, our container id) pairs already connected
+    last_own, last_written = set(), None
+    while True:
+        try:
+            own = own_containers()
+            # Prometheus/blackbox recreated (new id): it lost every app network. Start over.
+            if set(own.values()) != last_own:
+                found.clear(); checked.clear(); joined.clear()
+                last_own = set(own.values())
+            alive = set()
+            for c in docker("GET", "/containers/json"):
+                cid, labels = c["Id"], c.get("Labels") or {}
+                alive.add(cid)
+                project = labels.get("container.project") or labels.get("com.docker.compose.project", "")
+                if project == SELF_PROJECT or labels.get("prometheus.scrape") == "false":
+                    continue
+                if cid in found and (found[cid] or time.time() - checked[cid] < RETRY_AFTER):
+                    continue
+                name = c["Names"][0].lstrip("/")
+                nets = {n: v for n, v in ((c.get("NetworkSettings") or {}).get("Networks") or {}).items() if n not in ("host", "none")}
+                checked[cid], found[cid] = time.time(), None
+                if not nets:
+                    continue
+                net, info = next(iter(nets.items()))
+                missing = [oid for oid in own.values() if (info["NetworkID"], oid) not in joined]
+                for oid in missing:
+                    docker("POST", f"/networks/{net}/connect", {"Container": oid})
+                    joined.add((info["NetworkID"], oid))
+                if missing:
+                    log("joined network", net)
+                # Container names resolve on user networks; the default bridge only has IPs.
+                host = name if net != "bridge" else info["IPAddress"]
+                path = labels.get("prometheus.path", "/metrics")
+                if labels.get("prometheus.port"):
+                    ports = [int(labels["prometheus.port"])]
+                else:
+                    exposed = [p["PrivatePort"] for p in c.get("Ports") or [] if p.get("Type") == "tcp"]
+                    ports = list(dict.fromkeys(exposed + COMMON_PORTS))
+                port = next((p for p in ports if looks_like_metrics(host, p, path)), None)
+                if port is None:
+                    continue
+                service = labels.get("com.docker.compose.service", "")
+                found[cid] = {"targets": [f"{host}:{port}"], "labels": {
+                    "service": labels.get("prometheus.service", f"{project}-{service}" if project else name),
+                    "project": project or "(standalone)", "container": name,
+                    "__metrics_path__": path, "discovered": "auto"}}
+                log("found", name, f"{host}:{port}{path}", "service=" + found[cid]["labels"]["service"])
+            for cid in [k for k in found if k not in alive]:
+                if found[cid]:
+                    log("gone", found[cid]["labels"]["container"])
+                found.pop(cid); checked.pop(cid, None)
+            targets = sorted((t for t in found.values() if t), key=lambda t: t["labels"]["container"])
+            if targets != last_written:
+                with open(TARGETS_FILE + ".tmp", "w") as f:
+                    json.dump(targets, f, indent=2)
+                os.replace(TARGETS_FILE + ".tmp", TARGETS_FILE)  # atomic: Prometheus never reads half a file
+                last_written = targets
+                log("wrote", len(targets), "targets")
+        except Exception as e:
+            log("error:", e)
+        time.sleep(SCAN_INTERVAL)
+
+
+if __name__ == "__main__":
+    main()

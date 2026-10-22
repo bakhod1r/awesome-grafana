@@ -1,0 +1,54 @@
+# Blackbox exporter: defines HOW to probe. WHAT to probe is listed in prometheus/sites.yml (HTTP)
+# and prometheus/probes/*.yml (TCP, ICMP, DNS).
+# Each module is a probe type; Prometheus picks one with ?module=<name>.
+
+modules:  # probe types, chosen with ?module=
+  # HTTP(S) check: succeeds when the site answers with a 2xx status within the timeout.
+  # Also records response time and SSL certificate expiry.
+  http_2xx:  # module name used in prometheus.yml
+    prober: http  # probe protocol: http
+    timeout: 5s                     # slower than this counts as down; must be below scrape_interval (15s)
+    http:  # HTTP-specific options
+      preferred_ip_protocol: ip4    # Docker networks often lack IPv6; default ip6 would make probes fail
+
+  # TCP check: succeeds when a port accepts a connection. For non-HTTP services (DB, Redis, SMTP).
+  # Targets like "db.example.com:5432" in prometheus/probes/tcp.yml.
+  tcp_connect:  # module name
+    prober: tcp  # probe protocol: tcp
+    timeout: 5s  # give up after this; counts as failed
+    tcp:  # TCP-specific options
+      preferred_ip_protocol: ip4  # same reason as http_2xx
+
+  # TCP + TLS handshake: for TLS ports that are not HTTP (SMTPS 465, IMAPS 993, LDAPS 636, Postgres with
+  # direct TLS). Records probe_ssl_earliest_cert_expiry, so SslExpiresSoon covers these certs too.
+  tcp_tls:  # module name
+    prober: tcp  # probe protocol: tcp
+    timeout: 5s  # give up after this; counts as failed
+    tcp:  # TCP-specific options
+      preferred_ip_protocol: ip4  # same reason as http_2xx
+      tls: true  # do a TLS handshake after connecting
+
+  # Ping. Runs unprivileged (ICMP datagram sockets); docker-compose.yml sets net.ipv4.ping_group_range
+  # on the blackbox container so the non-root user is allowed to send them.
+  icmp:  # module name
+    prober: icmp  # probe protocol: icmp
+    timeout: 5s  # give up after this; counts as failed
+    icmp:  # ICMP-specific options
+      preferred_ip_protocol: ip4  # same reason as http_2xx
+
+  # DNS check: asks the target DNS server (e.g. 1.1.1.1 or your own resolver) to resolve query_name.
+  # Fails when the server does not answer or returns no A record. To check another name, copy this
+  # module under a new name and change query_name.
+  dns_a:  # module name
+    prober: dns  # probe protocol: dns
+    timeout: 5s  # give up after this; counts as failed
+    dns:  # DNS-specific options
+      query_name: google.com  # name to resolve
+      query_type: A  # record type
+      # TCP instead of UDP: one lost UDP packet (normal on home/Wi-Fi links, ~1%) failed the whole
+      # probe and kept the SLO alerts firing although the resolver was fine. TCP retransmits.
+      transport_protocol: tcp
+      preferred_ip_protocol: ip4  # same reason as http_2xx
+      valid_rcodes: [NOERROR]  # NXDOMAIN / SERVFAIL count as failure
+      validate_answer_rrs:  # the answer section must contain...
+        fail_if_none_matches_regexp: [".*\\sIN\\s+A\\s+.*"]  # ...at least one A record

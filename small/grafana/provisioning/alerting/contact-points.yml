@@ -1,0 +1,33 @@
+# Grafana-managed alerting: where Grafana's own alert rules (rules.yml) send notifications.
+# This path is separate from Alertmanager on purpose: it must keep working when Alertmanager is down.
+apiVersion: 1  # provisioning file format version
+
+contactPoints:  # notification targets for Grafana-managed alerts
+  - orgId: 1  # default organisation
+    name: telegram  # contact point name, used in policies.yml
+    receivers:  # integrations of this contact point
+      - uid: telegram-grafana  # stable id
+        type: telegram  # Telegram integration
+        settings:  # Telegram settings
+          bottoken: ${TELEGRAM_BOT_TOKEN}         # Grafana expands ${VAR} from its environment
+          # Not the usual env placeholder: Grafana would turn a numeric id into a number and reject it.
+          chatid: "__TELEGRAM_CHAT_ID__"  # filled in by grafana/scripts/entrypoint.sh
+          message_thread_id: "__TELEGRAM_TOPIC_ID__"  # forum topic, same trick; empty = general chat
+          parse_mode: HTML  # allow <b> tags
+          disable_notification: false             # these are always critical: play sound
+          message: '{{ template "deadman.message" . }}'  # body built from the template below
+        disableResolveMessage: false              # also send ✅ when it recovers
+
+# Message format, same style as Alertmanager's, marked "(Grafana)" so you know which path sent it.
+templates:  # notification templates
+  - orgId: 1  # default organisation
+    name: deadman.message  # template name used in message above
+    template: |
+      {{ define "deadman.message" }}
+      {{- range .Alerts }}
+      {{- if eq .Status "firing" }}🚨{{ else }}✅{{ end }} <b>{{ .Labels.alertname }}</b> [{{ .Labels.severity }}] (Grafana)
+      {{ .Annotations.summary }}
+      {{ .Annotations.description }}
+      🕒 Started: {{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}
+      {{ end }}
+      {{- end }}

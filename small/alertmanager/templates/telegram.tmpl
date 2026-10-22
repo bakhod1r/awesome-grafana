@@ -1,0 +1,33 @@
+{{/*
+  Telegram message for Alertmanager (Go template, parse_mode: HTML).
+  One block per alert in the group:
+    icon + name + severity, summary, description, start/resolve time (TZ from docker-compose),
+    links to the Prometheus query, the Grafana dashboard and a pre-filled silence.
+  ${GRAFANA_URL} is filled in by entrypoint.sh. The dashboard uid comes from the rule's
+  "dashboard" annotation (falls back to node-overview).
+*/}}
+{{ define "telegram.message" }}
+{{- range .Alerts }}
+{{- if eq .Status "firing" }}{{ if eq .Labels.severity "critical" }}🚨{{ else }}⚠️{{ end }}{{ else }}✅{{ end }} <b>{{ .Labels.alertname }}</b> [{{ .Labels.severity }}]
+{{ .Annotations.summary }}
+{{ .Annotations.description }}
+{{- /* container.* labels: cadvisor alerts carry container_label_container_*, log alerts team/env/type. */}}
+{{- $team := or .Labels.team (index .Labels "container_label_container_team") }}
+{{- $env := or .Labels.env (index .Labels "container_label_container_env") }}
+{{- $type := or .Labels.type (index .Labels "container_label_container_type") }}
+{{- if or $team $env $type }}
+👥 {{ if $team }}Team: {{ $team }}{{ end }}{{ if $env }}{{ if $team }} · {{ end }}Env: {{ $env }}{{ end }}{{ if $type }}{{ if or $team $env }} · {{ end }}Type: {{ $type }}{{ end }}
+{{- end }}
+🕒 Started: {{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}
+{{- if eq .Status "resolved" }}
+🕒 Resolved: {{ .EndsAt.Local.Format "2006-01-02 15:04:05 MST" }}
+{{- end }}
+{{- /* Logs link: log alerts carry "container", cadvisor alerts carry "name". Opens the Logs dashboard
+       filtered to that container for the last hour. Omitted for alerts without a container. */}}
+{{- $c := or .Labels.container .Labels.name }}
+🔗 <a href="{{ .GeneratorURL }}">Query</a> | <a href="${GRAFANA_URL}/d/{{ or .Annotations.dashboard "node-overview" }}">Dashboard</a>
+{{- if $c }} | <a href="${GRAFANA_URL}/d/logs?var-container={{ $c | urlquery }}&from=now-1h&to=now">Logs</a>{{ end }}
+{{- if eq .Status "firing" }} | <a href="{{ $.ExternalURL }}/#/silences/new?filter={{ printf "{alertname=\"%s\"}" .Labels.alertname | urlquery }}">Silence</a>{{ end }}
+
+{{ end }}
+{{- end }}

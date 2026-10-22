@@ -1,0 +1,107 @@
+# Alertmanager: decides who gets which alert, when, and how often.
+# Prometheus only says "this alert is firing". Everything about delivery is configured here.
+#
+# ${VAR} placeholders are filled in from .env by entrypoint.sh before Alertmanager starts.
+
+# Message templates. entrypoint.sh renders them into /tmp/am/templates.
+templates:  # message template files to load
+  - /tmp/am/templates/*.tmpl  # rendered copies (entrypoint.sh fills ${VAR}s)
+
+# Routing tree. Every alert enters at the top and goes down to the first matching child route.
+# Settings on the top route are defaults; child routes inherit them unless they override.
+route:  # root of the routing tree
+  receiver: telegram-critical       # fallback for alerts no child route matches (e.g. no severity label)
+
+  # Alerts with the same values for these labels are merged into one message.
+  # alertname + instance + name = one message per problem per host/container,
+  # instead of one message per alert or one giant message for everything.
+  # "container" does the same for log alerts from vmalert, which carry service/container instead.
+  group_by: [alertname, instance, name, container]  # labels that define one message group
+
+  # Wait 30s after the first alert of a new group before sending.
+  # Why: problems rarely come alone. If a host goes down, several alerts fire within seconds.
+  # Waiting lets them be collected into one message instead of a burst of separate ones.
+  # Lower = faster first notification, more noise. Higher = calmer, but slower to hear about it.
+  group_wait: 30s  # first message of a new group waits this long
+
+  # Once a group has been sent, wait 5m before sending an update about NEW alerts in that group.
+  # Why: stops a flapping or growing incident from producing a message every few seconds.
+  group_interval: 5m  # minimum gap between updates of the same group
+
+  # If an alert is still firing and nothing changed, send it again after 4h.
+  # Why: a reminder that the problem is not fixed, without spamming. Overridden per severity below.
+  repeat_interval: 4h  # resend unchanged, still-firing alerts after this
+
+  routes:  # child routes, checked top to bottom; first match wins
+    # Watchdog is always firing on purpose. It must not reach Telegram.
+    # Grafana checks that it exists in VictoriaMetrics; if it disappears, the pipeline is broken.
+    - matchers: [alertname="Watchdog"]  # only the Watchdog alert
+      receiver: blackhole  # drop it (Grafana watches Watchdog instead)
+
+    # Demo databases (profiles postgres/mysql/redis) cause deadlocks, slow queries and lock waits on
+    # purpose. Their alerts stay visible in Grafana and Alertmanager but are not sent to Telegram.
+    # env="demo" comes from prometheus/exporters/*.yml; pg_app = application_name of postgres/loadgen.sh
+    # (log-based alerts carry no target labels).
+    - matchers: [env="demo"]  # alerts from demo exporter targets
+      receiver: blackhole  # drop them
+    - matchers: ['pg_app=~"shop-api|shop-catalog|billing-worker|reports|legacy-cron"']  # demo load generator
+      receiver: blackhole  # drop them
+
+    # Critical: loud Telegram message, reminder every hour while unresolved.
+    - matchers: [severity="critical"]  # alerts labelled severity=critical
+      receiver: telegram-critical  # send via the telegram-critical receiver
+      repeat_interval: 1h  # critical: remind every hour
+      mute_time_intervals: [maintenance]  # hold notifications during these windows
+
+    # Warning: silent Telegram message (no sound), reminder every 4 hours.
+    - matchers: [severity="warning"]  # alerts labelled severity=warning
+      receiver: telegram-warning  # send via the telegram-warning receiver
+      repeat_interval: 4h  # resend unchanged, still-firing alerts after this
+      mute_time_intervals: [maintenance]  # hold notifications during these windows
+
+# Named time windows. Routes reference them in mute_time_intervals.
+# While muted, alerts are held, not dropped: if still firing after the window, they are sent.
+# For one-off work, use a silence instead (UI at :9093 or the "Silence" link in a message).
+time_intervals:  # named time windows / the window definitions
+  - name: maintenance  # window name, referenced in mute_time_intervals
+    time_intervals:  # named time windows / the window definitions
+      - times:  # time-of-day ranges
+          - start_time: "02:00"     # daily planned work window, e.g. nightly deploys or backups
+            end_time: "03:00"  # end of the window (exclusive)
+        location: Asia/Tashkent     # without this, times are UTC
+        # Optional filters: weekdays: ['saturday'], days_of_month: ['1'], months: ['january']
+
+# Where messages go. Each receiver can have several integrations (Telegram, email, webhook...).
+receivers:  # notification targets
+  - name: telegram-critical  # receiver for critical alerts
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}      # from @BotFather
+        chat_id: ${TELEGRAM_CHAT_ID}          # user, group (-100...) or channel id
+        message_thread_id: ${TELEGRAM_TOPIC_ID}  # forum topic in the group; empty = general chat
+        parse_mode: HTML                      # template uses <b> and <a href> tags
+        send_resolved: true                   # also send ✅ when the problem goes away
+        disable_notifications: false          # play sound / show notification
+        message: '{{ template "telegram.message" . }}'   # defined in templates/telegram.tmpl
+
+  - name: telegram-warning  # receiver for warning alerts
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TELEGRAM_WARNING_CHAT_ID}  # defaults to TELEGRAM_CHAT_ID if not set
+        message_thread_id: ${TELEGRAM_WARNING_TOPIC_ID}  # forum topic for warnings; empty = general chat
+        parse_mode: HTML  # allow <b> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: true           # delivered silently: visible, but no sound
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  # Receiver with no integrations: alerts routed here are accepted and dropped.
+  - name: blackhole  # receiver with no integrations: accepts and drops
+
+# Suppress lower-severity alerts while a related higher-severity one is firing.
+# Example: if a container is in a restart loop (critical), don't also send
+# "container restarted" (warning) for the same container.
+inhibit_rules:  # mute some alerts while others fire
+  - source_matchers: [severity="critical"]  # if an alert like this is firing...
+    target_matchers: [severity="warning"]  # ...mute alerts like this...
+    # Only inhibit when these labels match, i.e. the same host AND the same container.
+    # Without "name", one critical cadvisor alert would mute warnings for every container.
+    equal: [instance, name]  # ...when these labels are equal

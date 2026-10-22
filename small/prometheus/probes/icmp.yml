@@ -1,0 +1,7 @@
+# Ping probes (job "blackbox-icmp", module icmp): is the host reachable on the network.
+# Hostname or IP, no port. Re-read every 30s, no restart needed. Failures fire ProbeDown.
+# Note: many cloud hosts block ICMP; a TCP probe is more reliable for those.
+
+- targets:  # one group of targets (can carry shared labels)
+    - 1.1.1.1  # example: Cloudflare; replace with your servers or gateway
+    - 8.8.8.8  # example: Google DNS

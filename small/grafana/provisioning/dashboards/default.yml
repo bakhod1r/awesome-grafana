@@ -1,0 +1,14 @@
+# Tells Grafana where to load dashboard JSON files from. This is not a dashboard itself.
+apiVersion: 1  # provisioning file format version
+
+providers:  # dashboard sources
+  - name: default  # provider name
+    folder: ""                      # "" = General folder in the UI
+    type: file  # load from JSON files on disk
+    options:  # provider settings
+      # Mounted from ./grafana/dashboards. Every *.json here becomes a dashboard;
+      # Grafana re-scans the folder, so new or changed files appear without a restart.
+      path: /var/lib/grafana/dashboards  # directory scanned for *.json
+    # UI edits to these dashboards cannot be saved by default (the file is the source of truth).
+    # To change one: edit in the UI, Share → Export → Save to file, replace the JSON here.
+    # Set allowUiUpdates: true to allow saving in the UI (lost if the file changes later).

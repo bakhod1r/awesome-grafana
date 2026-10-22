@@ -1,0 +1,85 @@
+# Grafana datasources, created automatically at startup (provisioning).
+# Datasources defined here are read-only in the UI; edit this file instead.
+apiVersion: 1  # provisioning file format version
+
+datasources:  # datasources to create
+  # Main source for dashboards: 12 months of history.
+  # VictoriaMetrics speaks the Prometheus query API, so it uses the "prometheus" type.
+  - name: VictoriaMetrics  # name shown in Grafana
+    uid: victoriametrics            # fixed id, referenced by dashboards and alert rules
+    type: prometheus  # Prometheus-compatible query API
+    url: http://victoriametrics:8428  # reached over the Docker network
+    isDefault: true  # preselected in Explore and new panels
+
+  # Prometheus itself: only the last 2 days. Useful for debugging scrapes and live rule state.
+  - name: Prometheus  # name shown in Grafana
+    uid: prometheus  # stable id used by dashboards and rules
+    type: prometheus  # Prometheus-compatible query API
+    url: http://prometheus:9090  # reached over the Docker network
+
+  # Lets Grafana's Alerting UI show Alertmanager's alerts and create/expire silences.
+  - name: Alertmanager  # name shown in Grafana
+    uid: alertmanager  # stable id used by dashboards and rules
+    type: alertmanager  # Alertmanager datasource
+    url: http://alertmanager:9093  # reached over the Docker network
+    jsonData:  # type-specific settings
+      implementation: prometheus        # the upstream Prometheus Alertmanager (not Mimir/Cortex)
+      handleGrafanaManagedAlerts: false # Grafana's own rules go to Telegram directly, not via Alertmanager
+
+  # Logs. Needs the victoriametrics-logs-datasource plugin (GF_INSTALL_PLUGINS in docker-compose.yml).
+  - name: VictoriaLogs  # name shown in Grafana
+    uid: victorialogs  # stable id used by dashboards and rules
+    type: victoriametrics-logs-datasource  # plugin type id
+    url: http://victorialogs:9428  # reached over the Docker network
+    jsonData:  # type-specific settings
+      # A trace id in a log line becomes a link that opens the trace in Tempo.
+      # Matches trace_id=…, traceID: …, "traceId":"…" (32 hex chars, the OpenTelemetry format).
+      derivedFields:  # links extracted from log messages
+        - name: TraceID  # link name shown under the log line
+          matcherType: regex  # search the message text
+          # Runs in the browser (JavaScript regex): no (?i) flag, so case is spelled out with [Tt] etc.
+          matcherRegex: '[Tt][Rr][Aa][Cc][Ee]_?[Ii][Dd]"?\s*[=:]\s*"?([0-9a-fA-F]{32})'  # group 1 = the trace id
+          url: "$${__value.raw}"  # $$ escapes $ in provisioning; with datasourceUid set, this is the query sent to Tempo
+          datasourceUid: tempo  # open in the Tempo datasource below
+
+  # Traces (90 days, tempo/tempo.yaml). Links: trace → logs, trace → metrics, service map.
+  - name: Tempo  # name shown in Grafana
+    uid: tempo  # stable id used by dashboards and links
+    type: tempo  # built-in Tempo datasource
+    url: http://tempo:3200  # reached over the Docker network
+    jsonData:  # type-specific settings
+      # "Logs for this span" button: searches VictoriaLogs for the trace id around the span's time.
+      tracesToLogsV2:  # trace → logs link
+        datasourceUid: victorialogs  # search here
+        customQuery: true  # use the query below instead of label matching
+        # trace_id field (OTLP logs) or the id anywhere in the message (Docker/file logs).
+        query: 'trace_id:"$${__trace.traceId}" OR "$${__trace.traceId}"'  # $$ escapes $ in provisioning
+        spanStartTimeShift: "-5m"  # search window starts 5m before the span
+        spanEndTimeShift: "5m"  # and ends 5m after it
+      # "Metrics" links on a span: rate and latency of that service from span metrics.
+      tracesToMetrics:  # trace → metrics link
+        datasourceUid: victoriametrics  # span metrics live here
+        tags: [{ key: service.name, value: service }]  # span attribute → metric label
+        queries:  # links shown on each span
+          - name: Request rate  # link label
+            query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))'  # $$ escapes $ in provisioning
+          - name: p95 latency  # link label
+            query: 'histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{$$__tags}[5m])))'  # seconds
+      # "Profiles for this span" button: CPU flame graph of the same service around the span's time.
+      # Spans that carry pyroscope.profile.id (apps using the Pyroscope OTel span profiler) open the
+      # exact profile of that request; other spans fall back to the service + time window.
+      tracesToProfiles:  # trace → profile link
+        datasourceUid: pyroscope  # profiles live here
+        tags: [{ key: service.name, value: service_name }]  # span attribute → Pyroscope label
+        profileTypeId: "process_cpu:cpu:nanoseconds:cpu:nanoseconds"  # CPU time
+        customQuery: false  # match by the tags above
+      serviceMap:  # service graph tab, built from traces_service_graph_* metrics
+        datasourceUid: victoriametrics  # generated by Tempo, stored here
+      nodeGraph: { enabled: true }  # show each trace as a node graph too
+      search: { hide: false }  # keep the search tab in Explore
+
+  # Profiles (30 days, pyroscope/pyroscope.yaml), pulled by Alloy (alloy/config.alloy).
+  - name: Pyroscope  # name shown in Grafana
+    uid: pyroscope  # stable id used by dashboards and the Tempo trace → profile link
+    type: grafana-pyroscope-datasource  # built-in Pyroscope datasource
+    url: http://pyroscope:4040  # reached over the Docker network

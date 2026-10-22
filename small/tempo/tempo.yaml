@@ -1,0 +1,70 @@
+# Grafana Tempo: trace storage. Receives spans from Vector over OTLP, stores them as blocks on
+# local disk (tempo-data volume) and answers TraceQL queries from Grafana.
+# Its metrics generator also turns spans into metrics (RED + service graph) and writes them to
+# VictoriaMetrics, so dashboards and Prometheus alerts work on traces without querying Tempo.
+# Reload after editing: docker compose restart tempo
+
+stream_over_http_enabled: true  # stream search results to Grafana as they are found
+
+server:  # Tempo's own HTTP server
+  http_listen_port: 3200  # API (Grafana datasource) + /metrics (Prometheus job tempo)
+  log_level: info  # debug is very noisy
+
+# Where spans come in. Only Vector sends here; apps send to Vector (ports 4317/4318).
+distributor:  # receives spans
+  receivers:  # protocols accepted
+    otlp:  # OpenTelemetry protocol
+      protocols:  # transports
+        grpc: { endpoint: 0.0.0.0:4317 }  # OTLP gRPC
+        http: { endpoint: 0.0.0.0:4318 }  # OTLP HTTP: Vector's opentelemetry sink uses this
+
+# Spans of a trace are collected in memory, then cut into a block and written to disk.
+ingester:  # buffers recent traces
+  max_block_duration: 5m  # cut a block at least every 5m: small loss window on a crash (WAL covers it)
+
+# Deletes blocks older than the retention period. There is no disk-size cap like VictoriaLogs has:
+# the host DiskAlmostFull alert and the limits in overrides below are the protection.
+compactor:  # merges small blocks, deletes old ones
+  compaction:  # compaction settings
+    block_retention: 2160h  # 90 days, same as VictoriaLogs
+
+# Spans → metrics. Results are remote-written into Prometheus, which evaluates the trace alert
+# rules on them and forwards them to VictoriaMetrics (kept 12 months) like every other metric:
+#   traces_spanmetrics_calls_total            requests per service/span, with status_code
+#   traces_spanmetrics_latency_bucket         latency histogram (p50/p95/p99)
+#   traces_service_graph_request_total        calls between services (Grafana service map)
+metrics_generator:  # span metrics + service graph
+  processor:  # per-processor settings
+    span_metrics:  # RED metrics from spans
+      # Extra span attributes copied to labels (dots become underscores):
+      #   http.response.status_code -> http_response_status_code  (200, 400, 500 ...)
+      #   http.route                -> http_route                 (/users/{id}, low cardinality)
+      # Never add ids (user, request, trace): every value is a new series.
+      dimensions: [http.response.status_code, http.route]
+  registry:  # labels added to every generated series
+    external_labels: { source: tempo }  # tells them apart from scraped metrics
+  storage:  # WAL for generated metrics before remote_write
+    path: /var/tempo/generator/wal  # inside the tempo-data volume
+    remote_write:  # Prometheus remote-write receiver (--web.enable-remote-write-receiver)
+      - url: http://prometheus:9090/api/v1/write  # Prometheus write endpoint
+        send_exemplars: true  # trace ids on metric points: jump from a latency graph to a trace
+  traces_storage:  # local copy used by the local-blocks processor
+    path: /var/tempo/generator/traces  # inside the tempo-data volume
+
+storage:  # where trace blocks live
+  trace:  # trace storage settings
+    backend: local  # local disk; switch to s3 (MinIO, AWS) when one disk is not enough
+    wal: { path: /var/tempo/wal }  # write-ahead log: no lost spans after a restart
+    local: { path: /var/tempo/blocks }  # finished blocks
+
+# Limits, so one misbehaving app cannot fill the disk or the memory.
+overrides:  # per-tenant limits; single tenant here, so "defaults" applies to everything
+  defaults:  # limits for every tenant
+    ingestion:  # incoming spans
+      rate_limit_bytes: 15000000  # 15 MB/s sustained; above this spans are refused (tempo_discarded_spans_total)
+      burst_size_bytes: 20000000  # short bursts up to 20 MB
+      max_traces_per_user: 100000  # traces held in memory at once
+    global:  # per-trace limits
+      max_bytes_per_trace: 5000000  # 5 MB; bigger traces (runaway loops) are cut
+    metrics_generator:  # which generators run
+      processors: [service-graphs, span-metrics, local-blocks]  # local-blocks enables TraceQL metrics queries

@@ -1,0 +1,6 @@
+# Beyla config. Which process to watch comes from BEYLA_OPEN_PORT (.env); this file only
+# removes false matches: Docker publishes container ports through dockerd/docker-proxy on the
+# host, so they also "own" the port and would show up as the backend.
+discovery:  # which processes get instrumented
+  exclude_services:  # never instrument these, even if they listen on the port
+    - exe_path: "dockerd|docker-proxy|containerd"

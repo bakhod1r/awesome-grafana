@@ -1,0 +1,53 @@
+/* Custom look for Grafana, injected by grafana-proxy (nginx sub_filter). Dark theme only.
+ * Grafana's own styles are emotion classes with generated hashes; the stable parts used here
+ * are the "-panel-container" suffix, the "page-dashboard" body class and data-testid attributes.
+ * Edits apply on browser reload, no restart needed. */
+
+/* Background: deep blue-teal gradient, fixed so it does not scroll with the panels. */
+html body.theme-dark {
+  background:
+    radial-gradient(ellipse at 15% 0%, rgba(40, 120, 150, 0.55), transparent 55%),
+    radial-gradient(ellipse at 90% 100%, rgba(20, 90, 110, 0.45), transparent 60%),
+    linear-gradient(160deg, #0d3346 0%, #0a2433 45%, #071722 100%) !important;
+  background-attachment: fixed !important;
+}
+
+/* Panels: translucent dark glass, so the gradient shows through. */
+body.theme-dark section[class*="-panel-container"] {
+  background: rgba(10, 22, 32, 0.55) !important;
+  border: 1px solid rgba(120, 190, 220, 0.12) !important;
+  backdrop-filter: blur(2px);
+}
+
+/* Panel titles: centered, small, like the reference. */
+body.theme-dark section[class*="-panel-container"] h2 {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(220, 235, 245, 0.85);
+}
+
+/* Top bar and side menu: translucent too, otherwise they stay solid grey. */
+body.theme-dark header,
+body.theme-dark [data-testid="data-testid navigation mega-menu"],
+body.theme-dark [data-testid*="dashboard controls"] {
+  background: rgba(7, 23, 34, 0.6) !important;
+}
+
+/* Every other page (Dashboards list, Alerting, Explore, Connections, Administration):
+ * the content box and toolbars are solid grey by default; make them translucent too.
+ * Menus, dropdowns and modals are left solid so they stay readable. */
+body.theme-dark [class*="-page-inner"],
+body.theme-dark nav.page-toolbar,
+body.theme-dark :has(> [data-testid*="dashboard controls"]),
+body.theme-dark [class*="-queryContainer"],
+body.theme-dark [class*="-no-data-card"] {
+  background: rgba(10, 22, 32, 0.55) !important;
+}
+body.theme-dark [class*="-page-inner"] {
+  border: 1px solid rgba(120, 190, 220, 0.12) !important;
+}
+
+/* Row titles (Quick Stats, CPU Stats...): light blue accent. */
+body.theme-dark [data-testid*="dashboard-row-title"] {
+  color: #8fd3f0 !important;
+}

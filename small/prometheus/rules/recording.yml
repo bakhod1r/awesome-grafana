@@ -1,0 +1,218 @@
+# Prometheus recording rules: heavy queries computed once per evaluation_interval and stored as new
+# series (forwarded to VictoriaMetrics like any other metric). Dashboards and alerts read the cheap
+# precomputed series instead of re-running rate()/sum() over raw data on every refresh.
+#
+# Naming convention  level:metric:operations
+#   level       labels the result keeps (instance, name, service, job...)
+#   metric      what is measured
+#   operations  what was applied (rate1m, avg5m, percent...)
+#
+# Recorded series start existing when this file is first loaded; there is no history before that.
+# Check syntax: docker run --rm -i --entrypoint promtool prom/prometheus:v2.54.1 check rules /dev/stdin < prometheus/rules/recording.yml
+
+groups:  # list of rule groups; rules in a group are evaluated together, in order
+  # Host (node-exporter). Used by the Node Overview dashboard.
+  - name: node-recording  # group name, shown in the Prometheus UI
+    rules:  # rules of this group
+      - record: instance:node_cpu_utilisation:percent  # busy CPU % per host
+        expr: 100 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100  # 100 - idle %
+      - record: instance:node_memory_utilisation:percent  # used memory % per host
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100  # 1 - available/total
+      - record: instance:node_memory_used:bytes  # used memory bytes per host
+        expr: node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes  # total - available
+      # Used % of the system disk per host: "/" on a normal server. Docker Desktop has no real "/"
+      # (it is a read-only image), so there the fullest real filesystem is used (/var/lib, the VM disk).
+      - record: instance:node_filesystem_root_used:percent  # used % of the system disk per host
+        expr: |
+          max by (instance) (100 - node_filesystem_avail_bytes{mountpoint="/", fstype!~"tmpfs|overlay|erofs|squashfs"} / node_filesystem_size_bytes{mountpoint="/", fstype!~"tmpfs|overlay|erofs|squashfs"} * 100)
+          or max by (instance) (100 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*", mountpoint!~"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*", mountpoint!~"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*"} * 100)
+      # Hours until each real filesystem is full at the pace of the last 6h. Only filesystems that are
+      # filling up get a value (others are dropped), so the dashboard lists just the ones to watch.
+      - record: device:node_filesystem_full_in:hours  # forecast per host + device
+        expr: |
+          max by (instance, device) (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*", mountpoint!~"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*"}
+              / -deriv(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*", mountpoint!~"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*"}[6h])
+          ) / 3600 > 0
+      - record: instance:node_network_receive_bytes:rate1m  # bytes/s received per host
+        expr: sum by (instance) (rate(node_network_receive_bytes_total[1m]))  # all interfaces
+      - record: instance:node_network_transmit_bytes:rate1m  # bytes/s sent per host
+        expr: sum by (instance) (rate(node_network_transmit_bytes_total[1m]))  # all interfaces
+
+  # Containers (cadvisor). Raw cadvisor series are per cgroup/cpu/interface; these sum them per container.
+  - name: container-recording  # group name, shown in the Prometheus UI
+    rules:  # rules of this group
+      - record: name:container_cpu_usage:rate1m  # CPU cores used per container
+        expr: sum by (name) (rate(container_cpu_usage_seconds_total{name!=""}[1m]))  # summed over CPUs
+      - record: name:container_memory_working_set:bytes  # memory in use per container (what OOM-killer sees)
+        expr: sum by (name) (container_memory_working_set_bytes{name!=""})  # summed over cgroups
+      - record: name:container_network_receive_bytes:rate1m  # bytes/s received per container
+        expr: sum by (name) (rate(container_network_receive_bytes_total{name!=""}[1m]))  # all interfaces
+      - record: name:container_network_transmit_bytes:rate1m  # bytes/s sent per container
+        expr: sum by (name) (rate(container_network_transmit_bytes_total{name!=""}[1m]))  # all interfaces
+
+  # Probes (blackbox). 5-minute success ratio per probe: the building block of the SLO dashboard,
+  # which averages it over 30 days in VictoriaMetrics (Prometheus itself only keeps 2 days).
+  - name: probe-recording  # group name, shown in the Prometheus UI
+    rules:  # rules of this group
+      - record: job_instance:probe_success:avg5m  # share of successful probes in the last 5m, 0..1
+        expr: avg_over_time(probe_success{job=~"blackbox-.+"}[5m])  # every probe job (http, tcp, tls, icmp, dns)
+
+  # Logs (Vector log_to_metric). Log lines per second by service and level, kept 12 months.
+  - name: log-recording  # group name, shown in the Prometheus UI
+    rules:  # rules of this group
+      - record: service_level:log_lines:rate5m  # log lines/s per service and level
+        expr: sum by (service, level) (rate(vector_log_lines_total[5m]))  # summed over containers/streams
+      - record: service:log_error_ratio:rate5m  # share of error/fatal/panic lines per service, 0..1
+        expr: |  # error lines / all lines; "or 0" = services without errors get 0, "> 0" = silent services return nothing (no NaN)
+          (sum by (service) (rate(vector_log_lines_total{level=~"error|fatal|panic"}[5m]))
+            or sum by (service) (rate(vector_log_lines_total[5m])) * 0)
+            / (sum by (service) (rate(vector_log_lines_total[5m])) > 0)
+
+  # Golden signals for every optional service, in one shape: svc:<signal>{svc="postgres"}.
+  # The Services dashboard draws one identical row per svc value, so a new exporter only needs
+  # rules here, never new panels. A service whose exporter is off has no series and no row.
+  #   svc:up                  1 = exporter reaches the service, 0 = it does not
+  #   svc:throughput:rate5m   work per second (transactions, queries, commands, requests, ops)
+  #   svc:errors:rate5m       failures per second (rollbacks+deadlocks, aborted/rejected connects, 5xx, asserts)
+  #   svc:saturation:ratio    how full the main limit is, 0..1 (connections or memory)
+  #   svc:latency:seconds     p95 where a histogram exists, otherwise the average
+  - name: service-signals  # group name, shown in the Prometheus UI
+    rules:  # rules of this group
+      # PostgreSQL (postgres-exporter + statement-log histogram from Vector)
+      - record: svc:up
+        expr: max(pg_up)
+        labels: { svc: postgres }
+      - record: svc:throughput:rate5m
+        expr: sum(rate(pg_stat_database_xact_commit[5m]) + rate(pg_stat_database_xact_rollback[5m]))  # transactions/s
+        labels: { svc: postgres }
+      - record: svc:errors:rate5m
+        expr: sum(rate(pg_stat_database_xact_rollback[5m]) + rate(pg_stat_database_deadlocks[5m]))  # rollbacks + deadlocks /s
+        labels: { svc: postgres }
+      - record: svc:saturation:ratio
+        expr: sum(pg_stat_activity_count) / max(pg_settings_max_connections)  # connections / max_connections
+        labels: { svc: postgres }
+      - record: svc:latency:seconds
+        expr: histogram_quantile(0.95, sum by (le) (rate(vector_postgres_statement_duration_seconds_bucket[5m])))  # statement p95
+        labels: { svc: postgres }
+
+      # MySQL / MariaDB (mysqld-exporter)
+      - record: svc:up
+        expr: max(mysql_up)
+        labels: { svc: mysql }
+      - record: svc:throughput:rate5m
+        expr: sum(rate(mysql_global_status_queries[5m]))  # queries/s
+        labels: { svc: mysql }
+      - record: svc:errors:rate5m
+        expr: sum(rate(mysql_global_status_aborted_connects[5m]))  # failed connects/s
+        labels: { svc: mysql }
+      - record: svc:saturation:ratio
+        expr: max(mysql_global_status_threads_connected / mysql_global_variables_max_connections)
+        labels: { svc: mysql }
+      - record: svc:latency:seconds
+        expr: sum(rate(mysql_global_status_slow_queries[5m])) * 0 + max(mysql_global_variables_long_query_time) * sum(rate(mysql_global_status_slow_queries[5m])) / (sum(rate(mysql_global_status_queries[5m])) > 0)  # rough: share of slow queries × long_query_time
+        labels: { svc: mysql }
+
+      # Redis (redis_exporter)
+      - record: svc:up
+        expr: max(redis_up)
+        labels: { svc: redis }
+      - record: svc:throughput:rate5m
+        expr: sum(rate(redis_commands_processed_total[5m]))  # commands/s
+        labels: { svc: redis }
+      - record: svc:errors:rate5m
+        expr: sum(rate(redis_rejected_connections_total[5m])) + sum(rate(redis_evicted_keys_total[5m]))  # rejected connects + evictions /s
+        labels: { svc: redis }
+      - record: svc:saturation:ratio
+        expr: max(redis_memory_used_bytes / (redis_memory_max_bytes > 0)) or max(redis_connected_clients / redis_config_maxclients)  # memory / maxmemory, else clients / maxclients
+        labels: { svc: redis }
+      - record: svc:latency:seconds
+        expr: sum(rate(redis_commands_duration_seconds_total[5m])) / (sum(rate(redis_commands_total[5m])) > 0)  # average command time
+        labels: { svc: redis }
+
+      # nginx (nginx-prometheus-exporter, stub_status: no errors or latency available)
+      - record: svc:up
+        expr: max(nginx_up)
+        labels: { svc: nginx }
+      - record: svc:throughput:rate5m
+        expr: sum(rate(nginx_http_requests_total[5m]))  # requests/s
+        labels: { svc: nginx }
+      - record: svc:saturation:ratio
+        expr: sum(nginx_connections_active) / 1024  # active connections / default worker_connections (1024)
+        labels: { svc: nginx }
+
+      # Traefik (built-in metrics)
+      - record: svc:up
+        expr: max(up{job="traefik"})
+        labels: { svc: traefik }
+      - record: svc:throughput:rate5m
+        expr: sum(rate(traefik_service_requests_total[5m]))  # requests/s
+        labels: { svc: traefik }
+      - record: svc:errors:rate5m
+        expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m]))  # 5xx/s
+        labels: { svc: traefik }
+      - record: svc:latency:seconds
+        expr: histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket[5m])))  # p95
+        labels: { svc: traefik }
+
+      # MongoDB (percona mongodb_exporter)
+      - record: svc:up
+        expr: max(mongodb_up)
+        labels: { svc: mongodb }
+      - record: svc:throughput:rate5m
+        expr: sum(rate(mongodb_op_counters_total[5m]))  # operations/s
+        labels: { svc: mongodb }
+      - record: svc:errors:rate5m
+        expr: sum(rate(mongodb_asserts_total{type=~"regular|user"}[5m]))  # asserts/s
+        labels: { svc: mongodb }
+      - record: svc:saturation:ratio
+        expr: max(mongodb_connections{state="current"} / ignoring(state) (mongodb_connections{state="current"} + ignoring(state) mongodb_connections{state="available"}))
+        labels: { svc: mongodb }
+
+  # App SLOs (job "apps"): per service, the share of requests that break the objective, over the
+  # windows the burn-rate alerts use. Two objectives, set in grafana/generators/app_slo.py and the
+  # app-slo group of rules/alerts.yml:
+  #   availability  99.5% of requests are not 5xx      (error budget 0.5%)
+  #   latency       99% of requests finish within 1s   (latency budget 1%)
+  - name: app-slo-recording  # group name, shown in the Prometheus UI
+    rules:  # rules of this group
+      - record: service:app_requests:rate5m  # requests/s per service
+        expr: sum by (service) (rate(http_requests_total{job="apps"}[5m]))
+      - record: service:app_request_errors:ratio_rate5m  # share of 5xx responses
+        expr: |
+          sum by (service) (rate(http_requests_total{job="apps", status=~"5.."}[5m]))
+            / sum by (service) (rate(http_requests_total{job="apps"}[5m]))
+      - record: service:app_request_slow:ratio_rate5m  # share of requests slower than 1s
+        expr: |
+          1 - sum by (service) (rate(http_request_duration_seconds_bucket{job="apps", le="1"}[5m]))
+            / sum by (service) (rate(http_request_duration_seconds_count{job="apps"}[5m]))
+      - record: service:app_requests:rate30m  # requests/s per service
+        expr: sum by (service) (rate(http_requests_total{job="apps"}[30m]))
+      - record: service:app_request_errors:ratio_rate30m  # share of 5xx responses
+        expr: |
+          sum by (service) (rate(http_requests_total{job="apps", status=~"5.."}[30m]))
+            / sum by (service) (rate(http_requests_total{job="apps"}[30m]))
+      - record: service:app_request_slow:ratio_rate30m  # share of requests slower than 1s
+        expr: |
+          1 - sum by (service) (rate(http_request_duration_seconds_bucket{job="apps", le="1"}[30m]))
+            / sum by (service) (rate(http_request_duration_seconds_count{job="apps"}[30m]))
+      - record: service:app_requests:rate1h  # requests/s per service
+        expr: sum by (service) (rate(http_requests_total{job="apps"}[1h]))
+      - record: service:app_request_errors:ratio_rate1h  # share of 5xx responses
+        expr: |
+          sum by (service) (rate(http_requests_total{job="apps", status=~"5.."}[1h]))
+            / sum by (service) (rate(http_requests_total{job="apps"}[1h]))
+      - record: service:app_request_slow:ratio_rate1h  # share of requests slower than 1s
+        expr: |
+          1 - sum by (service) (rate(http_request_duration_seconds_bucket{job="apps", le="1"}[1h]))
+            / sum by (service) (rate(http_request_duration_seconds_count{job="apps"}[1h]))
+      - record: service:app_requests:rate6h  # requests/s per service
+        expr: sum by (service) (rate(http_requests_total{job="apps"}[6h]))
+      - record: service:app_request_errors:ratio_rate6h  # share of 5xx responses
+        expr: |
+          sum by (service) (rate(http_requests_total{job="apps", status=~"5.."}[6h]))
+            / sum by (service) (rate(http_requests_total{job="apps"}[6h]))
+      - record: service:app_request_slow:ratio_rate6h  # share of requests slower than 1s
+        expr: |
+          1 - sum by (service) (rate(http_request_duration_seconds_bucket{job="apps", le="1"}[6h]))
+            / sum by (service) (rate(http_request_duration_seconds_count{job="apps"}[6h]))

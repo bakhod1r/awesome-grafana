@@ -1,0 +1,19 @@
+# Grafana Pyroscope: continuous profiling storage. Single binary, local disk (pyroscope-data volume).
+# Reload after editing: docker compose restart pyroscope
+
+server:
+  http_listen_port: 4040  # API + UI; Alloy pushes here, Grafana reads here
+
+storage:
+  backend: filesystem  # local disk; s3 when one disk is not enough
+  filesystem:
+    dir: /data/blocks  # inside the pyroscope-data volume
+
+pyroscopedb:
+  data_path: /data/pyroscope  # head blocks before they are flushed
+
+limits:
+  compactor_blocks_retention_period: 720h  # 30 days; profiles are big, keep less than metrics
+
+self_profiling:
+  disable_push: false  # Pyroscope profiles itself too, so there is data from the first minute

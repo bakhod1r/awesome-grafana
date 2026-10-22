@@ -1,0 +1,6 @@
+# Apps that the discoverer service cannot find (job "apps"), e.g. running outside Docker.
+# Containers in any compose project on this host are found automatically; no entry needed.
+# Use host.docker.internal:<port> for apps on the Docker host. Re-read every 30s, no restart needed.
+[]
+# - targets: [host.docker.internal:7001]
+#   labels: { service: api-gateway }

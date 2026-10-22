@@ -1,0 +1,366 @@
+# Vector: collects container and file logs and pushes them to VictoriaLogs.
+# Also: OTLP traces/metrics/logs from apps (section 8). pprof profiles stay in Alloy (alloy/config.alloy).
+# Pipelines:
+#   Docker: docker_logs "docker" (+ multiline) → remap "docker_labels" → filter "drop_health" → remap "parse" ─┐
+#   Files:  file "nginx" → remap "nginx_parse" ──────────────────────────────────────────────────────────────────┤
+#   (off)   journald (Linux servers only, see section 7)                                                        │
+#           sample "sampling" ←─────────────────────────────────────────────────────────────────────────────────┘
+#   OTLP:   opentelemetry "otlp" ─ logs ─→ remap "otlp_logs" ─┐
+#           sampling + otlp_logs → remap "mask" → http "victorialogs"
+#           otlp traces → opentelemetry "tempo";  otlp metrics → remap "otlp_metrics" → prometheus_remote_write "prometheus"
+#   Metrics from logs: route "metric_route" → log_to_metric × 5 → prometheus_exporter "metrics" (:9598, job vector)
+# Validate after editing:  docker compose run --rm vector validate /etc/vector/vector.yaml
+# Reload: Vector watches this file (--watch-config), no restart needed.
+
+# Read positions (Docker and file) are saved here, so after a restart Vector continues where it stopped.
+data_dir: /var/lib/vector  # vector-data volume
+
+api:  # health endpoint + `vector top` inside the container
+  enabled: true
+  address: 0.0.0.0:8686  # http://localhost:8686/health
+
+sources:
+  # 1. Every running container, through the Docker socket. New containers are picked up
+  #    automatically; nothing is listed by hand. Vector skips its own container (no feedback loop).
+  docker:
+    type: docker_logs
+    docker_host: unix:///var/run/docker.sock  # Docker API socket
+    # Multiline: join stack traces into one entry. Docker delivers every line separately, so a
+    # Java/Python exception would otherwise become dozens of unrelated entries.
+    # Rule: a line starting with whitespace (e.g. "\tat com.x.Y" or "  File \"x.py\"") is a
+    # continuation and is appended to the previous line.
+    multiline:
+      start_pattern: '^\S'      # a non-whitespace first character starts a new entry
+      condition_pattern: '^\S'  # ... and ends the previous one
+      mode: halt_before         # the matching line belongs to the next entry
+      timeout_ms: 3000          # flush an entry if no new line arrives within 3s
+
+  # 6. Log files: nginx access/error logs written to disk, the usual setup when nginx runs as a
+  #    systemd service (apt install nginx). On a server, mount /var/log/nginx into Vector read-only.
+  #    Here the nginx-demo container writes to the nginx-demo-logs volume, mounted at the same path,
+  #    so the exact server code path is tested. Rotated files (logrotate) are picked up automatically.
+  nginx:
+    type: file
+    include: ["/var/log/nginx/*.log"]  # files to tail
+    read_from: beginning  # first start: read whole files; later: saved positions
+
+  # 7. System logs (journald): SSH logins, kernel errors, systemd service crashes.
+  #    OFF: macOS has no journald. To enable on a Linux server:
+  #      1. docker-compose.yml, vector volumes: uncomment the /var/log/journal, /run/log/journal
+  #         and /etc/machine-id mounts.
+  #      2. Uncomment this source and add "journal" to the inputs of transforms.mask below.
+  # journald_raw:
+  #   type: journald
+  #   journal_directory: /var/log/journal
+
+  # 8. OpenTelemetry (OTLP): any app with an OpenTelemetry SDK or agent works without code changes.
+  #    Set on the app:  OTEL_EXPORTER_OTLP_ENDPOINT=http://<host>:4318  (or :4317 for gRPC)
+  #                     OTEL_SERVICE_NAME=<name>
+  #    SDKs send traces, metrics and logs to the same endpoint by default, so all three are accepted:
+  #      traces  → Tempo (passed through unchanged as OTLP)
+  #      metrics → Prometheus (remote write) → VictoriaMetrics
+  #      logs    → normalised + secrets masked → VictoriaLogs (trace_id/span_id kept, trace ↔ logs links work)
+  #    No CORS support: browser SDKs (OTel JS web) need a reverse proxy that adds CORS headers.
+  otlp:
+    type: opentelemetry
+    grpc:
+      address: 0.0.0.0:4317  # OTLP gRPC
+    http:
+      address: 0.0.0.0:4318  # OTLP HTTP: /v1/traces, /v1/metrics, /v1/logs
+    use_otlp_decoding:  # traces stay raw OTLP for the Tempo sink; logs/metrics become Vector events
+      traces: true
+
+  # Vector's own metrics (events in/out, errors, discarded) on the same /metrics page.
+  vector_metrics:
+    type: internal_metrics
+
+transforms:
+  # 2. Docker metadata → fields. Fields listed in the sink's _stream_fields become VictoriaLogs
+  #    stream fields, so keep them few and low-cardinality (no ids, users, IPs — those stay inside the message).
+  docker_labels:
+    type: remap
+    inputs: [docker]
+    source: |
+      l = object(.label) ?? {}
+      .container = .container_name                        # "awesome-grafana-grafana-1"
+      # Compose service name ("grafana"): stable across restarts and scale-ups.
+      # Containers started without compose (docker run): service = container name, as on the dashboards.
+      .service = l."com.docker.compose.service" || .container_name
+      # Compose project ("awesome-grafana"): tells apart stacks on the same host.
+      # container.project overrides it (same rule as the cadvisor job in prometheus.yml).
+      .project = l."container.project" || l."com.docker.compose.project" || ""
+      # container.* labels (docker-compose labels:) → type, lang, team, env, the same filters as
+      # the Docker projects dashboard. Containers without them get "" (dropped by VictoriaLogs and Prometheus).
+      .type = l."container.type" || ""   # backend, frontend, db, ...
+      .lang = l."container.lang" || ""   # go, java, node, ...
+      .team = l."container.team" || ""   # owning team
+      .env  = l."container.env" || ""    # prod, staging, dev
+      # .stream (stdout/stderr) is set by the source already.
+      del(.label); del(.container_name); del(.container_id); del(.container_created_at); del(.source_type); del(.host)
+
+  # Drop health-check noise: blackbox probes Grafana's /api/health every 15s, and
+  # Docker/k8s style health checks would otherwise be most of the log volume.
+  drop_health:
+    type: filter
+    inputs: [docker_labels]
+    condition: '!match(string!(.message), r''(?i)(GET|HEAD) /(api/)?(health|healthz|ready|readyz|livez)\b'')'
+
+  # 4. Process each line before it is stored.
+  parse:
+    type: remap
+    inputs: [drop_health]
+    source: |
+      msg = string!(.message)
+      # Detect the log level. Three patterns, because apps write it differently, in order of trust:
+      #   level_kv:   level=error, lvl=warn, "level":"info", severity: ERROR   (structured logs)
+      #   klog:       I1020 / W1020 / E1020 / F1020 line prefix                (Go klog: cadvisor, k8s tools)
+      #   level_word: a bare ERROR / WARN / panic word in plain-text logs       (fallback, least reliable:
+      #               "I1020 ... Error while reading" is an info line, which is why klog comes first)
+      kv = parse_regex(msg, r'(?i)(?:\blevel|\blvl|\bseverity)"?\s*[=:]\s*"?(?P<v>[a-z]+)') ?? {}
+      kl = parse_regex(msg, r'^(?P<v>[IWEF])\d{4} ') ?? {}
+      wd = parse_regex(msg, r'(?i)\b(?P<v>panic|fatal|critical|error|err|warning|warn|info|debug)\b') ?? {}
+      klog = {"I": "info", "W": "warn", "E": "error", "F": "fatal"}
+      kw = if kl.v != null { get!(klog, [kl.v]) } else { null }
+      level = kv.v || kw || wd.v || "unknown"
+
+      # PostgreSQL logs (log_line_prefix = 'app=%a db=%d user=%u pid=%p ', see docker-compose.yml):
+      #   app=shop-api db=shop user=shop pid=42 LOG:  duration: 1.234 ms  statement: SELECT ...
+      # → fields pg_app / pg_db (filter logs by service and database), level from the severity
+      # word, and a latency histogram per service and database from the "duration:" lines
+      # (vector_postgres_statement_duration_seconds, p50/p95/p99 on the PostgreSQL dashboard).
+      if .service == "postgres" {
+        pg, err = parse_regex(msg, r'^app=(?P<app>\S*) db=(?P<db>\S*) user=\S* pid=\d+ (?P<sev>[A-Z]+):\s+(?:duration: (?P<ms>[0-9.]+) ms  (?:statement|execute))?')
+        if err == null {
+          .pg_app = pg.app
+          .pg_db = pg.db
+          # LOG/DETAIL → info, ERROR/STATEMENT → error
+          level = (get({"LOG": "info", "ERROR": "error", "STATEMENT": "error", "WARNING": "warn", "FATAL": "fatal", "PANIC": "panic"}, [pg.sev]) ?? null) || "info"
+          # statement only: parse and bind steps of the same query also log one
+          if pg.ms != "" { .pg_duration_seconds = to_float!(pg.ms) / 1000 }
+        }
+      }
+
+      # Frontend containers (label container.type=frontend): web-server access lines on stdout, nginx
+      # "combined" format with an optional trailing rt=<seconds> (add $request_time to log_format for latency):
+      #   1.2.3.4 - - [20/Oct/2026:12:00:00 +0000] "GET /app.js HTTP/1.1" 200 612 "-" "Mozilla/5.0" rt=0.003
+      # → vector_frontend_http_requests_total / _request_duration_seconds, labelled with the
+      # container's fields (project, service, container, team, env) plus status_class and method.
+      if .type == "frontend" {
+        a, err = parse_regex(msg, r'^\S+ \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+) \S+ [^"]*" (?P<sc>\d)\d\d \d+ "[^"]*" "[^"]*"(?: rt=(?P<rt>[\d.]+))?')
+        if err == null {
+          .method = a.method
+          .status_class = string!(a.sc) + "xx"   # 200 → 2xx, few values: safe as a label
+          .http_access = true                             # marks lines for the request counter
+          if a.rt != "" { .request_time = to_float!(a.rt) }
+          # access lines: level from the status, 5xx error, 4xx warn
+          level = if .status_class == "5xx" { "error" } else if .status_class == "4xx" { "warn" } else { "info" }
+        }
+      }
+
+      # Normalise spellings (Grafana logs "eror", others "warning"/"err").
+      level = downcase(string!(level))
+      .level = (get({"err": "error", "eror": "error", "warning": "warn", "critical": "fatal"}, [level]) ?? null) || level
+      .source = "docker"
+
+  # Parse the nginx access log line (log_format "timed" in nginx-demo/nginx.conf):
+  #   1.2.3.4 - - [20/Oct/2026:12:00:00 +0000] "GET /path HTTP/1.1" 200 612 "-" "curl/8" rt=0.003
+  # and turn it into fields + metrics. Error-log lines say [error]/[warn].
+  nginx_parse:
+    type: remap
+    inputs: [nginx]
+    source: |
+      msg = string!(.message)
+      .service = "nginx-demo"  # rename on a server, e.g. "nginx"
+      .source = "file"         # tells file logs apart from Docker logs
+      a, err = parse_regex(msg, r'^\S+ \S+ \S+ \[[^\]]+\] "(?P<method>[A-Z]+) \S+ [^"]*" (?P<sc>\d)\d\d \d+ "[^"]*" "[^"]*" rt=(?P<rt>[\d.]+)')
+      if err == null {
+        .method = a.method
+        .status_class = string!(a.sc) + "xx"
+        .http_access = true
+        .request_time = to_float!(a.rt)
+        .level = if .status_class == "5xx" { "error" } else if .status_class == "4xx" { "warn" } else { "info" }
+      } else {
+        e = parse_regex(msg, r'^\S+ \S+ \[(?P<l>[a-z]+)\]') ?? {}
+        .level = if e.l == "notice" { "info" } else { e.l || "unknown" }
+      }
+      del(.host); del(.source_type)
+
+  # Metrics from logs. log_to_metric fails (and logs an error) on events without the source field,
+  # so each metric only gets the lines that carry it.
+  metric_route:
+    type: route
+    inputs: [parse, nginx_parse]
+    reroute_unmatched: false  # lines with no metric field are not needed here
+    route:
+      docker: '.source == "docker"'                                       # every container line
+      pg: 'exists(.pg_duration_seconds)'                                   # postgres "duration:" lines
+      fe_req: '.source == "docker" && exists(.http_access)'                # frontend access lines
+      fe_rt: '.source == "docker" && exists(.request_time)'                # ... with rt=
+      nginx_req: '.source == "file" && exists(.http_access)'              # nginx file access lines
+
+  # Count every Docker line, labelled with its fields (service, container, project, stream, level).
+  # Exposed on Vector's /metrics as vector_log_lines_total, scraped by Prometheus (job vector) and
+  # kept 12 months in VictoriaMetrics — far cheaper to graph and alert on than a LogsQL count.
+  # Placed before sampling so the counts are exact.
+  log_lines:
+    type: log_to_metric
+    inputs: [metric_route.docker]
+    metrics:
+      - type: counter
+        field: message
+        name: log_lines_total
+        namespace: vector
+        tags: { service: "{{ service }}", container: "{{ container }}", project: "{{ project }}", stream: "{{ stream }}", level: "{{ level }}", type: "{{ type }}", team: "{{ team }}", env: "{{ env }}" }
+
+  # PostgreSQL statement latency per service and database → vector_postgres_statement_duration_seconds.
+  pg_latency:
+    type: log_to_metric
+    inputs: [metric_route.pg]
+    metrics:
+      - type: histogram
+        field: pg_duration_seconds
+        name: postgres_statement_duration_seconds
+        namespace: vector
+        tags: { pg_app: "{{ pg_app }}", pg_db: "{{ pg_db }}" }
+
+  # Frontend containers: requests and latency from access lines → vector_frontend_http_*.
+  fe_requests:
+    type: log_to_metric
+    inputs: [metric_route.fe_req]
+    metrics:
+      - type: counter
+        field: http_access
+        name: frontend_http_requests_total
+        namespace: vector
+        tags: { service: "{{ service }}", container: "{{ container }}", project: "{{ project }}", team: "{{ team }}", env: "{{ env }}", status_class: "{{ status_class }}", method: "{{ method }}" }
+  fe_latency:
+    type: log_to_metric
+    inputs: [metric_route.fe_rt]
+    metrics:
+      - type: histogram
+        field: request_time
+        name: frontend_http_request_duration_seconds
+        namespace: vector
+        tags: { service: "{{ service }}", container: "{{ container }}", project: "{{ project }}", team: "{{ team }}", env: "{{ env }}", status_class: "{{ status_class }}", method: "{{ method }}" }
+
+  # nginx file logs: HTTP metrics with no nginx module or app change → vector_nginx_http_*.
+  nginx_metrics:
+    type: log_to_metric
+    inputs: [metric_route.nginx_req]
+    metrics:
+      - type: counter
+        field: http_access
+        name: nginx_http_requests_total
+        namespace: vector
+        tags: { service: "{{ service }}", status_class: "{{ status_class }}", method: "{{ method }}" }
+      - type: histogram
+        field: request_time
+        name: nginx_http_request_duration_seconds
+        namespace: vector
+        tags: { service: "{{ service }}", status_class: "{{ status_class }}", method: "{{ method }}" }
+
+  # Sampling: keep 1 of every `rate` info/debug lines to save disk (1 = keep all, 10 = keep 10%).
+  # warn/error/fatal/panic are never sampled, so log alerts (LogPanic, LogOOM, LogErrorSpike) stay exact.
+  sampling:
+    type: sample
+    inputs: [parse, nginx_parse]
+    rate: 1
+    exclude: '!includes(["info", "debug"], .level)'  # these always pass
+
+  # OTLP logs: make them look like Docker/file logs, so the Logs dashboard, log alerts (vmalert)
+  # and LogsQL queries treat them the same:
+  #   service = service.name resource attribute
+  #   level   = severity text, or severity number when the text is missing (OTel ranges: 1-8 debug … 21-24 fatal)
+  otlp_logs:
+    type: remap
+    inputs: [otlp.logs]
+    source: |
+      .service = .resources."service.name" || "unknown"
+      sev = downcase(string(.severity_text) ?? "")
+      if sev == "" {
+        n = int(.severity_number) ?? 0
+        sev = if n == 0 { "unknown" } else if n < 9 { "debug" } else if n < 13 { "info" } else if n < 17 { "warn" } else if n < 21 { "error" } else { "fatal" }
+      }
+      .level = (get({"err": "error", "eror": "error", "warning": "warn", "critical": "fatal", "panic": "fatal"}, [sev]) ?? null) || sev
+      .source = "otlp"
+      if !is_string(.message) { .message = encode_json(.message) }
+      del(.http_access); del(.source_type)
+
+  # 5b. Secret masking, shared by every pipeline right before storage. Only the value is replaced,
+  #     so the key stays readable: "password=hunter2" → "password=***".
+  #     Masked data is gone for good: it is never written to disk.
+  mask:
+    type: remap
+    inputs: [sampling, otlp_logs]
+    source: |
+      m = string!(.message)
+      # key=value / key: value / "key":"value" for common secret names.
+      m = replace(m, r'(?i)((?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret)"?\s*[=:]\s*"?)[^\s"\x27&,;]+', "$1***")
+      # HTTP auth headers: "Authorization: Bearer eyJ..." / "Basic dXNlcjpwYXNz".
+      m = replace(m, r'(?i)(\b(?:bearer|basic)\s+)[A-Za-z0-9._~+/=-]{8,}', "$1***")
+      # Email addresses.
+      m = replace(m, r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', "***@***")
+      # Card numbers: exactly 16 digits, optionally grouped by 4 with spaces or dashes.
+      # Shorter numbers (13-digit millisecond timestamps, ids) are left alone on purpose.
+      m = replace(m, r'\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b', "****-****-****-****")
+      .message = m
+      # Helper fields used only for metrics.
+      del(.http_access); del(.request_time); del(.pg_duration_seconds)
+
+  # OTLP metrics: Prometheus-style names and label keys (http.server.duration → http_server_duration).
+  otlp_metrics:
+    type: remap
+    inputs: [otlp.metrics]
+    source: |
+      .name = replace(string!(.name), r'[^a-zA-Z0-9_:]', "_")
+      .tags = map_keys(object(.tags) ?? {}) -> |k| { replace(k, r'[^a-zA-Z0-9_]', "_") }
+      # service.name → job, as Prometheus does for OTLP (the resource attribute stays as resource_service_name)
+      if exists(.tags.resource_service_name) { .tags.job = .tags.resource_service_name }
+
+sinks:
+  # 5. Push to VictoriaLogs through its JSON-lines endpoint. Fields in _stream_fields become
+  #    stream fields (empty ones are ignored). If VictoriaLogs is down, Vector retries with backoff
+  #    and buffers; failures show up as vector_component_errors_total (alerted in Prometheus).
+  victorialogs:
+    type: http
+    inputs: [mask]
+    uri: "http://victorialogs:9428/insert/jsonline?_stream_fields=service,container,project,type,lang,team,env,stream,level,source,pg_app,pg_db,status_class,method&_msg_field=message&_time_field=timestamp"
+    method: post
+    compression: gzip
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    buffer:   # survive a VictoriaLogs restart without losing lines
+      type: disk
+      max_size: 268435488  # 256 MiB on the vector-data volume
+      when_full: block
+
+  # 8. Traces → Tempo, raw OTLP over HTTP.
+  tempo:
+    type: opentelemetry
+    inputs: [otlp.traces]
+    protocol:
+      type: http
+      uri: http://tempo:4318/v1/traces
+      method: post
+      encoding:
+        codec: otlp
+
+  # OTLP metrics → Prometheus remote-write receiver. Same path as Tempo's span metrics:
+  # Prometheus alert rules see them, and Prometheus forwards them to VictoriaMetrics.
+  prometheus:
+    type: prometheus_remote_write
+    inputs: [otlp_metrics]
+    endpoint: http://prometheus:9090/api/v1/write
+    healthcheck:
+      enabled: false  # Prometheus answers the GET health probe with 405
+
+  # /metrics for Prometheus (job vector): log-derived metrics + Vector's own health.
+  metrics:
+    type: prometheus_exporter
+    inputs: [log_lines, pg_latency, fe_requests, fe_latency, nginx_metrics, vector_metrics]
+    address: 0.0.0.0:9598
+    # One bucket list for every histogram, in seconds: covers both SQL statements (100µs…) and HTTP (…30s).
+    buckets: [0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30]
+    flush_period_secs: 86400  # drop series of containers gone for a day

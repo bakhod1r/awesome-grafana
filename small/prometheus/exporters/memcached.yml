@@ -1,0 +1,4 @@
+# Memcached metrics from memcached-exporter (job "memcached"), shown on the "NoSQL" dashboard.
+# The demo cache (compose profile "nosql") is enabled below. Without the profile this target is down: set the file to [].
+- targets: [memcached-exporter:9150]
+  labels: { project: awesome-grafana, container: awesome-grafana-memcached-1, env: demo }

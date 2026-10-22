@@ -1,0 +1,8 @@
+# PostgreSQL metrics from postgres-exporter (job "postgres"), shown on the "PostgreSQL" dashboard.
+# Enabled: start it with  docker compose --profile postgres up -d
+# (without the profile this target is down and TargetDown fires; set this file to [] to disable).
+# By default the exporter watches the demo database; set POSTGRES_EXPORTER_DSN in .env for your own.
+- targets: [postgres-exporter:9187]
+  # Demo database: its alerts (deadlocks, slow queries... made on purpose by the load generator)
+  # go nowhere (alertmanager.yml, env="demo"). Delete these two lines when watching a real database.
+  labels: { env: demo }

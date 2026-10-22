@@ -1,0 +1,8 @@
+# Redis metrics from redis_exporter (job "redis"), shown on the "Redis" dashboard.
+# Enabled: start it with  docker compose --profile redis up -d
+# (without the profile this target is down and TargetDown fires; set this file to [] to disable).
+# By default the exporter watches the demo cache; set REDIS_EXPORTER_ADDR in .env for your own.
+- targets: [redis-exporter:9121]
+  # Demo database: its alerts (deadlocks, slow queries... made on purpose by the load generator)
+  # go nowhere (alertmanager.yml, env="demo"). Delete these two lines when watching a real database.
+  labels: { env: demo }

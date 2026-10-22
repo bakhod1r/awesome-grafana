@@ -1,0 +1,14 @@
+# Sites probed by blackbox (job "blackbox-http" in prometheus.yml).
+# Add or remove a URL and save: Prometheus re-reads this file every 30s, no restart needed.
+# Each probe produces probe_success (1/0), probe_duration_seconds and probe_ssl_earliest_cert_expiry,
+# which feed the SiteDown, SiteSlow and SslExpiresSoon alerts.
+#
+# Extra labels can be attached to a group of targets, e.g. to tell environments apart:
+# - targets: [https://api.example.com]
+#   labels:
+#     env: prod
+
+- targets:  # one group of sites (can carry shared labels)
+    - http://grafana:3000/api/health   # internal check: is our own Grafana answering
+    - http://nginx-demo/                # demo nginx: steady traffic for the file-log pipeline (Logs dashboard)
+    - http://traefik-demo/              # demo proxy (profile "proxy"): traffic for the Proxy dashboard

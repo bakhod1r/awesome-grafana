@@ -1,0 +1,10 @@
+# TCP probes (job "blackbox-tcp", module tcp_connect): is the port accepting connections.
+# Format host:port. Re-read every 30s, no restart needed. Failures fire ProbeDown.
+# For TLS ports (465, 993, 636) use prometheus/probes/tls.yml instead: it also tracks cert expiry.
+
+- targets:  # one group of targets (can carry shared labels)
+    - victoriametrics:8428  # example: internal port; replace with e.g. db.example.com:5432
+    - alertmanager:9093  # example
+# - targets: [db.example.com:5432, redis.example.com:6379]
+#   labels:
+#     env: prod

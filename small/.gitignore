@@ -1,0 +1,4 @@
+# Real secrets (Telegram token, Grafana password). Commit .env.example instead.
+.env
+# Left over from an older setup that stored the token in a file; no longer used.
+alertmanager/secrets/

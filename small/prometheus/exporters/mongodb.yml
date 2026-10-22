@@ -1,0 +1,5 @@
+# MongoDB metrics from percona mongodb_exporter (job "mongodb"), shown on the "NoSQL" dashboard.
+# The demo database (compose profiles "mongodb" / "nosql") is enabled below. For your own MongoDB: set
+# MONGODB_EXPORTER_URI in .env. Without the profile this target is down: set the file to [].
+- targets: [mongodb-exporter:9216]
+  labels: { project: awesome-grafana, container: awesome-grafana-mongodb-1, env: demo }

@@ -1,0 +1,13 @@
+# Demo Traefik routes (file provider): everything on :80 goes to nginx-demo.
+# Probed by blackbox (prometheus/sites.yml), so the Proxy dashboard has steady traffic.
+http:
+  routers:
+    demo:
+      rule: PathPrefix(`/`)
+      entryPoints: [web]
+      service: nginx-demo
+  services:
+    nginx-demo:
+      loadBalancer:
+        servers:
+          - url: http://nginx-demo:80

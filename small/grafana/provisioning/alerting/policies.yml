@@ -1,0 +1,14 @@
+# Grafana notification policy: how Grafana-managed alerts are grouped and repeated.
+# Same ideas as the route in alertmanager/alertmanager.yml.
+apiVersion: 1  # provisioning file format version
+
+policies:  # notification policy tree (replaces the default)
+  - orgId: 1  # default organisation
+    receiver: telegram              # contact point from contact-points.yml
+    group_by: [alertname]           # one message per rule
+    # Wait 30s before the first message so alerts that fire together arrive as one message.
+    # Example: Prometheus crashes, then WatchdogMissing and AlertmanagerDown fire close together.
+    group_wait: 30s                 # wait before the first message of a new group
+    group_interval: 5m              # wait 5m before sending updates about new alerts in a group
+    # Re-send every hour while still broken: a dead monitoring stack is critical and easy to forget.
+    repeat_interval: 1h             # remind every hour while still firing

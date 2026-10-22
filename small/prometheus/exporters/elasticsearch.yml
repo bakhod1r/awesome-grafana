@@ -1,0 +1,5 @@
+# Elasticsearch / OpenSearch metrics from elasticsearch-exporter (job "elasticsearch"), shown on the "Search" dashboard.
+# The demo cluster (compose profile "search") is enabled below. For your own cluster: point the exporter's
+# --es.uri at it and add the exporter here. Without the profile this target is down: set the file to [].
+- targets: [elasticsearch-exporter:9114]
+  labels: { project: awesome-grafana, container: awesome-grafana-elasticsearch-1, env: demo }
