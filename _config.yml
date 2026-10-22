@@ -1,0 +1,34 @@
+# GitHub Pages (Jekyll): every README.md becomes the index of its folder.
+title: awesome-grafana
+description: Self-hosted observability stacks built around Grafana
+theme: jekyll-theme-cayman
+plugins:
+  - jekyll-relative-links  # links to README.md / *.md open the rendered page
+relative_links:
+  enabled: true
+  collections: false
+# Only READMEs and diagrams are published: configs, dashboards and secrets stay in the repo.
+exclude:
+  - small/.env
+  - small/.env.example
+  - small/.gitignore
+  - small/alertmanager
+  - small/beyla
+  - small/blackbox
+  - small/discoverer
+  - small/docker-compose.yml
+  - small/grafana
+  - small/grafana-proxy
+  - small/mysql
+  - small/nginx-demo
+  - small/postgres
+  - small/prometheus
+  - small/redis
+  - small/scripts
+  - small/tempo
+  - small/traefik
+  - small/vector
+  - small/vmalert
+  - medium/.env.example
+  - medium/docker-compose.yml
+  - medium/grafana

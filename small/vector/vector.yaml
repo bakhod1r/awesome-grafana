@@ -86,7 +86,7 @@ transforms:
       # Compose service name ("grafana"): stable across restarts and scale-ups.
       # Containers started without compose (docker run): service = container name, as on the dashboards.
       .service = l."com.docker.compose.service" || .container_name
-      # Compose project ("awesome-grafana"): tells apart stacks on the same host.
+      # Compose project ("grafana-s"): tells apart stacks on the same host.
       # container.project overrides it (same rule as the cadvisor job in prometheus.yml).
       .project = l."container.project" || l."com.docker.compose.project" || ""
       # container.* labels (docker-compose labels:) → type, lang, team, env, the same filters as

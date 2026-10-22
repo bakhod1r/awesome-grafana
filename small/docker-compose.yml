@@ -9,6 +9,9 @@
 # Values like ${TELEGRAM_BOT_TOKEN} come from the .env file next to this one (see .env.example).
 # ${VAR:-default} uses "default" when VAR is empty; ${VAR:?message} refuses to start without VAR.
 
+# Project name: prefix of volumes and the "project" label; fixed, so it does not depend on the folder name.
+name: grafana-s
+
 services:  # containers this file runs; each key below is one service
   # Long-term metrics storage. Prometheus pushes everything here; Grafana reads from here.
   victoriametrics:  # metrics database
@@ -138,7 +141,7 @@ services:  # containers this file runs; each key below is one service
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command: ["python", "-u", "/app/discoverer.py"]  # -u: log lines appear immediately
     environment:  # environment variables inside the container
-      - SELF_PROJECT=${COMPOSE_PROJECT_NAME:-awesome-grafana}  # our own project: scraped by static jobs, skipped here
+      - SELF_PROJECT=${COMPOSE_PROJECT_NAME:-grafana-s}  # our own project: scraped by static jobs, skipped here
       - TARGETS_FILE=/targets/auto.json  # file_sd file read by Prometheus (job "apps")
     volumes:  # named volumes; data here survives `docker compose down`
       - ./discoverer:/app:ro  # the script
@@ -734,6 +737,12 @@ services:  # containers this file runs; each key below is one service
     depends_on: [pushgateway]  # start after pushgateway (start order only, not readiness)
 
 # Named volumes managed by Docker. `docker compose down` keeps them; `down -v` deletes them.
+# One network for the whole stack. Apps can join it as an external network:
+#   networks: { grafana-s-network: { external: true } }
+networks:
+  default:
+    name: grafana-s-network
+
 volumes:  # named volumes; data here survives `docker compose down`
   alertmanager-data:  # named volume (see the service that mounts it)
   vm-data:  # named volume (see the service that mounts it)

@@ -30,7 +30,7 @@
           "text": "",
           "value": ""
         },
-        "description": "Container name prefix, e.g. awesome-grafana-grafana. Empty = all. Filled in by links from other dashboards and Telegram.",
+        "description": "Container name prefix, e.g. grafana-s-grafana. Empty = all. Filled in by links from other dashboards and Telegram.",
         "hide": 0
       },
       {

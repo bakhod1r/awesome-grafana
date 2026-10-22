@@ -3,4 +3,4 @@
 #   --metrics.prometheus=true --entrypoints.metrics.address=:8082 --metrics.prometheus.entrypoint=metrics
 # join it to this compose network and add its host:port. Without the profile this target is down: set the file to [].
 - targets: [traefik-demo:8082]
-  labels: { project: awesome-grafana, container: awesome-grafana-traefik-demo-1, env: demo }
+  labels: { project: grafana-s, container: grafana-s-traefik-demo, env: demo }
