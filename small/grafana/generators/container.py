@@ -65,7 +65,7 @@ d.row("API requests (from request logs)", collapsed=True)
 REQ = f'{LQ} duration_ms:*'
 p = d.add(vl_table("Endpoints (slowest first)", f'{REQ} | stats by (method, path) count() requests, avg(duration_ms) avg_ms, '
                    f'quantile(0.95, duration_ms) p95_ms, max(duration_ms) max_ms | sort by (p95_ms desc) | limit 30',
-                   desc="Needs JSON request logs with duration_ms, method, path, status (like iblog-api). Empty for other apps.",
+                   desc="Needs JSON request logs with duration_ms, method, path, status. Empty for other apps.",
                    overrides=[col("p95_ms", unit="ms", th=steps((500, "orange"), (1000, "red")), cell={"type": "color-background", "mode": "basic"}),
                               col("max_ms", unit="ms"), col("avg_ms", unit="ms", decimals=1)]), 14, 10)
 d.add(vl_table("Status codes", f'{REQ} | stats by (status) count() requests | sort by (requests desc)', sort=("requests", True)), 10, 10)

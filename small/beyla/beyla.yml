@@ -7,10 +7,11 @@
 discovery:  # which processes get instrumented
   services:
     # One entry per app: the port it listens on, and the name shown in Grafana (service label).
+    # lms backends run with --network host, so the port is APP_PORT from their GitHub environment.
     - name: lms_backend_dev
-      open_ports: 4000
-    # - name: lms_backend_prod
-    #   open_ports: 4001
+      open_ports: 9812
+    - name: lms_backend_main
+      open_ports: 8088
   exclude_services:  # never instrument these, even if they listen on the port
     # Docker publishes container ports through dockerd/docker-proxy on the host, so they also
     # "own" the port and would show up as the app.

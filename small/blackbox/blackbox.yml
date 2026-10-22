@@ -11,6 +11,15 @@ modules:  # probe types, chosen with ?module=
     http:  # HTTP-specific options
       preferred_ip_protocol: ip4    # Docker networks often lack IPv6; default ip6 would make probes fail
 
+  # "Answers at all": any status below 500 counts as up. For APIs whose root returns 404 or 401
+  # (no public health URL): down only on 5xx, timeout, DNS or TLS errors. Sites from SITES_* in .env.
+  http_alive:  # module name
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: ip4
+      valid_status_codes: [200, 201, 202, 204, 301, 302, 304, 400, 401, 403, 404, 405]
+
   # TCP check: succeeds when a port accepts a connection. For non-HTTP services (DB, Redis, SMTP).
   # Targets like "db.example.com:5432" in prometheus/probes/tcp.yml.
   tcp_connect:  # module name

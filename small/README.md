@@ -252,7 +252,7 @@ through eBPF: requests/s, errors and latency per route, plus traces. Any languag
 `--network host`. Linux only, kernel 5.8+ (`uname -r`).
 
 1. List the apps in [beyla/beyla.yml](beyla/beyla.yml): the port each listens on and its name.
-2. `docker compose --profile beyla up -d`
+2. `docker compose --profile beyla up -d beyla`, then switch the target on in [prometheus/exporters/beyla.yml](prometheus/exporters/beyla.yml)
 
 Prometheus scrapes it (job `beyla`) and renames the metrics to `http_requests_total` /
 `http_request_duration_seconds` with `service`, `route`, `method`, `status`, so **App Endpoints** and

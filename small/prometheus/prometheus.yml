@@ -15,12 +15,12 @@ rule_files:  # alert rule files
 # Where firing alerts are sent.
 alerting:  # where to send alerts
   alertmanagers:  # Alertmanager instances
-    - static_configs: [{ targets: ["alertmanager:9093"] }]  # our Alertmanager
+    - static_configs: [{ targets: ["grafana-s-alertmanager:9093"] }]  # our Alertmanager
 
 # Copy every scraped sample to VictoriaMetrics for long-term storage.
 # If VictoriaMetrics is down, Prometheus queues samples and retries (backed by its 2d local storage).
 remote_write:  # copy samples to long-term storage
-  - url: http://victoriametrics:8428/api/v1/write  # VictoriaMetrics write endpoint
+  - url: http://grafana-s-victoriametrics:8428/api/v1/write  # VictoriaMetrics write endpoint
 
 # What to scrape. Each job is a group of targets of the same kind; "job" becomes a label on every metric.
 # Hostnames are Docker Compose service names, resolved on the internal network.
@@ -31,15 +31,15 @@ scrape_configs:  # scrape jobs
 
   # Host metrics (CPU, memory, disk, network).
   - job_name: node  # job="node" label on every metric from this job
-    static_configs: [{ targets: ["node-exporter:9100"] }]  # scrape http://node-exporter:9100/metrics
+    static_configs: [{ targets: ["grafana-s-node-exporter:9100"] }]  # scrape http://node-exporter:9100/metrics
 
   # VictoriaMetrics's own health: ingestion rate, disk usage.
   - job_name: victoriametrics  # job="victoriametrics" label on every metric from this job
-    static_configs: [{ targets: ["victoriametrics:8428"] }]  # scrape http://victoriametrics:8428/metrics
+    static_configs: [{ targets: ["grafana-s-victoriametrics:8428"] }]  # scrape http://victoriametrics:8428/metrics
 
   # Per-container metrics.
   - job_name: cadvisor  # job="cadvisor" label on every metric from this job
-    static_configs: [{ targets: ["cadvisor:8080"] }]  # scrape http://cadvisor:8080/metrics
+    static_configs: [{ targets: ["grafana-s-cadvisor:8080"] }]  # scrape http://cadvisor:8080/metrics
     metric_relabel_configs:  # applied to every scraped series
       # Docker label container.project=<name> puts a container into that project on every dashboard,
       # even when it was started without compose (docker run) or by another compose file.
@@ -62,7 +62,7 @@ scrape_configs:  # scrape jobs
 
   # Blackbox exporter's own health (not the probes themselves).
   - job_name: blackbox  # job="blackbox" label on every metric from this job
-    static_configs: [{ targets: ["blackbox-exporter:9115"] }]  # scrape http://blackbox-exporter:9115/metrics
+    static_configs: [{ targets: ["grafana-s-blackbox-exporter:9115"] }]  # scrape http://blackbox-exporter:9115/metrics
 
   # Website probes. Prometheus asks blackbox to check each site and stores the result.
   - job_name: blackbox-http  # job="blackbox-http" label on every metric from this job
@@ -71,7 +71,7 @@ scrape_configs:  # scrape jobs
       module: [http_2xx]            # probe type, defined in blackbox/blackbox.yml
     # Targets are read from a separate file and re-read every 30s: add a site there, no restart needed.
     file_sd_configs:  # targets from a file
-      - files: [/etc/prometheus/sites.yml]  # the sites list
+      - files: [/etc/prometheus/sites.yml, /etc/prometheus-auto/sites.json]  # the sites list + SITES_* from .env (discoverer)
         refresh_interval: 30s  # re-read the file this often
     # By default Prometheus would scrape each target directly (e.g. https://google.com/probe).
     # These rules rewrite the request so it goes to blackbox with the site as a parameter:
@@ -82,7 +82,10 @@ scrape_configs:  # scrape jobs
       - source_labels: [__param_target]  # copy the site URL...
         target_label: instance              # show the site (not blackbox) as "instance" in graphs/alerts
       - target_label: __address__  # scrape blackbox, not the site itself
-        replacement: blackbox-exporter:9115 # actually send the request to blackbox
+        replacement: grafana-s-blackbox-exporter:9115 # actually send the request to blackbox
+      - source_labels: [module]  # optional per-site module (SITES_* from .env use http_alive)
+        regex: (.+)
+        target_label: __param_module
 
   # Other probe types. Same relabeling as blackbox-http; only the module and the targets file differ.
   # Targets: prometheus/probes/<type>.yml, re-read every 30s.
@@ -93,7 +96,7 @@ scrape_configs:  # scrape jobs
     relabel_configs: &blackbox_relabel  # same rewrite as blackbox-http; reused by the jobs below
       - { source_labels: [__address__], target_label: __param_target }  # target becomes ?target=
       - { source_labels: [__param_target], target_label: instance }  # show the target as instance
-      - { target_label: __address__, replacement: "blackbox-exporter:9115" }  # scrape blackbox itself
+      - { target_label: __address__, replacement: "grafana-s-blackbox-exporter:9115" }  # scrape blackbox itself
   - job_name: blackbox-tls  # port open + TLS handshake + cert expiry (module tcp_tls)
     metrics_path: /probe  # blackbox probe endpoint
     params: { module: [tcp_tls] }  # probe type from blackbox/blackbox.yml
@@ -114,14 +117,14 @@ scrape_configs:  # scrape jobs
   # honor_labels keeps the job/instance labels the pusher set, instead of "pushgateway".
   - job_name: pushgateway  # job label is overwritten by honor_labels for pushed metrics
     honor_labels: true  # keep the pushed job/instance labels
-    static_configs: [{ targets: ["pushgateway:9091"] }]  # scrape http://pushgateway:9091/metrics
+    static_configs: [{ targets: ["grafana-s-pushgateway:9091"] }]  # scrape http://pushgateway:9091/metrics
 
   # Internet speed. Every scrape runs a full speed test, so scrape rarely and wait long.
   # Samples are 30m apart: queries use last_over_time(...[1h]) so values don't go stale after 5m.
   - job_name: speedtest  # job="speedtest" label on every metric from this job
     scrape_interval: 30m  # one speed test every 30 minutes
     scrape_timeout: 2m  # a test takes 20-60s
-    static_configs: [{ targets: ["speedtest-exporter:9798"] }]  # scrape http://speedtest-exporter:9798/metrics
+    static_configs: [{ targets: ["grafana-s-speedtest-exporter:9798"] }]  # scrape http://speedtest-exporter:9798/metrics
 
   # Optional exporters for your own services. Each targets file is empty until you enable it
   # (instructions inside the file), so a disabled exporter never shows up as TargetDown.
@@ -148,24 +151,24 @@ scrape_configs:  # scrape jobs
     file_sd_configs: [{ files: [/etc/prometheus/exporters/memcached.yml], refresh_interval: 30s }]  # targets file
 
   # Your own apps exposing /metrics. Containers in any compose project are found by the
-  # discoverer service (/etc/prometheus-auto/*.json); exporters/apps.yml is for apps outside Docker.
+  # discoverer service (/etc/prometheus-auto/auto.json); exporters/apps.yml is for apps outside Docker.
   - job_name: apps  # job="apps" label on every metric from your services
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/apps.yml, /etc/prometheus-auto/*.json], refresh_interval: 30s }]  # hand-written + auto-discovered
+    file_sd_configs: [{ files: [/etc/prometheus/exporters/apps.yml, /etc/prometheus-auto/auto.json], refresh_interval: 30s }]  # hand-written + auto-discovered
 
   # Alertmanager's own health: notifications sent/failed. Also used by Grafana's AlertmanagerDown rule.
   - job_name: alertmanager  # job="alertmanager" label on every metric from this job
-    static_configs: [{ targets: ["alertmanager:9093"] }]  # scrape http://alertmanager:9093/metrics
+    static_configs: [{ targets: ["grafana-s-alertmanager:9093"] }]  # scrape http://alertmanager:9093/metrics
 
   # Logs stack health: ingestion rate and disk (VictoriaLogs), push errors (Vector),
   # rule evaluation errors (vmalert).
   - job_name: victorialogs  # job="victorialogs" label on every metric from this job
-    static_configs: [{ targets: ["victorialogs:9428"] }]  # scrape http://victorialogs:9428/metrics
+    static_configs: [{ targets: ["grafana-s-victorialogs:9428"] }]  # scrape http://victorialogs:9428/metrics
   - job_name: vector  # job="vector" label: log-derived metrics + Vector's own health
-    static_configs: [{ targets: ["vector:9598"] }]  # scrape http://vector:9598/metrics
+    static_configs: [{ targets: ["grafana-s-vector:9598"] }]  # scrape http://vector:9598/metrics
   # Beyla (eBPF, profile "beyla"): app HTTP metrics without code changes. Renamed to the names the
   # App Endpoints / App SLO dashboards read (same as an app's own /metrics, job="apps").
   - job_name: beyla
-    static_configs: [{ targets: ["beyla:9400"] }]  # scrape http://beyla:9400/metrics
+    file_sd_configs: [{ files: [/etc/prometheus/exporters/beyla.yml], refresh_interval: 30s }]  # target on when the profile runs
     metric_relabel_configs:
       # Request counter: the request-size histogram counts every request too, so its _count
       # becomes http_requests_total while the duration histogram keeps its own _count.
@@ -184,8 +187,8 @@ scrape_configs:  # scrape jobs
       - { source_labels: [http_response_status_code], target_label: status }
       - { target_label: job, replacement: apps }
   - job_name: vmalert  # job="vmalert" label on every metric from this job
-    static_configs: [{ targets: ["vmalert:8880"] }]  # scrape http://vmalert:8880/metrics
+    static_configs: [{ targets: ["grafana-s-vmalert:8880"] }]  # scrape http://vmalert:8880/metrics
 
   # Traces stack health: received/refused spans, block flushes, compaction, generator remote_write.
   - job_name: tempo  # job="tempo" label on every metric from this job
-    static_configs: [{ targets: ["tempo:3200"] }]  # scrape http://tempo:3200/metrics
+    static_configs: [{ targets: ["grafana-s-tempo:3200"] }]  # scrape http://tempo:3200/metrics

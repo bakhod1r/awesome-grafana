@@ -1585,7 +1585,7 @@
         {
           "type": "table",
           "title": "Endpoints (slowest first)",
-          "description": "Needs JSON request logs with duration_ms, method, path, status (like iblog-api). Empty for other apps.",
+          "description": "Needs JSON request logs with duration_ms, method, path, status. Empty for other apps.",
           "datasource": {
             "type": "victoriametrics-logs-datasource",
             "uid": "victorialogs"

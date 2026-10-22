@@ -1,0 +1,5 @@
+# Beyla (eBPF app metrics, job "beyla"). Off by default so it does not fire TargetDown.
+# Enabled: start it with  docker compose --profile beyla up -d beyla
+# then replace [] with the target below. Prometheus re-reads this file every 30s.
+#- targets: [grafana-s-beyla:9400]
+[]

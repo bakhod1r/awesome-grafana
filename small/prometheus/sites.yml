@@ -9,6 +9,11 @@
 #     env: prod
 
 - targets:  # one group of sites (can carry shared labels)
-    - http://grafana:3000/api/health   # internal check: is our own Grafana answering
-    - http://nginx-demo/                # demo nginx: steady traffic for the file-log pipeline (Logs dashboard)
-    - http://traefik-demo/              # demo proxy (profile "proxy"): traffic for the Proxy dashboard
+    - http://grafana-s-grafana:3000/api/health   # internal check: is our own Grafana answering
+
+# Demo containers: down whenever their profile is off, so env="demo" keeps their alerts out of
+# Telegram (alertmanager.yml routes env="demo" to blackhole).
+- targets:
+    - http://grafana-s-nginx-demo/                # demo nginx: steady traffic for the file-log pipeline (Logs dashboard)
+    - http://grafana-s-traefik-demo/              # demo proxy (profile "proxy"): traffic for the Proxy dashboard
+  labels: { env: demo }

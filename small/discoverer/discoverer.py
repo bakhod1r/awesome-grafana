@@ -34,6 +34,8 @@ COMMON_PORTS = [int(p) for p in os.environ.get("COMMON_PORTS", "9090,9100,8080,2
 SELF_PROJECT = os.environ.get("SELF_PROJECT", "")  # our own compose project: scraped by static jobs
 # Our containers that must follow every app network: Prometheus scrapes, blackbox probes.
 JOINERS = os.environ.get("JOINERS", "prometheus,blackbox-exporter,discoverer").split(",")
+SITES_FILE = os.environ.get("SITES_FILE", "/targets/sites.json")  # blackbox-http targets from SITES_* (.env)
+SITES_PROJECT = os.environ.get("SITES_PROJECT", "")  # project label on those sites
 METRICS_RE = re.compile(rb"^# (TYPE|HELP) [a-zA-Z_:][a-zA-Z0-9_:]* ", re.M)
 
 
@@ -74,9 +76,29 @@ def own_containers():
             if c["Labels"].get("com.docker.compose.service") in JOINERS}
 
 
+def write_sites():
+    """Sites to probe from .env: SITES_PROD=https://a,https://b becomes targets with env="prod"
+    (any SITES_<ENV> variable; commas or spaces between URLs). Written once at start."""
+    groups = []
+    for key, value in sorted(os.environ.items()):
+        if not key.startswith("SITES_") or key in ("SITES_FILE", "SITES_PROJECT"):
+            continue
+        urls = [u for u in re.split(r"[,\s]+", value) if u]
+        if urls:
+            labels = {"env": key[len("SITES_"):].lower(), "module": "http_alive"}  # up unless 5xx/timeout
+            if SITES_PROJECT:
+                labels["project"] = SITES_PROJECT
+            groups.append({"targets": urls, "labels": labels})
+    with open(SITES_FILE + ".tmp", "w") as f:
+        json.dump(groups, f, indent=2)
+    os.replace(SITES_FILE + ".tmp", SITES_FILE)
+    log("wrote", sum(len(g["targets"]) for g in groups), "sites from .env")
+
+
 def main():
     if not SELF_PROJECT:
         sys.exit("SELF_PROJECT is not set")
+    write_sites()
     found = {}      # container id -> file_sd entry, or None = no metrics found
     checked = {}    # container id -> time of last probe
     joined = set()  # (network id, our container id) pairs already connected

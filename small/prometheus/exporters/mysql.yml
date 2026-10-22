@@ -2,7 +2,7 @@
 # Enabled: start it with  docker compose --profile mysql up -d
 # (without the profile this target is down and TargetDown fires; set this file to [] to disable).
 # By default the exporter watches the demo database; set MYSQL_EXPORTER_* in .env for your own.
-- targets: [mysqld-exporter:9104]
+- targets: [grafana-s-mysqld-exporter:9104]
   # Demo database: its alerts (deadlocks, slow queries... made on purpose by the load generator)
   # go nowhere (alertmanager.yml, env="demo"). Delete these two lines when watching a real database.
   labels: { env: demo }

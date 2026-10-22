@@ -126,7 +126,7 @@ services:  # containers this file runs; each key below is one service
     # listens on IPv4 only: the container was always "unhealthy". 127.0.0.1 avoids that.
     # The / page is static; /metrics would run a full speed test on every check.
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:39798/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9798/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -143,6 +143,10 @@ services:  # containers this file runs; each key below is one service
     environment:  # environment variables inside the container
       - SELF_PROJECT=${COMPOSE_PROJECT_NAME:-grafana-s}  # our own project: scraped by static jobs, skipped here
       - TARGETS_FILE=/targets/auto.json  # file_sd file read by Prometheus (job "apps")
+      # Sites for blackbox (job blackbox-http) from .env, written to /targets/sites.json at start.
+      - SITES_PROJECT=${SITES_PROJECT:-}
+      - SITES_PROD=${SITES_PROD:-}
+      - SITES_DEV=${SITES_DEV:-}
     volumes:  # named volumes; data here survives `docker compose down`
       - ./discoverer:/app:ro  # the script
       - /var/run/docker.sock:/var/run/docker.sock  # list containers, connect networks (not read-only: network connect is a write)

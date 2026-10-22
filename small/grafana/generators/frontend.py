@@ -13,7 +13,7 @@ DUR = f'{{__name__=~"vector_(frontend|nginx)_http_request_duration_seconds_bucke
 LQ = 'service:~"^(${service:regex})$"'
 def by_svc(expr):
     """cAdvisor series of the selected service: compose service, or the container name for docker-run containers
-    (iblog-client has no compose label). label_match is MetricsQL (VictoriaMetrics datasource)."""
+    (containers started with docker run have no compose label). label_match is MetricsQL (VictoriaMetrics datasource)."""
     e = f'label_replace(label_replace({expr}, "svc", "$1", "name", "(.+)"), "svc", "$1", "container_label_com_docker_compose_service", "(.+)")'
     return f'label_match({e}, "svc", "$service")'
 
