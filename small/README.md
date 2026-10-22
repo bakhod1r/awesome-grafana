@@ -145,7 +145,7 @@ services:
 
 - **Home** (Server Overview): the host — CPU, memory, disks, network, internet speed, sites, Docker totals.
 - **Docker** (Docker Projects): every compose project with its resource use. Click a project →
-  **Project** dashboard: summary plus a table of its containers. Click a container → the dashboard for its
+  the same dashboard filtered to that project (Project picker on top): its containers, resources by container, logs. Click a container → the dashboard for its
   `container.type` (backend → App Endpoints, db → PostgreSQL, ...; unlabelled → **Container**).
   Click its *lang* cell → the **Container** dashboard, whose HTTP and Runtime rows show that app's traffic and runtime.
 - **Logs**: search every container's logs; **Traces**: slow and failed requests.
@@ -289,7 +289,7 @@ container (heap, GC, event loop lag / goroutines / threads) is the **Runtime** r
 dashboard: the app's own `/metrics` (prom-client, client_golang, Micrometer, ...) fill it; Beyla gives HTTP
 numbers but no runtime ones.
 
-Where to click: **Docker Projects → a project** (Project dashboard) **→ a container**, or **Docker Projects → Containers by type**. The *Opens* column opens the type's dashboard,
+Where to click: **Docker Projects → a project** (the page filters to it) **→ a container**, or **Docker Projects → Containers by type**. The *Opens* column opens the type's dashboard,
 the *lang* column its Container dashboard (HTTP + Runtime rows). Type, Language, Team and Env are also filters on that dashboard and
 fields on every log line (`type:backend`, `team:payments`).
 
