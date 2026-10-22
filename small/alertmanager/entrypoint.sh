@@ -11,7 +11,7 @@ if [ -z "${TELEGRAM_WARNING_CHAT_ID:-}" ]; then
 fi
 : "${TELEGRAM_WARNING_TOPIC_ID:=}"
 : "${TELEGRAM_WARNING_CHAT_ID:=$TELEGRAM_CHAT_ID}"
-: "${GRAFANA_URL:=http://localhost:3000}"
+: "${GRAFANA_URL:=http://localhost:33000}"
 export TELEGRAM_TOPIC_ID TELEGRAM_WARNING_TOPIC_ID TELEGRAM_WARNING_CHAT_ID GRAFANA_URL
 
 # render SRC DST: copy SRC to DST, replacing each ${VAR} from the list with its value.
@@ -35,5 +35,5 @@ for f in /etc/alertmanager/templates/*.tmpl; do render "$f" "/tmp/am/templates/$
 exec /bin/alertmanager \
   --config.file=/tmp/am/alertmanager.yml \
   --storage.path=/alertmanager \
-  --web.external-url="${ALERTMANAGER_URL:-http://localhost:9093}" \
+  --web.external-url="${ALERTMANAGER_URL:-http://localhost:39093}" \
   "$@"

@@ -14,7 +14,7 @@ message=${2:-"deploy $service"}
 
 dir=$(cd "$(dirname "$0")/.." && pwd)
 [ -f "$dir/.env" ] && . "$dir/.env"
-url=${GRAFANA_URL:-http://localhost:3000}
+url=${GRAFANA_URL:-http://localhost:33000}
 
 if [ -n "${GRAFANA_TOKEN:-}" ]; then
   auth="Authorization: Bearer $GRAFANA_TOKEN"

@@ -227,7 +227,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
   # Batch jobs (pushgateway). Convention: at the end of a successful run the job pushes
   #   batch_last_success_timestamp_seconds <unix time>
   # and, optionally, batch_max_age_seconds <how often it should succeed> to override the 26h default.
-  # Example: echo "batch_last_success_timestamp_seconds $(date +%s)" | curl --data-binary @- http://localhost:9091/metrics/job/backup
+  # Example: echo "batch_last_success_timestamp_seconds $(date +%s)" | curl --data-binary @- http://localhost:39091/metrics/job/backup
   - name: batch  # group name, shown in the Prometheus UI
     rules:  # rules of this group
       # No successful run for longer than expected: the cron did not run, or kept failing.

@@ -9,8 +9,8 @@
 #   labels / annotations   same as Prometheus rules; severity drives Alertmanager routing,
 #             "dashboard" picks the Grafana link in the Telegram message.
 #
-# Try a query by hand: http://localhost:9428/select/vmui
-# Rule state and last evaluation: http://localhost:8880
+# Try a query by hand: http://localhost:39428/select/vmui
+# Rule state and last evaluation: http://localhost:38880
 
 groups:  # list of rule groups; rules in a group are evaluated together, in order
   # Urgent single-line events: checked every minute, fire on the first match.

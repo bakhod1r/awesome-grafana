@@ -21,7 +21,7 @@ d.row("Health — is anything firing, and does alerting itself work")
 d.add(text("**Pipeline:** Prometheus rules (metrics) and vmalert (log rules) → **Alertmanager** (grouping, silences, inhibition) → **Telegram**. "
            "Grafana runs its own dead man's switch rules directly to Telegram, so they still fire when this pipeline is down. "
            "`Watchdog` must always be firing: if it is 0, alerts cannot reach you. Silence or inspect alerts in "
-           "[Alertmanager](http://localhost:9093) · [vmalert](http://localhost:8880) · [Grafana alerting](/alerting/list)."), 24, 2)
+           "[Alertmanager](http://localhost:39093) · [vmalert](http://localhost:38880) · [Grafana alerting](/alerting/list)."), 24, 2)
 d.add(stat("Critical firing", f'count(ALERTS{{alertstate="firing", severity="critical", alertname!="Watchdog"}}) or vector(0)', th=steps((1, "red")),
            link=view(UID, SLUG, P_NOW, "Firing now"), desc="Critical alerts firing now: loud Telegram message, repeated every hour."), 3, 4)
 d.add(stat("Warning firing", f'count(ALERTS{{alertstate="firing", severity="warning"}}) or vector(0)', th=steps((1, "orange")),

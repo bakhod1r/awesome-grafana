@@ -1922,7 +1922,7 @@
       "transparent": true,
       "options": {
         "mode": "markdown",
-        "content": "Short jobs (cron, backups, migrations) push their result to the pushgateway when they finish. Example (end of a backup script):\n```\necho \"batch_last_success_timestamp_seconds $(date +%s)\" | curl --data-binary @- http://localhost:9091/metrics/job/backup\n```\nRed **Since last push** = the job has not run for 25 hours. **Status** failed = the last push reported a failure."
+        "content": "Short jobs (cron, backups, migrations) push their result to the pushgateway when they finish. Example (end of a backup script):\n```\necho \"batch_last_success_timestamp_seconds $(date +%s)\" | curl --data-binary @- http://localhost:39091/metrics/job/backup\n```\nRed **Since last push** = the job has not run for 25 hours. **Status** failed = the last push reported a failure."
       },
       "id": 21,
       "gridPos": {

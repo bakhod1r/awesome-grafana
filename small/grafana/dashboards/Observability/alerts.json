@@ -242,7 +242,7 @@
       "transparent": true,
       "options": {
         "mode": "markdown",
-        "content": "**Pipeline:** Prometheus rules (metrics) and vmalert (log rules) → **Alertmanager** (grouping, silences, inhibition) → **Telegram**. Grafana runs its own dead man's switch rules directly to Telegram, so they still fire when this pipeline is down. `Watchdog` must always be firing: if it is 0, alerts cannot reach you. Silence or inspect alerts in [Alertmanager](http://localhost:9093) · [vmalert](http://localhost:8880) · [Grafana alerting](/alerting/list)."
+        "content": "**Pipeline:** Prometheus rules (metrics) and vmalert (log rules) → **Alertmanager** (grouping, silences, inhibition) → **Telegram**. Grafana runs its own dead man's switch rules directly to Telegram, so they still fire when this pipeline is down. `Watchdog` must always be firing: if it is 0, alerts cannot reach you. Silence or inspect alerts in [Alertmanager](http://localhost:39093) · [vmalert](http://localhost:38880) · [Grafana alerting](/alerting/list)."
       },
       "id": 2,
       "gridPos": {

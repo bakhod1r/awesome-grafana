@@ -10,7 +10,7 @@
   "links": [
     {
       "title": "Scrutiny (SMART failure prediction)",
-      "url": "http://localhost:8081",
+      "url": "http://localhost:38081",
       "targetBlank": true,
       "type": "link"
     },
@@ -536,7 +536,7 @@
         },
         "showUnfilled": true
       },
-      "description": "NVMe/SATA SSDs only. Failure probability per disk: Scrutiny UI at http://localhost:8081"
+      "description": "NVMe/SATA SSDs only. Failure probability per disk: Scrutiny UI at http://localhost:38081"
     },
     {
       "type": "timeseries",

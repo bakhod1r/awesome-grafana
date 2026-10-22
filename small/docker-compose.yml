@@ -12,6 +12,7 @@
 services:  # containers this file runs; each key below is one service
   # Long-term metrics storage. Prometheus pushes everything here; Grafana reads from here.
   victoriametrics:  # metrics database
+    container_name: grafana-s-victoriametrics  # fixed name; grafana-s-* = this stack (small)
     image: victoriametrics/victoria-metrics:v1.103.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
@@ -19,10 +20,11 @@ services:  # containers this file runs; each key below is one service
       - -retentionPeriod=12         # keep data for 12 months, then delete it automatically
     volumes:  # named volumes; data here survives `docker compose down`
       - vm-data:/storage            # named volume: survives `docker compose down`
-    ports: ["8428:8428"]            # API + VMUI at http://localhost:8428/vmui
+    ports: ["38428:8428"]            # API + VMUI at http://localhost:38428/vmui
 
   # Scrapes every exporter on a schedule, evaluates alert rules and forwards data to VictoriaMetrics.
   prometheus:  # metrics collector + alert rules
+    container_name: grafana-s-prometheus  # fixed name; grafana-s-* = this stack (small)
     image: prom/prometheus:v2.54.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
@@ -32,7 +34,7 @@ services:  # containers this file runs; each key below is one service
       # 2 days is enough to survive a VictoriaMetrics outage without losing data.
       - --storage.tsdb.retention.time=2d  # keep only 2 days locally
       # Public address of Prometheus. Used to build the "Query" link in alert messages.
-      - --web.external-url=${PROMETHEUS_URL:-http://localhost:9090}  # public Prometheus URL for links
+      - --web.external-url=${PROMETHEUS_URL:-http://localhost:39090}  # public Prometheus URL for links
       # Accept pushed samples on /api/v1/write: Tempo writes its span metrics here, so trace
       # alert rules run in Prometheus and the metrics reach VictoriaMetrics through remote_write.
       - --web.enable-remote-write-receiver  # enable the push endpoint
@@ -42,7 +44,7 @@ services:  # containers this file runs; each key below is one service
       - ./prometheus:/etc/prometheus:ro  # config directory from this repo, read-only
       - prometheus-data:/prometheus  # persistent data at /prometheus
       - auto-targets:/etc/prometheus-auto:ro  # targets found by the discoverer service (outside /etc/prometheus: that mount is read-only)
-    ports: ["9090:9090"]            # UI: http://localhost:9090 (targets: /targets, alerts: /alerts)
+    ports: ["39090:9090"]            # UI: http://localhost:39090 (targets: /targets, alerts: /alerts)
     # Lets prometheus/exporters/apps.yml reach apps running on the Docker host as host.docker.internal
     # (Docker Desktop has this name built in; on Linux this line adds it).
     extra_hosts: ["host.docker.internal:host-gateway"]  # host IP alias for scraping host apps
@@ -50,6 +52,7 @@ services:  # containers this file runs; each key below is one service
 
   # Host metrics: CPU, memory, disk, network. On macOS this measures Docker's Linux VM, not the Mac.
   node-exporter:  # host metrics exporter
+    container_name: grafana-s-node-exporter  # fixed name; grafana-s-* = this stack (small)
     image: prom/node-exporter:v1.8.2  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     # Without the host root mounted, node-exporter sees only the container's own files and there is
@@ -57,10 +60,11 @@ services:  # containers this file runs; each key below is one service
     command: ["--path.rootfs=/host"]  # read filesystems, /proc and /sys of the host through /host
     volumes:
       - /:/host:ro                   # host root, read-only (on a Linux server add ,rslave to see later mounts)
-    ports: ["9100:9100"]            # raw metrics: http://localhost:9100/metrics
+    ports: ["39100:9100"]            # raw metrics: http://localhost:39100/metrics
 
   # Per-container metrics: CPU, memory, restarts. Needs read access to Docker and kernel paths.
   cadvisor:  # container metrics exporter
+    container_name: grafana-s-cadvisor  # fixed name; grafana-s-* = this stack (small)
     image: gcr.io/cadvisor/cadvisor:v0.55.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     privileged: true                # required to read cgroup and device stats
@@ -75,11 +79,12 @@ services:  # containers this file runs; each key below is one service
       - /dev/disk/:/dev/disk:ro     # disk I/O per container
     devices:  # host devices passed into the container
       - /dev/kmsg                   # kernel messages, used to detect OOM kills
-    ports: ["8080:8080"]            # UI: http://localhost:8080
+    ports: ["38080:8080"]            # UI: http://localhost:38080
 
   # Probes websites from the outside (is it up, how fast, when does the SSL cert expire).
   # The list of sites lives in prometheus/sites.yml, not here.
   blackbox-exporter:  # website prober
+    container_name: grafana-s-blackbox-exporter  # fixed name; grafana-s-* = this stack (small)
     image: prom/blackbox-exporter:v0.25.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
@@ -88,12 +93,13 @@ services:  # containers this file runs; each key below is one service
       - ./blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro  # probe modules config
     # Lets the non-root blackbox user send ping (ICMP datagram sockets) without NET_RAW/root.
     sysctls: { net.ipv4.ping_group_range: "0 2147483647" }  # every group id may open ping sockets
-    ports: ["9115:9115"]            # manual probe: http://localhost:9115/probe?module=http_2xx&target=https://google.com
+    ports: ["39115:9115"]            # manual probe: http://localhost:39115/probe?module=http_2xx&target=https://google.com
 
   # Inbox for metrics from short-lived jobs (cron, backups, migrations). The job pushes its result
   # at the end; Prometheus scrapes it from here. Example push from a backup script:
-  #   echo "batch_last_success_timestamp_seconds $(date +%s)" | curl --data-binary @- http://localhost:9091/metrics/job/backup
+  #   echo "batch_last_success_timestamp_seconds $(date +%s)" | curl --data-binary @- http://localhost:39091/metrics/job/backup
   pushgateway:  # metrics inbox for batch jobs
+    container_name: grafana-s-pushgateway  # fixed name; grafana-s-* = this stack (small)
     image: prom/pushgateway:v1.9.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
@@ -101,22 +107,23 @@ services:  # containers this file runs; each key below is one service
       - --persistence.interval=1m  # save to disk this often
     volumes:  # named volumes; data here survives `docker compose down`
       - pushgateway-data:/data  # persistent data at /data
-    ports: ["9091:9091"]            # UI + push API: http://localhost:9091
+    ports: ["39091:9091"]            # UI + push API: http://localhost:39091
 
   # Internet speed (download, upload, ping, jitter) via the Speedtest.net CLI.
   # Each scrape runs a real test and saturates the line for ~20s, so Prometheus scrapes it
   # only every 30m (job "speedtest" in prometheus/prometheus.yml).
   speedtest-exporter:  # internet speed test exporter
+    container_name: grafana-s-speedtest-exporter  # fixed name; grafana-s-* = this stack (small)
     image: miguelndecarvalho/speedtest-exporter:v3.5.4  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     environment:  # environment variables inside the container
       - SPEEDTEST_SERVER=${SPEEDTEST_SERVER:-}  # Speedtest.net server id; empty = nearest server
-    ports: ["9798:9798"]            # raw metrics (runs a test!): http://localhost:9798/metrics
-    # The image checks http://localhost:9798, which resolves to IPv6 ::1 first, but the exporter
+    ports: ["39798:9798"]            # raw metrics (runs a test!): http://localhost:39798/metrics
+    # The image checks http://localhost:39798, which resolves to IPv6 ::1 first, but the exporter
     # listens on IPv4 only: the container was always "unhealthy". 127.0.0.1 avoids that.
     # The / page is static; /metrics would run a full speed test on every check.
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9798/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:39798/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -126,6 +133,7 @@ services:  # containers this file runs; each key below is one service
   # and writes it to the "apps" scrape job. New projects appear in ~30s, no config edits.
   # Overrides per container: labels prometheus.scrape=false / prometheus.port / prometheus.path.
   discoverer:  # finds app /metrics endpoints automatically
+    container_name: grafana-s-discoverer  # fixed name; grafana-s-* = this stack (small)
     image: python:3.12.7-alpine3.20  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command: ["python", "-u", "/app/discoverer.py"]  # -u: log lines appear immediately
@@ -148,6 +156,7 @@ services:  # containers this file runs; each key below is one service
   # Dashboard: "PostgreSQL" (uid postgres). Per-service breakdown uses application_name,
   # so set it in every app's connection string (?application_name=shop-api).
   postgres-exporter:  # PostgreSQL metrics exporter
+    container_name: grafana-s-postgres-exporter  # fixed name; grafana-s-* = this stack (small)
     image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [postgres]  # started only with --profile postgres
@@ -168,13 +177,14 @@ services:  # containers this file runs; each key below is one service
       - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN:-postgresql://postgres_exporter:exporter@postgres:5432/postgres?sslmode=disable}  # postgresql://user:pass@host:5432/db?sslmode=disable
     volumes:
       - ./postgres/queries.yaml:/etc/postgres-exporter/queries.yaml:ro  # custom SQL metrics
-    ports: ["9187:9187"]            # raw metrics: http://localhost:9187/metrics
+    ports: ["39187:9187"]            # raw metrics: http://localhost:39187/metrics
 
   # Demo PostgreSQL 16 with pg_stat_statements and statement logging, so the dashboard has data.
   # Remove it (or leave the profile off) when the exporter points at your own database.
   # Every statement is logged with its duration: Vector turns those lines into the p95/p99
   # latency histogram (postgres_statement_duration_seconds) and the slow-query log panel.
   postgres:  # demo database
+    container_name: grafana-s-postgres  # fixed name; grafana-s-* = this stack (small)
     image: postgres:16.4-alpine  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: db }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [postgres]  # started only with --profile postgres
@@ -214,6 +224,7 @@ services:  # containers this file runs; each key below is one service
   # Demo traffic for the database above: several "services" (application_name) with
   # OLTP load, a slow reporting job, lock waits, idle-in-transaction, deadlocks and errors.
   postgres-loadgen:  # demo database traffic
+    container_name: grafana-s-postgres-loadgen  # fixed name; grafana-s-* = this stack (small)
     image: postgres:16.4-alpine  # same image: brings pgbench and psql
     labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [postgres]  # started only with --profile postgres
@@ -228,6 +239,7 @@ services:  # containers this file runs; each key below is one service
 
   # MySQL / MariaDB: connections, slow queries, replication lag, InnoDB buffer pool.
   mysqld-exporter:  # MySQL metrics exporter
+    container_name: grafana-s-mysqld-exporter  # fixed name; grafana-s-* = this stack (small)
     image: prom/mysqld-exporter:v0.17.2  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [mysql]  # started only with --profile mysql
@@ -236,11 +248,12 @@ services:  # containers this file runs; each key below is one service
       - --mysqld.username=${MYSQL_EXPORTER_USER:-exporter}  # database user (needs PROCESS, REPLICATION CLIENT, SELECT)
     environment:  # environment variables inside the container
       - MYSQLD_EXPORTER_PASSWORD=${MYSQL_EXPORTER_PASSWORD:-exporter}  # password for that user (default = demo database), kept out of the command line
-    ports: ["9104:9104"]            # raw metrics: http://localhost:9104/metrics
+    ports: ["39104:9104"]            # raw metrics: http://localhost:39104/metrics
 
   # Demo MySQL 8.4 with the exporter user and slow query log, so the "MySQL" dashboard has data.
   # Remove it (or leave the profile off) when the exporter points at your own database.
   mysql:  # demo database
+    container_name: grafana-s-mysql  # fixed name; grafana-s-* = this stack (small)
     image: mysql:8.4.3  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: db }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [mysql]  # started only with --profile mysql
@@ -262,6 +275,7 @@ services:  # containers this file runs; each key below is one service
 
   # Demo traffic for the database above: inserts, point reads, a slow report and lock waits.
   mysql-loadgen:  # demo database traffic
+    container_name: grafana-s-mysql-loadgen  # fixed name; grafana-s-* = this stack (small)
     image: mysql:8.4.3  # same image: brings the mysql client
     labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [mysql]  # started only with --profile mysql
@@ -276,17 +290,19 @@ services:  # containers this file runs; each key below is one service
 
   # Redis: memory, hit ratio, evictions, connected clients.
   redis-exporter:  # Redis metrics exporter
+    container_name: grafana-s-redis-exporter  # fixed name; grafana-s-* = this stack (small)
     image: oliver006/redis_exporter:v1.62.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [redis]  # started only with --profile redis
     environment:  # environment variables inside the container
       - REDIS_ADDR=${REDIS_EXPORTER_ADDR:-redis://redis:6379}  # Redis URL
       - REDIS_PASSWORD=${REDIS_EXPORTER_PASSWORD:-}  # empty = no auth
-    ports: ["9121:9121"]            # raw metrics: http://localhost:9121/metrics
+    ports: ["39121:9121"]            # raw metrics: http://localhost:39121/metrics
 
   # Demo Redis 7, so the "Redis" dashboard has data: hits, misses, expirations, command mix.
   # Memory stays well under maxmemory, so RedisMemoryHigh / RedisEvictions stay quiet.
   redis:  # demo cache
+    container_name: grafana-s-redis  # fixed name; grafana-s-* = this stack (small)
     image: redis:7.4.1-alpine  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: cache }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [redis]  # started only with --profile redis
@@ -295,6 +311,7 @@ services:  # containers this file runs; each key below is one service
 
   # Demo traffic for the cache above: reads with misses, writes with TTL, big values that force evictions.
   redis-loadgen:  # demo cache traffic
+    container_name: grafana-s-redis-loadgen  # fixed name; grafana-s-* = this stack (small)
     image: redis:7.4.1-alpine  # same image: brings redis-cli and redis-benchmark
     labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [redis]  # started only with --profile redis
@@ -308,6 +325,7 @@ services:  # containers this file runs; each key below is one service
   # MongoDB: connections, operations/s, memory, replication lag.
   # Shown in the MongoDB row of the "Services" dashboard. User needs the clusterMonitor role.
   mongodb-exporter:  # MongoDB metrics exporter
+    container_name: grafana-s-mongodb-exporter  # fixed name; grafana-s-* = this stack (small)
     image: percona/mongodb_exporter:0.40.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [mongodb, nosql]  # started only with --profile mongodb or nosql
@@ -318,22 +336,24 @@ services:  # containers this file runs; each key below is one service
       - --collector.replicasetstatus  # replica set members and lag (no-op on a standalone server)
     environment:  # environment variables inside the container
       - MONGODB_URI=${MONGODB_EXPORTER_URI:-mongodb://mongodb:27017}  # mongodb://user:pass@host:27017/admin
-    ports: ["9216:9216"]            # raw metrics: http://localhost:9216/metrics
+    ports: ["39216:9216"]            # raw metrics: http://localhost:39216/metrics
 
   # nginx: active connections and request rate, read from nginx's stub_status page.
   # stub_status has no status codes or latency; use Traefik's metrics or access logs for those.
   nginx-exporter:  # nginx metrics exporter
+    container_name: grafana-s-nginx-exporter  # fixed name; grafana-s-* = this stack (small)
     image: nginx/nginx-prometheus-exporter:1.3.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [nginx]  # started only with --profile nginx
     command:  # arguments passed to the program at start
       - --nginx.scrape-uri=${NGINX_STUB_STATUS_URL:-http://nginx:8080/stub_status}  # nginx stub_status URL
-    ports: ["9113:9113"]            # raw metrics: http://localhost:9113/metrics
+    ports: ["39113:9113"]            # raw metrics: http://localhost:39113/metrics
 
   # Disk health from SMART: temperature, SMART pass/fail, power-on hours, SSD wear.
   # Needs raw access to the disks, so Linux hosts only. Docker Desktop on macOS/Windows
   # runs in a VM with virtual disks and has no SMART data.
   smartctl-exporter:  # disk SMART metrics exporter
+    container_name: grafana-s-smartctl-exporter  # fixed name; grafana-s-* = this stack (small)
     image: quay.io/prometheuscommunity/smartctl-exporter:v0.14.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [smart]  # started only with --profile smart
@@ -341,12 +361,13 @@ services:  # containers this file runs; each key below is one service
     user: root                      # device nodes are root-only
     command:  # arguments passed to the program at start
       - --smartctl.interval=60s     # read SMART once a minute; scrapes in between get the cached result
-    ports: ["9633:9633"]            # raw metrics: http://localhost:9633/metrics
+    ports: ["39633:9633"]            # raw metrics: http://localhost:39633/metrics
 
   # Scrutiny: web UI for the same SMART data, with per-disk failure probability
   # (based on Backblaze drive statistics) and history. Not a Prometheus exporter;
   # use it next to the Hardware dashboard. Linux hosts only, like smartctl-exporter.
   scrutiny:  # SMART web UI with failure prediction
+    container_name: grafana-s-scrutiny  # fixed name; grafana-s-* = this stack (small)
     image: ghcr.io/analogj/scrutiny:v0.8.1-omnibus  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [smart]  # started only with --profile smart
@@ -355,10 +376,11 @@ services:  # containers this file runs; each key below is one service
       - /run/udev:/run/udev:ro      # device metadata (serials, models)
       - scrutiny-config:/opt/scrutiny/config  # settings and SQLite database
       - scrutiny-influxdb:/opt/scrutiny/influxdb  # SMART history
-    ports: ["8081:8080"]            # UI: http://localhost:8081 (8080 is taken by cAdvisor)
+    ports: ["38081:8080"]            # UI: http://localhost:38081 (8080 is taken by cAdvisor)
 
   # Receives alerts from Prometheus, groups/deduplicates them and sends them to Telegram.
   alertmanager:  # alert router and Telegram sender
+    container_name: grafana-s-alertmanager  # fixed name; grafana-s-* = this stack (small)
     image: prom/alertmanager:v0.28.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     environment:  # environment variables inside the container
@@ -367,18 +389,19 @@ services:  # containers this file runs; each key below is one service
       - TELEGRAM_TOPIC_ID=${TELEGRAM_TOPIC_ID:-}                 # forum topic id; empty = general chat
       - TELEGRAM_WARNING_CHAT_ID=${TELEGRAM_WARNING_CHAT_ID:-}   # empty = same chat as critical
       - TELEGRAM_WARNING_TOPIC_ID=${TELEGRAM_WARNING_TOPIC_ID:-} # empty = same topic as critical (when same chat)
-      - GRAFANA_URL=${GRAFANA_URL:-http://localhost:${GRAFANA_PORT:-3000}}         # for "Dashboard" links in messages
-      - ALERTMANAGER_URL=${ALERTMANAGER_URL:-http://localhost:9093} # for "Silence" links in messages
+      - GRAFANA_URL=${GRAFANA_URL:-http://localhost:${GRAFANA_PORT:-33000}}         # for "Dashboard" links in messages
+      - ALERTMANAGER_URL=${ALERTMANAGER_URL:-http://localhost:39093} # for "Silence" links in messages
       - TZ=Asia/Tashkent            # times in messages and the maintenance window use this zone
     # Alertmanager cannot read env vars from its config, so this script fills them in, then starts it.
     entrypoint: ["/bin/sh", "/etc/alertmanager/entrypoint.sh"]  # replaces the image start command with our wrapper script
     volumes:  # named volumes; data here survives `docker compose down`
       - ./alertmanager:/etc/alertmanager:ro  # config directory from this repo, read-only
       - alertmanager-data:/alertmanager   # silences and notification log survive restarts
-    ports: ["9093:9093"]            # UI: http://localhost:9093 (create silences here)
+    ports: ["39093:9093"]            # UI: http://localhost:39093 (create silences here)
 
   # Dashboards, plus its own alert rules that watch the rest of the stack (dead man's switch).
   grafana:  # dashboards UI + dead man's switch
+    container_name: grafana-s-grafana  # fixed name; grafana-s-* = this stack (small)
     image: grafana/grafana:11.6.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     environment:  # environment variables inside the container
@@ -402,19 +425,20 @@ services:  # containers this file runs; each key below is one service
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro   # dashboard JSON files
       - grafana-data:/var/lib/grafana                         # users, settings, alert state (SQLite)
     # Main entry is grafana-proxy on :3000 (themed). This port is plain Grafana, for debugging.
-    ports: ["${GRAFANA_HOST:-0.0.0.0}:${GRAFANA_DIRECT_PORT:-3002}:3000"]  # plain UI: http://<GRAFANA_HOST>:<GRAFANA_DIRECT_PORT>
+    ports: ["${GRAFANA_HOST:-0.0.0.0}:${GRAFANA_DIRECT_PORT:-33002}:3000"]  # plain UI: http://<GRAFANA_HOST>:<GRAFANA_DIRECT_PORT>
     depends_on: [victoriametrics, victorialogs, tempo]  # start after victoriametrics, victorialogs, tempo (start order only, not readiness)
 
-  # Grafana with a custom look (background gradient, translucent panels): http://localhost:3000
+  # Grafana with a custom look (background gradient, translucent panels): http://localhost:33000
   # nginx injects grafana-proxy/theme/theme.css into every page. Grafana has no setting for a
   # background image, and this keeps the official image untouched. :3002 is the plain look.
   grafana-proxy:  # themed entry point to Grafana
+    container_name: grafana-s-grafana-proxy  # fixed name; grafana-s-* = this stack (small)
     image: nginx:1.27.5-alpine  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: proxy }  # which dashboard Docker projects opens for it (README: Container labels)
     volumes:  # config from this repo, read-only
       - ./grafana-proxy/nginx.conf:/etc/nginx/nginx.conf:ro  # proxy + stylesheet injection
       - ./grafana-proxy/theme:/etc/nginx/theme:ro  # theme.css; edits apply on browser reload
-    ports: ["${GRAFANA_HOST:-0.0.0.0}:${GRAFANA_PORT:-3000}:80"]  # UI: http://<GRAFANA_HOST>:<GRAFANA_PORT>
+    ports: ["${GRAFANA_HOST:-0.0.0.0}:${GRAFANA_PORT:-33000}:80"]  # UI: http://<GRAFANA_HOST>:<GRAFANA_PORT>
     depends_on: [grafana]  # start after grafana (start order only, not readiness)
 
   # ── Logs ────────────────────────────────────────────────────────────────────
@@ -424,6 +448,7 @@ services:  # containers this file runs; each key below is one service
 
   # Log storage. Every field is searchable; data is split into daily partitions on local disk.
   victorialogs:  # logs database
+    container_name: grafana-s-victorialogs  # fixed name; grafana-s-* = this stack (small)
     image: victoriametrics/victoria-logs:v1.36.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
@@ -433,12 +458,13 @@ services:  # containers this file runs; each key below is one service
       - -retention.maxDiskSpaceUsageBytes=20GiB  # disk cap; oldest days deleted when exceeded
     volumes:  # named volumes; data here survives `docker compose down`
       - vlogs-data:/vlogs  # persistent data at /vlogs
-    ports: ["9428:9428"]            # UI: http://localhost:9428/select/vmui
+    ports: ["39428:9428"]            # UI: http://localhost:39428/select/vmui
 
   # Log collector. Finds every container through the Docker socket, reads its logs,
   # adds fields (service, container, level), turns lines into metrics and pushes them to VictoriaLogs.
   # Also the OTLP entry point for apps (traces → Tempo, metrics → Prometheus, logs → VictoriaLogs).
   vector:  # log + OTLP collector
+    container_name: grafana-s-vector  # fixed name; grafana-s-* = this stack (small)
     image: timberio/vector:0.59.0-alpine  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command: ["--config", "/etc/vector/vector.yaml", "--watch-config"]  # reload on config edits
@@ -453,12 +479,12 @@ services:  # containers this file runs; each key below is one service
       # - /run/log/journal:/run/log/journal:ro         # volatile journal
       # - /etc/machine-id:/etc/machine-id:ro           # journal files are stored per machine id
     ports:  # host:container
-      - "8686:8686"  # API: http://localhost:8686/health
-      - "9598:9598"  # /metrics: log-derived metrics + Vector's own health (Prometheus job vector)
+      - "38686:8686"  # API: http://localhost:38686/health
+      - "39598:9598"  # /metrics: log-derived metrics + Vector's own health (Prometheus job vector)
       # OpenTelemetry: traces, metrics and logs from any app with an OTel SDK (vector/vector.yaml §8).
-      # Same compose network: http://vector:4318. Other host/project: http://<host>:4318.
-      - "4317:4317"    # OTLP gRPC
-      - "4318:4318"    # OTLP HTTP (default protocol of most SDKs)
+      # Same compose network: http://vector:4318. Other host/project: http://<host>:34318 (gRPC <host>:34317).
+      - "34317:4317"    # OTLP gRPC
+      - "34318:4318"    # OTLP HTTP (default protocol of most SDKs)
     depends_on: [victorialogs, tempo, prometheus]  # start after victorialogs, tempo, prometheus (start order only, not readiness)
 
   # ── Traces ──────────────────────────────────────────────────────────────────
@@ -468,6 +494,7 @@ services:  # containers this file runs; each key below is one service
 
   # Trace storage. Blocks on local disk, kept 90 days (tempo/tempo.yaml).
   tempo:  # trace database
+    container_name: grafana-s-tempo  # fixed name; grafana-s-* = this stack (small)
     image: grafana/tempo:2.8.2  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command: ["-config.file=/etc/tempo/tempo.yaml"]  # config file path inside the container
@@ -477,12 +504,13 @@ services:  # containers this file runs; each key below is one service
     volumes:  # named volumes; data here survives `docker compose down`
       - ./tempo:/etc/tempo:ro  # config directory from this repo, read-only
       - tempo-data:/var/tempo  # trace blocks, WAL, generator WAL
-    ports: ["3200:3200"]            # API: http://localhost:3200/ready, /metrics
+    ports: ["33200:3200"]            # API: http://localhost:33200/ready, /metrics
     depends_on: [prometheus]  # start after prometheus (start order only, not readiness)
 
   # Demo trace source: a fake "demo-app" sending 5 traces/s with child spans, some failing.
   # Not started by default:  docker compose --profile demo up -d telemetrygen
   telemetrygen:  # demo trace generator
+    container_name: grafana-s-telemetrygen  # fixed name; grafana-s-* = this stack (small)
     image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.111.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [demo]  # started only with --profile demo
@@ -499,6 +527,7 @@ services:  # containers this file runs; each key below is one service
   # Evaluates log alert rules (LogsQL) against VictoriaLogs and sends firing alerts to
   # the same Alertmanager as Prometheus, so routing, silences and Telegram are shared.
   vmalert:  # log alert rule evaluator
+    container_name: grafana-s-vmalert  # fixed name; grafana-s-* = this stack (small)
     image: victoriametrics/vmalert:v1.122.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
@@ -511,16 +540,17 @@ services:  # containers this file runs; each key below is one service
       - -remoteWrite.url=http://victoriametrics:8428  # write alert state to VictoriaMetrics
       - -remoteRead.url=http://victoriametrics:8428  # restore alert state from VictoriaMetrics on restart
       # Base for the "Query" link in Telegram messages.
-      - -external.url=${VMALERT_URL:-http://localhost:8880}  # public vmalert URL for links
+      - -external.url=${VMALERT_URL:-http://localhost:38880}  # public vmalert URL for links
     volumes:  # named volumes; data here survives `docker compose down`
       - ./vmalert:/etc/vmalert:ro  # config directory from this repo, read-only
-    ports: ["8880:8880"]            # UI: http://localhost:8880 (rules, alerts, last evaluations)
+    ports: ["38880:8880"]            # UI: http://localhost:38880 (rules, alerts, last evaluations)
     depends_on: [victorialogs, alertmanager, victoriametrics]  # start after victorialogs, alertmanager, victoriametrics (start order only, not readiness)
 
   # Demo web server for the file-log pipeline: writes access/error logs to files, as nginx does
   # when run by systemd. Probed by blackbox (sites.yml) so there is steady traffic.
   # Distinct from the "nginx-exporter" service (profile nginx), which reads stub_status instead.
   nginx-demo:  # demo nginx with file logs
+    container_name: grafana-s-nginx-demo  # fixed name; grafana-s-* = this stack (small)
     image: nginx:1.27.5-alpine  # pinned version: upgrades only happen when you change this tag
     labels:  # container.* labels: the Docker projects dashboard opens the Frontend dashboard for it
       container.type: frontend
@@ -535,6 +565,7 @@ services:  # containers this file runs; each key below is one service
 
   # RabbitMQ with its built-in Prometheus plugin (port 15692). Per-queue numbers come from /metrics/per-object.
   rabbitmq:  # demo message broker
+    container_name: grafana-s-rabbitmq  # fixed name; grafana-s-* = this stack (small)
     image: rabbitmq:3.13.7-management-alpine  # pinned version: upgrades only happen when you change this tag
     profiles: [queue]  # started only with --profile queue
     labels:  # container.* labels: Docker projects opens the Queue dashboard for it
@@ -546,6 +577,7 @@ services:  # containers this file runs; each key below is one service
   # Demo traffic: 2 producers at 30 msg/s, 1 consumer at 25 msg/s, so the "orders" queue slowly grows
   # (backlog, consumer lag) and the Queue alerts have something to show.
   rabbitmq-loadgen:  # demo producers and consumer
+    container_name: grafana-s-rabbitmq-loadgen  # fixed name; grafana-s-* = this stack (small)
     image: pivotalrabbitmq/perf-test:2.21.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: loadgen }  # which dashboard Docker projects opens for it (README: Container labels)
     profiles: [queue]  # started only with --profile queue
@@ -557,6 +589,7 @@ services:  # containers this file runs; each key below is one service
 
   # Traefik in front of nginx-demo: built-in metrics on :8082 (job "traefik"), access log on stdout.
   traefik-demo:  # demo reverse proxy
+    container_name: grafana-s-traefik-demo  # fixed name; grafana-s-* = this stack (small)
     image: traefik:v3.1.6  # pinned version: upgrades only happen when you change this tag
     profiles: [proxy]  # started only with --profile proxy
     command:  # static configuration as flags
@@ -579,6 +612,7 @@ services:  # containers this file runs; each key below is one service
 
   # Elasticsearch, single node, small heap. elasticsearch-exporter → job "elasticsearch" → "Search" dashboard.
   elasticsearch:  # demo search engine
+    container_name: grafana-s-elasticsearch  # fixed name; grafana-s-* = this stack (small)
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: search, container.lang: java }  # which dashboard Docker projects opens for it
     profiles: [search]  # started only with --profile search
@@ -589,6 +623,7 @@ services:  # containers this file runs; each key below is one service
     mem_limit: 768m  # hard cap for the whole container
 
   elasticsearch-exporter:  # Elasticsearch metrics
+    container_name: grafana-s-elasticsearch-exporter  # fixed name; grafana-s-* = this stack (small)
     image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.8.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it
     profiles: [search]  # started only with --profile search
@@ -598,6 +633,7 @@ services:  # containers this file runs; each key below is one service
 
   # Demo traffic: index a document and run a search every second, sometimes a slow wildcard query.
   search-loadgen:  # demo search traffic
+    container_name: grafana-s-search-loadgen  # fixed name; grafana-s-* = this stack (small)
     image: curlimages/curl:8.10.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: loadgen }  # which dashboard Docker projects opens for it
     profiles: [search]  # started only with --profile search
@@ -617,6 +653,7 @@ services:  # containers this file runs; each key below is one service
 
   # MongoDB (no replica set). The mongodb-exporter above connects with MONGODB_EXPORTER_URI (exporter / password).
   mongodb:  # demo document database
+    container_name: grafana-s-mongodb  # fixed name; grafana-s-* = this stack (small)
     image: mongo:7.0.14  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: nosql }  # which dashboard Docker projects opens for it
     profiles: [mongodb, nosql]  # started only with --profile mongodb or nosql
@@ -625,12 +662,14 @@ services:  # containers this file runs; each key below is one service
       - MONGO_INITDB_ROOT_PASSWORD=password
 
   memcached:  # demo key-value cache
+    container_name: grafana-s-memcached  # fixed name; grafana-s-* = this stack (small)
     image: memcached:1.6.32-alpine  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: nosql }  # which dashboard Docker projects opens for it
     profiles: [nosql]  # started only with --profile nosql
     command: ["memcached", "-m", "32"]  # 32 MB, so evictions show up
 
   memcached-exporter:  # Memcached metrics
+    container_name: grafana-s-memcached-exporter  # fixed name; grafana-s-* = this stack (small)
     image: prom/memcached-exporter:v0.15.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker projects opens for it
     profiles: [nosql]  # started only with --profile nosql
@@ -639,6 +678,7 @@ services:  # containers this file runs; each key below is one service
 
   # Demo traffic for MongoDB and Memcached: writes, reads (hits and misses), a big value now and then.
   nosql-loadgen:  # demo NoSQL traffic
+    container_name: grafana-s-nosql-loadgen  # fixed name; grafana-s-* = this stack (small)
     image: mongo:7.0.14  # same image: brings mongosh; bash + /dev/tcp for memcached
     labels: { container.type: loadgen }  # which dashboard Docker projects opens for it
     profiles: [nosql]  # started only with --profile nosql
@@ -669,6 +709,7 @@ services:  # containers this file runs; each key below is one service
   # Pushgateway (last run, last success, duration, exit code), the usual pattern for batch jobs.
   # backup fails now and then, so the Cron dashboard and the CronJobFailed alert have something to show.
   cron-demo:  # demo scheduled jobs
+    container_name: grafana-s-cron-demo  # fixed name; grafana-s-* = this stack (small)
     image: curlimages/curl:8.10.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: cron }  # which dashboard Docker projects opens for it
     profiles: [cron]  # started only with --profile cron

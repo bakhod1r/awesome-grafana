@@ -17,7 +17,7 @@ data_dir: /var/lib/vector  # vector-data volume
 
 api:  # health endpoint + `vector top` inside the container
   enabled: true
-  address: 0.0.0.0:8686  # http://localhost:8686/health
+  address: 0.0.0.0:8686  # http://localhost:38686/health
 
 sources:
   # 1. Every running container, through the Docker socket. New containers are picked up
@@ -82,7 +82,7 @@ transforms:
     inputs: [docker]
     source: |
       l = object(.label) ?? {}
-      .container = .container_name                        # "awesome-grafana-grafana-1"
+      .container = .container_name                        # "grafana-s-grafana"
       # Compose service name ("grafana"): stable across restarts and scale-ups.
       # Containers started without compose (docker run): service = container name, as on the dashboards.
       .service = l."com.docker.compose.service" || .container_name

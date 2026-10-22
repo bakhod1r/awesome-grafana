@@ -20,7 +20,7 @@ Self-hosted observability stack in one `docker compose up`: metrics, logs, trace
 
 1. **Metrics** — Prometheus scrapes exporters and apps (static jobs + `discoverer` file_sd targets), evaluates recording/alert rules, and `remote_write`s everything to VictoriaMetrics. Grafana reads metrics from VictoriaMetrics.
 2. **Logs** — Vector reads container stdout through the Docker socket and nginx file logs, parses levels, masks secrets, turns lines into metrics (`vector_*` on `:9598`) and ships them to VictoriaLogs. vmalert runs LogsQL alert rules against VictoriaLogs.
-3. **Traces** — apps send OTLP to Vector (`4317` gRPC, `4318` HTTP), Vector forwards traces to Tempo, metrics to Prometheus, logs to VictoriaLogs. No CORS: browser SDKs need a reverse proxy in front. Tempo's metrics generator writes span metrics (with exemplars) back to Prometheus.
+3. **Traces** — apps send OTLP to Vector (`vector:4317` gRPC, `vector:4318` HTTP inside Docker; `34317` / `34318` on the host), Vector forwards traces to Tempo, metrics to Prometheus, logs to VictoriaLogs. No CORS: browser SDKs need a reverse proxy in front. Tempo's metrics generator writes span metrics (with exemplars) back to Prometheus.
 4. **Alerts** — Prometheus and vmalert fire into Alertmanager, which sends Telegram messages (critical loud, warnings silent). Grafana runs a dead man's switch so a dead alert pipeline is noticed too.
 
 ## Quick start
@@ -41,6 +41,68 @@ docker compose --profile search --profile nosql --profile cron up -d   # demo El
 
 PostgreSQL, MySQL and Redis targets are on in `prometheus/exporters/<name>.yml` (set the file to `[]` when the profile is off, or `TargetDown` fires). Other exporters: add the target there after enabling the profile.
 
+## Settings (.env)
+
+| Variable | What it does |
+|----------|--------------|
+| `TELEGRAM_BOT_TOKEN` | Bot that sends alerts (from @BotFather). Required. |
+| `TELEGRAM_CHAT_ID` | Chat for critical alerts (sent with sound). Groups and channels start with `-100`; check with `https://api.telegram.org/bot<TOKEN>/getChat?chat_id=<id>`. The bot must be a member (admin in a channel). Required. |
+| `TELEGRAM_WARNING_CHAT_ID` | Chat for warnings (sent silently). Empty = same as `TELEGRAM_CHAT_ID`. |
+| `TELEGRAM_TOPIC_ID`, `TELEGRAM_WARNING_TOPIC_ID` | Forum topic inside the group. Empty = General. |
+| `GRAFANA_URL`, `PROMETHEUS_URL`, `ALERTMANAGER_URL` | Public addresses used only for links in Telegram messages (Dashboard, Logs, Query). On a server, put its IP or domain here, not `localhost`, or the links will not open from a phone. |
+| `GRAFANA_HOST` | IP Grafana binds to: `0.0.0.0` every interface, `127.0.0.1` this machine only. |
+| `GRAFANA_PORT`, `GRAFANA_DIRECT_PORT` | Main UI (themed proxy, default `3000`) and plain Grafana (default `3002`). Keep `GRAFANA_URL` in sync. |
+| `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD` | Grafana login. Change the password before exposing it. |
+| `POSTGRES_EXPORTER_DSN` | PostgreSQL to watch (profile `postgres`). Commented out = the demo database. |
+| `MYSQL_EXPORTER_ADDRESS`, `_USER`, `_PASSWORD` | MySQL to watch (profile `mysql`). Not needed without MySQL. |
+| `REDIS_EXPORTER_ADDR`, `REDIS_EXPORTER_PASSWORD` | Redis to watch (profile `redis`). Default = the demo cache. |
+
+Exporter settings are read only when their profile is started; plain `docker compose up -d` ignores them.
+
+## Watching databases that run in Docker
+
+A database in a container is watched like any other: the exporter only needs a network path to it.
+Container health (CPU, memory, restarts) and logs need nothing at all, cAdvisor and Vector pick them up.
+
+**Through the published port** (simplest, stack and database on the same server). The app's compose
+publishes the port (for example `5433:5432`), and the exporter connects to the host:
+
+```
+POSTGRES_EXPORTER_DSN=postgresql://monitor:secret@host.docker.internal:5433/appdb?sslmode=disable
+REDIS_EXPORTER_ADDR=redis://host.docker.internal:6379
+```
+
+On Linux `host.docker.internal` does not exist by default: use the server IP, or add
+`extra_hosts: ["host.docker.internal:host-gateway"]` to the exporter service.
+
+**Through the app's Docker network** (no published port, for example a database bound to `127.0.0.1`).
+Attach the exporter to the app's network and use the container name:
+
+```yaml
+# docker-compose.yml (this stack)
+services:
+  postgres-exporter:
+    networks: [default, app]
+networks:
+  app:
+    external: true
+    name: myapp_backend   # docker network ls
+```
+
+```
+POSTGRES_EXPORTER_DSN=postgresql://monitor:secret@postgres:5432/appdb?sslmode=disable
+```
+
+**On another server**: open the database port to the monitoring server only (firewall), or run the
+exporter on that server and add its address to `prometheus/exporters/<name>.yml`.
+
+Use a read-only user for the exporter. PostgreSQL:
+
+```sql
+CREATE USER monitor WITH PASSWORD 'secret';
+GRANT pg_monitor TO monitor;
+```
+
 ## How to use it
 
 ### 1. Start the stack
@@ -49,9 +111,9 @@ PostgreSQL, MySQL and Redis targets are on in `prometheus/exporters/<name>.yml` 
    `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `"chat":{"id":...}`.
 2. `cp .env.example .env` and fill in `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and a strong `GRAFANA_ADMIN_PASSWORD`.
 3. `docker compose up -d` (add the `--profile ...` lines above for the demos you want).
-4. Open http://localhost:3000 and log in as `admin` with the password from `.env`.
+4. Open http://localhost:33000 and log in as `admin` with the password from `.env`.
 5. Check that alerts reach you: a "Watchdog" alert is always firing on purpose; in Alertmanager
-   (http://localhost:9093) you should see it, and failures to deliver show on **Self Monitoring**.
+   (http://localhost:39093) you should see it, and failures to deliver show on **Self Monitoring**.
 
 ### 2. Connect your own app
 
@@ -158,17 +220,17 @@ The check exits non-zero on a query error or an unexpected empty panel, so it ca
 
 | URL | What |
 |-----|------|
-| http://localhost:3000 | Grafana (themed, via grafana-proxy) |
-| http://localhost:3002 | Grafana (plain) |
-| http://localhost:9090 | Prometheus |
-| http://localhost:8428/vmui | VictoriaMetrics UI |
-| http://localhost:9428/select/vmui | VictoriaLogs UI |
-| http://localhost:9093 | Alertmanager |
-| http://localhost:8880 | vmalert |
-| http://localhost:3200 | Tempo API |
-| http://localhost:8686/health | Vector health |
-| http://localhost:8080 | cAdvisor |
-| http://localhost:8081 | Scrutiny |
+| http://localhost:33000 | Grafana (themed, via grafana-proxy) |
+| http://localhost:33002 | Grafana (plain) |
+| http://localhost:39090 | Prometheus |
+| http://localhost:38428/vmui | VictoriaMetrics UI |
+| http://localhost:39428/select/vmui | VictoriaLogs UI |
+| http://localhost:39093 | Alertmanager |
+| http://localhost:38880 | vmalert |
+| http://localhost:33200 | Tempo API |
+| http://localhost:38686/health | Vector health |
+| http://localhost:38080 | cAdvisor |
+| http://localhost:38081 | Scrutiny |
 
 Grafana login: `admin` and `GRAFANA_ADMIN_PASSWORD` from `.env` (default `admin` — change it before exposing Grafana).
 

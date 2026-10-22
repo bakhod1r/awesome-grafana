@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run every panel query of every dashboard through Grafana and list panels that error or show "No data".
 
-    python3 scripts/check-dashboards.py                     # all dashboards, against http://localhost:3000
+    python3 scripts/check-dashboards.py                     # all dashboards, against http://localhost:33000
     python3 scripts/check-dashboards.py --dashboard redis   # one dashboard (uid)
     python3 scripts/check-dashboards.py --all               # also print the panels that are fine
 
@@ -149,7 +149,7 @@ def check_panel(g, dash, p, values, time_from):
 def main():
     env = {**dotenv(), **os.environ}
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--url", default=env.get("GRAFANA_CHECK_URL", f"http://localhost:{env.get('GRAFANA_PORT', '3000')}"))
+    ap.add_argument("--url", default=env.get("GRAFANA_CHECK_URL", f"http://localhost:{env.get('GRAFANA_PORT', '33000')}"))
     ap.add_argument("--user", default=env.get("GRAFANA_ADMIN_USER", "admin"))
     ap.add_argument("--password", default=env.get("GRAFANA_ADMIN_PASSWORD", "admin"))
     ap.add_argument("--dashboard", action="append", help="dashboard uid (repeatable); default: all")

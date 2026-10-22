@@ -100,7 +100,7 @@ d.add(ts("Latency", [tgt(f"max(svc:latency:seconds{F})", "$svc")], unit="s", th=
 
 d.row("Batch jobs (pushgateway)")
 d.add(text("Short jobs (cron, backups, migrations) push their result to the pushgateway when they finish. Example (end of a backup script):\n"
-           "```\necho \"batch_last_success_timestamp_seconds $(date +%s)\" | curl --data-binary @- http://localhost:9091/metrics/job/backup\n```\n"
+           "```\necho \"batch_last_success_timestamp_seconds $(date +%s)\" | curl --data-binary @- http://localhost:39091/metrics/job/backup\n```\n"
            "Red **Since last push** = the job has not run for 25 hours. **Status** failed = the last push reported a failure."), 24, 3)
 batch = table("Batch jobs", [
     tgt("time() - max by (job) (push_time_seconds)", instant=True, fmt="table"),

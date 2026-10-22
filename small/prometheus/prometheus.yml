@@ -27,7 +27,7 @@ remote_write:  # copy samples to long-term storage
 scrape_configs:  # scrape jobs
   # Prometheus's own health: rule evaluation, remote_write queue, scrape errors.
   - job_name: prometheus  # job="prometheus" label on every metric from this job
-    static_configs: [{ targets: ["localhost:9090"] }]  # scrape http://localhost:9090/metrics
+    static_configs: [{ targets: ["localhost:9090"] }]  # scrape itself (inside the container)
 
   # Host metrics (CPU, memory, disk, network).
   - job_name: node  # job="node" label on every metric from this job
