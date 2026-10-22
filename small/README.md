@@ -229,6 +229,7 @@ Every type dashboard starts with the same *Container health* row (running, resta
 | `php` | PHP-FPM workers, listen queue (php-fpm_exporter) |
 | `dotnet` | managed memory, GC, thread pool, exceptions (prometheus-net) |
 | `rust`, `ruby` | process CPU, memory, file descriptors (+ Ruby GC when exported) |
+| `javascript` | static SPA served by nginx (no runtime): container CPU, memory, network, restarts; requests, 4xx/5xx, latency from access logs; logs |
 
 Where to click: **Docker projects → a project** (Project dashboard) **→ a container**, or **Docker projects → Containers by type**. The *Opens* column opens the type's dashboard,
 the *lang* column the runtime one. Type, Language, Team and Env are also filters on that dashboard and
