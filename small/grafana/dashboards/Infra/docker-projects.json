@@ -1,5 +1,5 @@
 {
-  "title": "Docker projects",
+  "title": "Docker Projects",
   "uid": "docker-projects",
   "description": "Every running docker compose project and its services: status, uptime, CPU, RAM, network, disk, restarts, OOM, logs. New projects appear on their own (from cAdvisor docker labels).",
   "tags": [
