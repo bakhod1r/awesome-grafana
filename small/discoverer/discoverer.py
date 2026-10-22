@@ -78,17 +78,21 @@ def own_containers():
 
 def write_sites():
     """Sites to probe from .env: SITES_PROD=https://a,https://b becomes targets with env="prod"
-    (any SITES_<ENV> variable; commas or spaces between URLs). Written once at start."""
+    (any SITES_<ENV> variable; commas or spaces between URLs). Written once at start.
+    An item may be service=url: the service label ties the probe to that container's dashboards
+    (Frontend uptime / SSL), e.g. SITES_DEV=github_dev_lms_admin=https://dev.admin.example.com/"""
     groups = []
     for key, value in sorted(os.environ.items()):
         if not key.startswith("SITES_") or key in ("SITES_FILE", "SITES_PROJECT"):
             continue
-        urls = [u for u in re.split(r"[,\s]+", value) if u]
-        if urls:
+        for item in (u for u in re.split(r"[,\s]+", value) if u):
+            service, _, url = item.rpartition("=") if "=" in item.split("://")[0] else ("", "", item)
             labels = {"env": key[len("SITES_"):].lower(), "module": "http_alive"}  # up unless 5xx/timeout
             if SITES_PROJECT:
                 labels["project"] = SITES_PROJECT
-            groups.append({"targets": urls, "labels": labels})
+            if service:
+                labels["service"] = service
+            groups.append({"targets": [url], "labels": labels})
     with open(SITES_FILE + ".tmp", "w") as f:
         json.dump(groups, f, indent=2)
     os.replace(SITES_FILE + ".tmp", SITES_FILE)

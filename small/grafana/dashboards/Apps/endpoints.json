@@ -281,7 +281,7 @@
     },
     {
       "type": "stat",
-      "title": "Targets up",
+      "title": "Services measured",
       "gridPos": {
         "x": 16,
         "y": 1,
@@ -294,13 +294,13 @@
       },
       "targets": [
         {
-          "expr": "sum(up{job=\"apps\", service=~\"$service\"}) / count(up{job=\"apps\", service=~\"$service\"}) * 100",
+          "expr": "count(count by (service) (http_requests_total{job=\"apps\", service=~\"$service\"})) or vector(0)",
           "refId": "A"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
+          "unit": "short",
           "decimals": 0,
           "color": {
             "mode": "thresholds"
@@ -314,7 +314,7 @@
               },
               {
                 "color": "green",
-                "value": 100
+                "value": 1
               }
             ]
           }
@@ -332,7 +332,8 @@
           ],
           "values": false
         }
-      }
+      },
+      "description": "Services with HTTP metrics in this range: from Beyla (eBPF) or from the app's own /metrics."
     },
     {
       "type": "stat",
@@ -1062,7 +1063,7 @@
     },
     {
       "type": "row",
-      "title": "Go runtime and containers",
+      "title": "Containers",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -1074,158 +1075,10 @@
     },
     {
       "type": "timeseries",
-      "title": "Goroutines",
-      "gridPos": {
-        "x": 0,
-        "y": 79,
-        "w": 24,
-        "h": 10
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "label_replace(go_goroutines{job=\"apps\", service=~\"$service\"}, \"service\", \"(none)\", \"service\", \"\")",
-          "refId": "A",
-          "legendFormat": "{{service}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 15,
-            "gradientMode": "opacity",
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "max",
-            "lastNotNull"
-          ],
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "description": "Steady growth that never comes back down = requests or jobs stuck (goroutine leak)."
-    },
-    {
-      "type": "timeseries",
-      "title": "Heap in use",
-      "gridPos": {
-        "x": 0,
-        "y": 89,
-        "w": 24,
-        "h": 10
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "label_replace(go_memstats_heap_inuse_bytes{job=\"apps\", service=~\"$service\"}, \"service\", \"(none)\", \"service\", \"\")",
-          "refId": "A",
-          "legendFormat": "{{service}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 15,
-            "gradientMode": "opacity",
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "max",
-            "lastNotNull"
-          ],
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "GC pause (avg)",
-      "gridPos": {
-        "x": 0,
-        "y": 99,
-        "w": 24,
-        "h": 10
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "victoriametrics"
-      },
-      "targets": [
-        {
-          "expr": "label_replace(rate(go_gc_duration_seconds_sum{job=\"apps\", service=~\"$service\"}[5m]) / rate(go_gc_duration_seconds_count{job=\"apps\", service=~\"$service\"}[5m]), \"service\", \"(none)\", \"service\", \"\")",
-          "refId": "A",
-          "legendFormat": "{{service}}"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 15,
-            "gradientMode": "opacity",
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "calcs": [
-            "max",
-            "lastNotNull"
-          ],
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "type": "timeseries",
       "title": "Container CPU",
       "gridPos": {
         "x": 0,
-        "y": 109,
+        "y": 79,
         "w": 24,
         "h": 10
       },
@@ -1274,7 +1127,7 @@
       "title": "Container memory",
       "gridPos": {
         "x": 0,
-        "y": 119,
+        "y": 89,
         "w": 24,
         "h": 8
       },
@@ -1324,7 +1177,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 127,
+        "y": 97,
         "w": 24,
         "h": 1
       },
@@ -1335,7 +1188,7 @@
       "title": "Errors and warnings",
       "gridPos": {
         "x": 0,
-        "y": 128,
+        "y": 98,
         "w": 24,
         "h": 10
       },
@@ -1352,7 +1205,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "noValue": "No errors or warnings logged"
+          "noValue": "No errors"
         },
         "overrides": []
       },
@@ -1499,7 +1352,7 @@
       "id": 2,
       "gridPos": {
         "x": 0,
-        "y": 138,
+        "y": 108,
         "w": 24,
         "h": 1
       }
@@ -1571,7 +1424,7 @@
       "id": 3,
       "gridPos": {
         "x": 0,
-        "y": 139,
+        "y": 109,
         "w": 6,
         "h": 5
       }
@@ -1643,7 +1496,7 @@
       "id": 4,
       "gridPos": {
         "x": 6,
-        "y": 139,
+        "y": 109,
         "w": 6,
         "h": 5
       }
@@ -1708,7 +1561,7 @@
       "id": 5,
       "gridPos": {
         "x": 12,
-        "y": 139,
+        "y": 109,
         "w": 6,
         "h": 5
       }
@@ -1781,7 +1634,7 @@
       "id": 6,
       "gridPos": {
         "x": 18,
-        "y": 139,
+        "y": 109,
         "w": 6,
         "h": 5
       }
@@ -1897,7 +1750,7 @@
       "id": 7,
       "gridPos": {
         "x": 0,
-        "y": 144,
+        "y": 114,
         "w": 12,
         "h": 9
       }
@@ -2013,7 +1866,7 @@
       "id": 8,
       "gridPos": {
         "x": 12,
-        "y": 144,
+        "y": 114,
         "w": 12,
         "h": 9
       }
@@ -2090,7 +1943,7 @@
       "id": 9,
       "gridPos": {
         "x": 0,
-        "y": 153,
+        "y": 123,
         "w": 12,
         "h": 9
       }
@@ -2098,7 +1951,7 @@
     {
       "type": "table",
       "title": "Top error messages",
-      "description": "The most frequent error log lines of the service (JSON logs: msg / error fields).",
+      "description": "The most frequent error log lines of the service (JSON logs: msg / error fields). Empty: No errors",
       "datasource": {
         "type": "victoriametrics-logs-datasource",
         "uid": "victorialogs"
@@ -2142,7 +1995,8 @@
             "cellOptions": {
               "type": "auto"
             }
-          }
+          },
+          "noValue": "-"
         },
         "overrides": []
       },
@@ -2159,7 +2013,7 @@
       "id": 10,
       "gridPos": {
         "x": 12,
-        "y": 153,
+        "y": 123,
         "w": 12,
         "h": 9
       }

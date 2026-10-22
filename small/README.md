@@ -11,7 +11,7 @@ Self-hosted observability stack in one `docker compose up`: metrics, logs, trace
 | Metrics collection | Prometheus, node-exporter, cAdvisor, blackbox-exporter, pushgateway, discoverer (auto-finds app `/metrics`) |
 | Logs, traces | Vector (Docker logs, host nginx log files, OTLP), Beyla (eBPF) |
 | Storage | VictoriaMetrics (metrics, 12 months), VictoriaLogs (logs, 90 days / 20 GiB), Tempo (traces + span metrics) |
-| Alerting | Prometheus rules + vmalert (LogsQL rules) → Alertmanager → Telegram; Grafana dead man's switch |
+| Alerting | Prometheus rules + vmalert (LogsQL rules) → Alertmanager → Telegram |
 | UI | Grafana (provisioned datasources and dashboards), grafana-proxy (themed nginx front) |
 | Optional exporters | PostgreSQL, Redis (your own databases, enabled via profiles) |
 
@@ -20,7 +20,7 @@ Self-hosted observability stack in one `docker compose up`: metrics, logs, trace
 1. **Metrics** — Prometheus scrapes exporters and apps (static jobs + `discoverer` file_sd targets), evaluates recording/alert rules, and `remote_write`s everything to VictoriaMetrics. Grafana reads metrics from VictoriaMetrics.
 2. **Logs** — Vector reads container stdout through the Docker socket and nginx file logs, parses levels, masks secrets, turns lines into metrics (`vector_*` on `:9598`) and ships them to VictoriaLogs. vmalert runs LogsQL alert rules against VictoriaLogs.
 3. **Traces** — apps send OTLP to Vector (`vector:4317` gRPC, `vector:4318` HTTP inside Docker; `34317` / `34318` on the host), Vector forwards traces to Tempo, metrics to Prometheus, logs to VictoriaLogs. No CORS: browser SDKs need a reverse proxy in front. Tempo's metrics generator writes span metrics (with exemplars) back to Prometheus.
-4. **Alerts** — Prometheus and vmalert fire into Alertmanager, which sends Telegram messages (critical loud, warnings silent). Grafana runs a dead man's switch so a dead alert pipeline is noticed too.
+4. **Alerts** — Prometheus and vmalert fire into Alertmanager, which sends Telegram messages (critical loud, warnings silent).
 
 ## Quick start
 
@@ -147,7 +147,7 @@ services:
 - **Docker** (Docker projects): every compose project with its resource use. Click a project →
   **Project** dashboard: summary plus a table of its containers. Click a container → the dashboard for its
   `container.type` (backend → App Endpoints, db → PostgreSQL, ...; unlabelled → **Container**).
-  Click its *lang* cell → the runtime dashboard for that language.
+  Click its *lang* cell → the **Container** dashboard, whose HTTP and Runtime rows show that app's traffic and runtime.
 - **Logs**: search every container's logs; **Traces**: slow and failed requests.
 - **Alerts**: what is firing now and its history; **SLO** / **App SLO**: availability and error budgets.
 - **Stack** (Self Monitoring): is the monitoring itself healthy (scrapes, storage, alert delivery).
@@ -262,7 +262,7 @@ services:
   api:
     labels:
       container.type: backend   # which dashboard opens
-      container.lang: go        # which runtime dashboard opens
+      container.lang: go        # language: filter + Runtime row of the Container dashboard
       container.team: payments  # filter + shown in Telegram alerts
       container.env: prod       # filter + shown in Telegram alerts
       container.project: shop   # optional: group under this project (default: the compose project)
@@ -289,19 +289,13 @@ services:
 
 Every type dashboard starts with the same *Container health* row (running, restarts, OOM kills, CPU, memory vs limit), and alerts exist per type: queue backlog / no consumers / broker alarms, Kafka lag, failing jobs, proxy upstream errors.
 
-| `container.lang` | Runtime dashboard |
-|------------------|-------------------|
-| `go` | goroutines, heap, GC pauses, allocation rate |
-| `java` | JVM heap, GC time, threads, classes, HikariCP pool (Micrometer or JMX exporter) |
-| `node` | event loop lag, heap, GC, active handles (prom-client) |
-| `python` | GC by generation, uncollectable objects, memory (prometheus_client) |
-| `php` | PHP-FPM workers, listen queue (php-fpm_exporter) |
-| `dotnet` | managed memory, GC, thread pool, exceptions (prometheus-net) |
-| `rust`, `ruby` | process CPU, memory, file descriptors (+ Ruby GC when exported) |
-| `javascript` | static SPA served by nginx (no runtime): container CPU, memory, network, restarts; requests, 4xx/5xx, latency from access logs; logs |
+`container.lang` (go, java, node, python, dotnet, ...) is a filter and a log field. The language runtime of a
+container (heap, GC, event loop lag / goroutines / threads) is the **Runtime** row of its **Container**
+dashboard: the app's own `/metrics` (prom-client, client_golang, Micrometer, ...) fill it; Beyla gives HTTP
+numbers but no runtime ones.
 
 Where to click: **Docker projects → a project** (Project dashboard) **→ a container**, or **Docker projects → Containers by type**. The *Opens* column opens the type's dashboard,
-the *lang* column the runtime one. Type, Language, Team and Env are also filters on that dashboard and
+the *lang* column its Container dashboard (HTTP + Runtime rows). Type, Language, Team and Env are also filters on that dashboard and
 fields on every log line (`type:backend`, `team:payments`).
 
 Databases and caches need an exporter next to them (postgres-exporter, redis_exporter); MinIO needs

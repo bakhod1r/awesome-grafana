@@ -38,9 +38,9 @@ d.add(stat("4xx %", f"sum(rate({REQ[:-1]}, status_class=\"4xx\"}}[5m])) / sum(ra
            th=steps((5, "orange"), (20, "red")), desc="Missing pages, bad links, blocked requests."), 4, 4)
 d.add(stat("p95 latency", f"histogram_quantile(0.95, sum by (le) (rate({DUR}[5m])))", unit="s", decimals=3,
            th=steps((0.5, "orange"), (1, "red")), desc="Server time per request (rt=). Empty when the log format has no rt."), 4, 4)
-d.add(stat("Uptime (probe, 24h)", f'avg_over_time(probe_success{{instance=~".*$service.*"}}[24h]) * 100', unit="percent", decimals=2,
+d.add(stat("Uptime (probe, 24h)", f'avg_over_time(probe_success{{service=~"$service"}}[24h]) * 100 or avg_over_time(probe_success{{instance=~".*$service.*"}}[24h]) * 100', unit="percent", decimals=2,
            th=steps((99, "orange"), (99.9, "green"), base="red"), desc="Blackbox probes of URLs containing the service name (prometheus/sites.yml)."), 4, 4)
-d.add(stat("SSL expires in", f'min(probe_ssl_earliest_cert_expiry{{instance=~".*$service.*"}} - time())', unit="s", decimals=0,
+d.add(stat("SSL expires in", f'min(probe_ssl_earliest_cert_expiry{{service=~"$service"}} - time()) or min(probe_ssl_earliest_cert_expiry{{instance=~".*$service.*"}} - time())', unit="s", decimals=0,
            th=steps((7 * 86400, "orange"), (21 * 86400, "green"), base="red"), desc="Empty for plain http."), 4, 4)
 
 d.add(ts("Requests/s by status", [tgt(f"sum by (status_class) (rate({REQ}[5m]))", "{{status_class}}")], unit="reqps", stack=True,
@@ -50,7 +50,7 @@ d.add(ts("Requests/s by status", [tgt(f"sum by (status_class) (rate({REQ}[5m]))"
 d.add(ts("Latency p50 / p95 / p99", [tgt(f"histogram_quantile({q}, sum by (le) (rate({DUR}[5m])))", f"p{int(q * 100)}") for q in (0.5, 0.95, 0.99)],
          unit="s", fill=0), 12, 8)
 d.add(ts("Requests/s by method", [tgt(f"sum by (method) (rate({REQ}[5m]))", "{{method}}")], unit="reqps", stack=True), 12, 8)
-d.add(ts("Probe response time", [tgt(f'probe_duration_seconds{{instance=~".*$service.*"}}', "{{instance}}")], unit="s", fill=0,
+d.add(ts("Probe response time", [tgt(f'probe_duration_seconds{{service=~"$service"}} or probe_duration_seconds{{instance=~".*$service.*"}}', "{{instance}}")], unit="s", fill=0,
          desc="Full request time as an outside client sees it (blackbox)."), 12, 8)
 
 d.row("Pages")
@@ -81,4 +81,14 @@ d.add(ts("CPU", [tgt("sum by (name) (" + by_svc('rate(container_cpu_usage_second
 d.add(ts("Memory", [tgt("sum by (name) (" + by_svc('container_memory_working_set_bytes{name!=""}') + ")", "{{name}}")],
          unit="bytes"), 12, 8)
 
+# Panels that are empty when all is well: say so instead of a bare "No data".
+GOOD = {"Top 404s": "No 404s", "Top referrers": "No referrers", "Top 5xx pages": "No 5xx responses", "Errors (4xx / 5xx, error log)": "No errors",
+        "Broken assets (404 on .js / .css / images / fonts)": "No broken assets",
+        "Clients that gave up (499) and slow pages": "No 499s or slow pages",
+        "Uptime (probe, 24h)": "No probe (SITES_* in .env)",
+        "SSL expires in": "No probe (SITES_* in .env)",
+        "Probe response time": "No probe (SITES_* in .env)"}
+for p in d.panels:
+    if p.get("title") in GOOD:
+        p.setdefault("fieldConfig", {"defaults": {}, "overrides": []}).setdefault("defaults", {})["noValue"] = GOOD[p["title"]]
 d.write("Apps/frontend.json")

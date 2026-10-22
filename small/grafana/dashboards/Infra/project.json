@@ -763,7 +763,7 @@
     {
       "type": "table",
       "title": "Containers",
-      "description": "Every container of the project. Click the container (or Opens) for its dashboard, lang for its runtime dashboard. Labels come from docker-compose: container.type / lang / team / env.",
+      "description": "Every container of the project. Click the container (or Opens) for its dashboard, lang for its runtime (Container dashboard, Runtime row). Labels come from docker-compose: container.type / lang / team / env.",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -1102,7 +1102,7 @@
                 "value": [
                   {
                     "title": "Runtime: ${__data.fields.lang}",
-                    "url": "/d/runtime-${__data.fields.lang}?${__url_time_range}&var-project=${__data.fields.pj}&var-container=${__data.fields.link_name}"
+                    "url": "/d/container/container?${__url_time_range}&var-project=${__data.fields.pj}&var-container=${__data.fields.link_name}"
                   }
                 ]
               }

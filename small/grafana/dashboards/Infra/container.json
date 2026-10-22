@@ -1573,260 +1573,875 @@
     {
       "type": "row",
       "id": 21,
-      "title": "API requests (from request logs)",
-      "collapsed": true,
+      "title": "HTTP requests",
+      "collapsed": false,
       "gridPos": {
         "x": 0,
         "y": 55,
         "w": 24,
         "h": 1
       },
-      "panels": [
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Requests/s",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
         {
-          "type": "table",
-          "title": "Endpoints (slowest first)",
-          "description": "Needs JSON request logs with duration_ms, method, path, status. Empty for other apps.",
+          "refId": "A",
+          "expr": "sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m]))",
+          "legendFormat": "",
           "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "victorialogs"
+            "type": "prometheus",
+            "uid": "victoriametrics"
           },
-          "targets": [
-            {
-              "refId": "A",
-              "datasource": {
-                "type": "victoriametrics-logs-datasource",
-                "uid": "victorialogs"
-              },
-              "queryType": "stats",
-              "expr": "container:=\"$container\" duration_ms:* | stats by (method, path) count() requests, avg(duration_ms) avg_ms, quantile(0.95, duration_ms) p95_ms, max(duration_ms) max_ms | sort by (p95_ms desc) | limit 30"
-            }
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
           ],
-          "transformations": [
-            {
-              "id": "labelsToFields",
-              "options": {
-                "mode": "columns",
-                "valueLabel": "__name__"
-              }
-            },
-            {
-              "id": "merge",
-              "options": {}
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true
-                }
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "filterable": true,
-                "cellOptions": {
-                  "type": "auto"
-                }
-              }
-            },
-            "overrides": [
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
               {
-                "matcher": {
-                  "id": "byName",
-                  "options": "p95_ms"
-                },
-                "properties": [
-                  {
-                    "id": "unit",
-                    "value": "ms"
-                  },
-                  {
-                    "id": "custom.cellOptions",
-                    "value": {
-                      "type": "color-background",
-                      "mode": "basic"
-                    }
-                  },
-                  {
-                    "id": "thresholds",
-                    "value": {
-                      "mode": "absolute",
-                      "steps": [
-                        {
-                          "color": "green",
-                          "value": null
-                        },
-                        {
-                          "color": "orange",
-                          "value": 500
-                        },
-                        {
-                          "color": "red",
-                          "value": 1000
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "id": "color",
-                    "value": {
-                      "mode": "thresholds"
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "max_ms"
-                },
-                "properties": [
-                  {
-                    "id": "unit",
-                    "value": "ms"
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "avg_ms"
-                },
-                "properties": [
-                  {
-                    "id": "unit",
-                    "value": "ms"
-                  },
-                  {
-                    "id": "decimals",
-                    "value": 1
-                  }
-                ]
+                "color": "blue",
+                "value": null
               }
             ]
           },
-          "options": {
-            "showHeader": true,
-            "cellHeight": "sm",
-            "sortBy": []
+          "color": {
+            "mode": "thresholds"
           },
-          "id": 22,
-          "gridPos": {
-            "x": 0,
-            "y": 56,
-            "w": 14,
-            "h": 10
-          }
+          "mappings": [],
+          "links": [],
+          "decimals": 2,
+          "noValue": "No HTTP metrics"
         },
+        "overrides": []
+      },
+      "id": 22,
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "5xx %",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
         {
-          "type": "table",
-          "title": "Status codes",
-          "description": "",
+          "refId": "A",
+          "expr": "sum(rate(http_requests_total{job=\"apps\", container=\"$container\", status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m])) * 100",
+          "legendFormat": "",
           "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "victorialogs"
+            "type": "prometheus",
+            "uid": "victoriametrics"
           },
-          "targets": [
-            {
-              "refId": "A",
-              "datasource": {
-                "type": "victoriametrics-logs-datasource",
-                "uid": "victorialogs"
-              },
-              "queryType": "stats",
-              "expr": "container:=\"$container\" duration_ms:* | stats by (status) count() requests | sort by (requests desc)"
-            }
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
           ],
-          "transformations": [
-            {
-              "id": "labelsToFields",
-              "options": {
-                "mode": "columns",
-                "valueLabel": "__name__"
-              }
-            },
-            {
-              "id": "merge",
-              "options": {}
-            },
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "Time": true
-                }
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "custom": {
-                "filterable": true,
-                "cellOptions": {
-                  "type": "auto"
-                }
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "showHeader": true,
-            "cellHeight": "sm",
-            "sortBy": [
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
               {
-                "displayName": "requests",
-                "desc": true
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
               }
             ]
           },
-          "id": 23,
-          "gridPos": {
-            "x": 14,
-            "y": 56,
-            "w": 10,
-            "h": 10
-          }
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "links": [],
+          "decimals": 2,
+          "noValue": "No HTTP metrics"
+        },
+        "overrides": []
+      },
+      "id": 23,
+      "gridPos": {
+        "x": 6,
+        "y": 56,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "4xx %",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_requests_total{job=\"apps\", container=\"$container\", status=~\"4..\"}[5m])) / sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m])) * 100",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "links": [],
+          "decimals": 2,
+          "noValue": "No HTTP metrics"
+        },
+        "overrides": []
+      },
+      "id": 24,
+      "gridPos": {
+        "x": 12,
+        "y": 56,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "p95 latency",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"apps\", container=\"$container\"}[5m])))",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "value",
+        "justifyMode": "center",
+        "wideLayout": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "links": [],
+          "decimals": 3,
+          "noValue": "No HTTP metrics"
+        },
+        "overrides": []
+      },
+      "id": 25,
+      "gridPos": {
+        "x": 18,
+        "y": 56,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "type": "table",
+      "title": "Endpoints (slowest p95 first)",
+      "description": "Beyla (beyla/beyla.yml) or the app's own /metrics. Empty: the container serves no HTTP that is measured.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (route) (increase(http_requests_total{job=\"apps\", container=\"$container\"}[$__range]))",
+          "legendFormat": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "instant": true,
+          "range": false,
+          "format": "table"
         },
         {
-          "type": "logs",
-          "title": "Slow requests > 1s",
-          "description": "",
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (route, le) (rate(http_request_duration_seconds_bucket{job=\"apps\", container=\"$container\"}[$__range])))",
+          "legendFormat": "",
           "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "victorialogs"
+            "type": "prometheus",
+            "uid": "victoriametrics"
           },
-          "targets": [
-            {
-              "refId": "A",
-              "datasource": {
-                "type": "victoriametrics-logs-datasource",
-                "uid": "victorialogs"
-              },
-              "queryType": "instant",
-              "expr": "container:=\"$container\" duration_ms:>1000 | sort by (duration_ms desc) | limit 100"
-            }
-          ],
+          "instant": true,
+          "range": false,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
           "options": {
-            "showTime": true,
-            "wrapLogMessage": true,
-            "sortOrder": "Descending",
-            "enableLogDetails": true,
-            "prettifyLogMessage": false,
-            "dedupStrategy": "none",
-            "showLabels": false,
-            "showCommonLabels": false
-          },
-          "id": 24,
-          "gridPos": {
-            "x": 0,
-            "y": 66,
-            "w": 24,
-            "h": 10
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true,
+              "server": true
+            },
+            "renameByName": {
+              "Value #A": "requests",
+              "Value #B": "p95"
+            },
+            "indexByName": {}
           }
         }
-      ]
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 0.5
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "requests"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "p95",
+            "desc": true
+          }
+        ]
+      },
+      "id": 26,
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 24,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Responses/s by status",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "label_replace(sum by (status) (rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m])), \"status\", \"(none)\", \"status\", \"\")",
+          "legendFormat": "{{status}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 27,
+      "gridPos": {
+        "x": 0,
+        "y": 70,
+        "w": 24,
+        "h": 10
+      }
+    },
+    {
+      "type": "row",
+      "id": 28,
+      "title": "Runtime",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 80,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap used",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(nodejs_heap_size_used_bytes{container=\"$container\"})",
+          "legendFormat": "node heap",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(go_memstats_heap_inuse_bytes{container=\"$container\"})",
+          "legendFormat": "go heap",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(jvm_memory_used_bytes{container=\"$container\", area=\"heap\"})",
+          "legendFormat": "jvm heap",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "sum(dotnet_total_memory_bytes{container=\"$container\"})",
+          "legendFormat": ".net managed",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "E",
+          "expr": "sum(process_resident_memory_bytes{container=\"$container\"})",
+          "legendFormat": "process resident",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [],
+          "noValue": "No runtime metrics (the app has no /metrics)"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 29,
+      "gridPos": {
+        "x": 0,
+        "y": 81,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "GC time (share of wall time)",
+      "description": "Time spent collecting garbage per second. Above 10% the app is starving for memory.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(nodejs_gc_duration_seconds_sum{container=\"$container\"}[5m]))",
+          "legendFormat": "node",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(go_gc_duration_seconds_sum{container=\"$container\"}[5m]))",
+          "legendFormat": "go",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(rate(jvm_gc_pause_seconds_sum{container=\"$container\"}[5m]))",
+          "legendFormat": "jvm",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "sum(rate(python_gc_collections_total{container=\"$container\"}[5m]))",
+          "legendFormat": "python collections/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [],
+          "noValue": "No runtime metrics (the app has no /metrics)"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 30,
+      "gridPos": {
+        "x": 12,
+        "y": 81,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Concurrency",
+      "description": "Node.js: event loop lag above 100ms = the app is blocked. Go: goroutines growing forever = leak.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(nodejs_eventloop_lag_p99_seconds{container=\"$container\"})",
+          "legendFormat": "node event loop lag p99 (s)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(go_goroutines{container=\"$container\"})",
+          "legendFormat": "goroutines",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(jvm_threads_live_threads{container=\"$container\"})",
+          "legendFormat": "jvm threads",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "sum(nodejs_active_handles_total{container=\"$container\"})",
+          "legendFormat": "node active handles",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [],
+          "noValue": "No runtime metrics (the app has no /metrics)"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 31,
+      "gridPos": {
+        "x": 0,
+        "y": 91,
+        "w": 24,
+        "h": 10
+      }
     }
   ]
 }

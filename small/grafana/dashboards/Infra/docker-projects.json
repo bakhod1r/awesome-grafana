@@ -4606,7 +4606,7 @@
                 "value": [
                   {
                     "title": "Runtime panels (${__data.fields.lang})",
-                    "url": "/d/runtime-${__data.fields.lang}?${__url_time_range}&var-project=${__data.fields.project}&var-container=${__data.fields.link_name}&var-lang=${__data.fields.lang}"
+                    "url": "/d/container/container?${__url_time_range}&var-project=${__data.fields.project}&var-container=${__data.fields.link_name}"
                   }
                 ]
               }

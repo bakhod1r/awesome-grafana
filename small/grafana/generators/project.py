@@ -2,7 +2,7 @@
 
 Opened from Docker projects (click a project name). Clicking a container opens the dashboard that fits its
 container.type label (same routing as "Containers by type" on Docker projects); the lang column opens the
-runtime dashboard for container.lang. Containers started without compose show up as "(standalone)".
+Container dashboard (HTTP + Runtime rows) for container.lang. Containers started without compose show up as "(standalone)".
 """
 from lib import *
 
@@ -24,7 +24,7 @@ info = type_routing(f"max by ({by}) (container_last_seen{{{SEL}}})")
 OPEN = {"title": "Open the dashboard for this container (by container.type)",
         "url": "/d/${__data.fields.link_dash}?${__url_time_range}&var-project=${__data.fields.pj}&var-service=${__data.fields.lsvc}&var-container=${__data.fields.link_name}"}
 RUNTIME = {"title": "Runtime: ${__data.fields.lang}",
-           "url": "/d/runtime-${__data.fields.lang}?${__url_time_range}&var-project=${__data.fields.pj}&var-container=${__data.fields.link_name}"}
+           "url": "/d/container/container?${__url_time_range}&var-project=${__data.fields.pj}&var-container=${__data.fields.link_name}"}
 
 def named(c, display):
     c["properties"].append({"id": "displayName", "value": display})
@@ -71,7 +71,7 @@ t = table("Containers", [
     tgt(per_name(f"resets(container_cpu_usage_seconds_total{{{SEL}}}[24h])"), instant=True, fmt="table"),
     tgt(R('sum by (container) (rate(vector_log_lines_total{project=~"$project", level=~"error|fatal|panic"}[5m])) * 60',
           "name", "$1", "container", "(.+)") + f" and on (name) max by (name) (container_last_seen{{{SEL}}})", instant=True, fmt="table"),
-], desc="Every container of the project. Click the container (or Opens) for its dashboard, lang for its runtime dashboard. "
+], desc="Every container of the project. Click the container (or Opens) for its dashboard, lang for its runtime (Container dashboard, Runtime row). "
         "Labels come from docker-compose: container.type / lang / team / env.",
     # Fields read by the links (name, dash, lsvc, pj, lang) must stay in the data: hidden below, not excluded or renamed.
     hide=["Value #A", "image", "key", "k2", "appsvc", "container", PJ, SV] + [f"container_label_container_{l}" for l in L],

@@ -517,7 +517,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "avg_over_time(probe_success{instance=~\".*$service.*\"}[24h]) * 100",
+          "expr": "avg_over_time(probe_success{service=~\"$service\"}[24h]) * 100 or avg_over_time(probe_success{instance=~\".*$service.*\"}[24h]) * 100",
           "legendFormat": "",
           "datasource": {
             "type": "prometheus",
@@ -566,7 +566,8 @@
           },
           "mappings": [],
           "links": [],
-          "decimals": 2
+          "decimals": 2,
+          "noValue": "No probe (SITES_* in .env)"
         },
         "overrides": []
       },
@@ -589,7 +590,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "min(probe_ssl_earliest_cert_expiry{instance=~\".*$service.*\"} - time())",
+          "expr": "min(probe_ssl_earliest_cert_expiry{service=~\"$service\"} - time()) or min(probe_ssl_earliest_cert_expiry{instance=~\".*$service.*\"} - time())",
           "legendFormat": "",
           "datasource": {
             "type": "prometheus",
@@ -638,7 +639,8 @@
           },
           "mappings": [],
           "links": [],
-          "decimals": 0
+          "decimals": 0,
+          "noValue": "No probe (SITES_* in .env)"
         },
         "overrides": []
       },
@@ -956,7 +958,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "label_replace(probe_duration_seconds{instance=~\".*$service.*\"}, \"instance\", \"(none)\", \"instance\", \"\")",
+          "expr": "label_replace(probe_duration_seconds{service=~\"$service\"} or probe_duration_seconds{instance=~\".*$service.*\"}, \"instance\", \"(none)\", \"instance\", \"\")",
           "legendFormat": "{{instance}}",
           "datasource": {
             "type": "prometheus",
@@ -994,7 +996,8 @@
               }
             ]
           },
-          "links": []
+          "links": [],
+          "noValue": "No probe (SITES_* in .env)"
         },
         "overrides": []
       },
@@ -1107,7 +1110,7 @@
     {
       "type": "table",
       "title": "Top 404s",
-      "description": "Broken links and missing assets.",
+      "description": "Broken links and missing assets. Empty: No 404s",
       "datasource": {
         "type": "victoriametrics-logs-datasource",
         "uid": "victorialogs"
@@ -1151,7 +1154,8 @@
             "cellOptions": {
               "type": "auto"
             }
-          }
+          },
+          "noValue": "-"
         },
         "overrides": []
       },
@@ -1176,7 +1180,7 @@
     {
       "type": "table",
       "title": "Top 5xx pages",
-      "description": "Pages that failed on the server.",
+      "description": "Pages that failed on the server. Empty: No 5xx responses",
       "datasource": {
         "type": "victoriametrics-logs-datasource",
         "uid": "victorialogs"
@@ -1220,7 +1224,8 @@
             "cellOptions": {
               "type": "auto"
             }
-          }
+          },
+          "noValue": "-"
         },
         "overrides": []
       },
@@ -1277,6 +1282,12 @@
         "y": 32,
         "w": 24,
         "h": 10
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "No errors"
+        },
+        "overrides": []
       }
     },
     {
@@ -1371,7 +1382,7 @@
     {
       "type": "table",
       "title": "Top referrers",
-      "description": "Where visitors come from (other sites, search engines, your own pages).",
+      "description": "Where visitors come from (other sites, search engines, your own pages). Empty: No referrers",
       "datasource": {
         "type": "victoriametrics-logs-datasource",
         "uid": "victorialogs"
@@ -1415,7 +1426,8 @@
             "cellOptions": {
               "type": "auto"
             }
-          }
+          },
+          "noValue": "-"
         },
         "overrides": []
       },
@@ -1440,7 +1452,7 @@
     {
       "type": "table",
       "title": "Broken assets (404 on .js / .css / images / fonts)",
-      "description": "A missing bundle or font breaks the page for every visitor.",
+      "description": "A missing bundle or font breaks the page for every visitor. Empty: No broken assets",
       "datasource": {
         "type": "victoriametrics-logs-datasource",
         "uid": "victorialogs"
@@ -1484,7 +1496,8 @@
             "cellOptions": {
               "type": "auto"
             }
-          }
+          },
+          "noValue": "-"
         },
         "overrides": []
       },
@@ -1509,7 +1522,7 @@
     {
       "type": "table",
       "title": "Clients that gave up (499) and slow pages",
-      "description": "499 = the browser closed the connection before the answer came: the page was too slow.",
+      "description": "499 = the browser closed the connection before the answer came: the page was too slow. Empty: No 499s or slow pages",
       "datasource": {
         "type": "victoriametrics-logs-datasource",
         "uid": "victorialogs"
@@ -1553,7 +1566,8 @@
             "cellOptions": {
               "type": "auto"
             }
-          }
+          },
+          "noValue": "-"
         },
         "overrides": []
       },
