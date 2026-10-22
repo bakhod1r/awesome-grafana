@@ -25,7 +25,7 @@
           "uid": "victoriametrics"
         },
         "query": {
-          "query": "label_values(up{job=\"apps\"}, service)",
+          "query": "label_values(http_requests_total{job=\"apps\"}, service)",
           "refId": "q"
         },
         "refresh": 2,
@@ -36,7 +36,8 @@
           "value": "$__all"
         },
         "allValue": ".*",
-        "allowCustomValue": false
+        "allowCustomValue": false,
+        "definition": "label_values(http_requests_total{job=\"apps\"}, service)"
       },
       {
         "name": "container",

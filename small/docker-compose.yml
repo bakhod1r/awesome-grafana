@@ -463,6 +463,21 @@ services:  # containers this file runs; each key below is one service
       - vlogs-data:/vlogs  # persistent data at /vlogs
     ports: ["39428:9428"]            # UI: http://localhost:39428/select/vmui
 
+  # HTTP metrics + traces of apps without touching their code (eBPF). Linux only, kernel 5.8+.
+  # Which ports/apps to watch: beyla/beyla.yml. Start:  docker compose --profile beyla up -d
+  beyla:  # eBPF auto-instrumentation
+    container_name: grafana-s-beyla  # fixed name; grafana-s-* = this stack (small)
+    image: grafana/beyla:2.1.0  # pinned version: upgrades only happen when you change this tag
+    labels: { container.type: monitoring }  # which dashboard Docker projects opens for it (README: Container labels)
+    profiles: [beyla]  # started only with --profile beyla
+    pid: host          # sees the host's processes, also apps on --network host
+    privileged: true   # loads eBPF programs into the kernel
+    command: ["--config=/etc/beyla/beyla.yml"]
+    volumes:
+      - ./beyla:/etc/beyla:ro  # config directory from this repo, read-only
+      - /sys/kernel/security:/sys/kernel/security:ro  # kernel lockdown check
+    depends_on: [vector]  # traces go to vector:4317 (start order only, not readiness)
+
   # Log collector. Finds every container through the Docker socket, reads its logs,
   # adds fields (service, container, level), turns lines into metrics and pushes them to VictoriaLogs.
   # Also the OTLP entry point for apps (traces → Tempo, metrics → Prometheus, logs → VictoriaLogs).

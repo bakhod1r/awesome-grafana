@@ -162,6 +162,27 @@ scrape_configs:  # scrape jobs
     static_configs: [{ targets: ["victorialogs:9428"] }]  # scrape http://victorialogs:9428/metrics
   - job_name: vector  # job="vector" label: log-derived metrics + Vector's own health
     static_configs: [{ targets: ["vector:9598"] }]  # scrape http://vector:9598/metrics
+  # Beyla (eBPF, profile "beyla"): app HTTP metrics without code changes. Renamed to the names the
+  # App Endpoints / App SLO dashboards read (same as an app's own /metrics, job="apps").
+  - job_name: beyla
+    static_configs: [{ targets: ["beyla:9400"] }]  # scrape http://beyla:9400/metrics
+    metric_relabel_configs:
+      # Request counter: the request-size histogram counts every request too, so its _count
+      # becomes http_requests_total while the duration histogram keeps its own _count.
+      - source_labels: [__name__]
+        regex: http_server_request_body_size_bytes_count
+        target_label: __name__
+        replacement: http_requests_total
+      - source_labels: [__name__]
+        regex: http_server_request_duration_seconds_(bucket|sum|count)
+        target_label: __name__
+        replacement: http_request_duration_seconds_$1
+      - { source_labels: [service_name], target_label: service }
+      - { source_labels: [service_name], target_label: container }
+      - { source_labels: [http_route], target_label: route }
+      - { source_labels: [http_request_method], target_label: method }
+      - { source_labels: [http_response_status_code], target_label: status }
+      - { target_label: job, replacement: apps }
   - job_name: vmalert  # job="vmalert" label on every metric from this job
     static_configs: [{ targets: ["vmalert:8880"] }]  # scrape http://vmalert:8880/metrics
 

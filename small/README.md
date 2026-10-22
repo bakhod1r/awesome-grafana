@@ -245,6 +245,19 @@ Grafana login: `admin` and `GRAFANA_ADMIN_PASSWORD` from `.env` (default `admin`
 | `prometheus.path: "/stats"` | metrics path |
 | `prometheus.service: "name"` | `service` label |
 
+## Apps without /metrics: Beyla (no code change)
+
+When an app has no `/metrics` and its code must not change, Grafana Beyla measures its HTTP traffic
+through eBPF: requests/s, errors and latency per route, plus traces. Any language, also apps on
+`--network host`. Linux only, kernel 5.8+ (`uname -r`).
+
+1. List the apps in [beyla/beyla.yml](beyla/beyla.yml): the port each listens on and its name.
+2. `docker compose --profile beyla up -d`
+
+Prometheus scrapes it (job `beyla`) and renames the metrics to `http_requests_total` /
+`http_request_duration_seconds` with `service`, `route`, `method`, `status`, so **App Endpoints** and
+**App SLO** show these apps like any other. Traces go to Vector, then Tempo.
+
 ## Container labels: the right dashboard per container
 
 Tell the stack what a container is, and Grafana opens the matching dashboard for it. Add labels in
