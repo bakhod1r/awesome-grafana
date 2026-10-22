@@ -134,7 +134,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
         labels: { severity: critical }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "MySQL unreachable: {{ $labels.instance }}"  # message headline
           description: "mysqld-exporter cannot connect to the database."  # message body
       - alert: MysqlTooManyConnections  # alert name, also the alertname label
@@ -142,7 +142,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "MySQL connections at {{ $value | printf \"%.0f\" }}%"  # message headline
           description: "{{ $labels.instance }} is close to max_connections."  # message body
       # Queries slower than long_query_time (MySQL setting, default 10s).
@@ -150,7 +150,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         expr: increase(mysql_global_status_slow_queries[5m]) > 5  # slow queries in 5m
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "MySQL slow queries: {{ $labels.instance }}"  # message headline
           description: "{{ $value | printf \"%.0f\" }} slow queries in 5 minutes. See the slow query log."  # message body
       - alert: MysqlReplicationLag  # alert name, also the alertname label
@@ -158,7 +158,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "MySQL replica lagging: {{ $labels.instance }}"  # message headline
           description: "Replica is {{ $value | humanizeDuration }} behind the source."  # message body
 
@@ -170,7 +170,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
         labels: { severity: critical }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "Redis unreachable: {{ $labels.instance }}"  # message headline
           description: "redis_exporter cannot connect to Redis."  # message body
       # Only when maxmemory is set; without it Redis grows until the host runs out.
@@ -179,7 +179,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "Redis memory at {{ $value | printf \"%.0f\" }}%"  # message headline
           description: "{{ $labels.instance }} is close to maxmemory; evictions or OOM errors follow."  # message body
       # Keys removed to make room. Fine for a pure cache, data loss for anything else.
@@ -187,7 +187,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         expr: increase(redis_evicted_keys_total[5m]) > 0  # evicted keys in 5m
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "Redis evicting keys: {{ $labels.instance }}"  # message headline
           description: "{{ $value | printf \"%.0f\" }} keys evicted in 5 minutes (maxmemory reached)."  # message body
 
@@ -199,7 +199,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
         labels: { severity: critical }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "nginx unreachable: {{ $labels.instance }}"  # message headline
           description: "nginx-exporter cannot read the stub_status page."  # message body
       # More than 5% of requests to a Traefik service end in 5xx.
@@ -211,7 +211,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
         labels: { severity: critical }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "5xx errors at {{ $value | printf \"%.1f\" }}%: {{ $labels.service }}"  # message headline
           description: "More than 5% of requests to {{ $labels.service }} fail with 5xx."  # message body
       # 95th percentile latency per Traefik service above 1s.
@@ -220,7 +220,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "Slow responses: {{ $labels.service }}"  # message headline
           description: "p95 latency is {{ $value | printf \"%.2f\" }}s (over 1s)."  # message body
 
@@ -237,7 +237,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
             > on (job, instance) group_left() (batch_max_age_seconds or batch_last_success_timestamp_seconds * 0 + 93600)
         labels: { severity: critical }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "Batch job has not succeeded: {{ $labels.job }}"  # message headline
           description: "Last success was {{ $value | humanizeDuration }} ago."  # message body
       # Pushgateway down: no batch job can report, so BatchJobStale would fire for all of them later.
@@ -246,7 +246,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "Pushgateway is down"  # message headline
           description: "Batch jobs cannot report their results."  # message body
 
@@ -274,7 +274,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
         labels: { severity: critical }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "MongoDB unreachable: {{ $labels.instance }}"  # message headline
           description: "mongodb_exporter cannot connect to MongoDB."  # message body
       # New connections are refused when "available" reaches 0.
@@ -283,7 +283,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: services  # Grafana "Services" dashboard (uid services)
+          dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "MongoDB connections {{ $value | printf \"%.0f\" }}% used on {{ $labels.instance }}"  # message headline
           description: "Close to the connection limit. Check app connection pools for leaks."  # message body
   # Your own apps (job "apps": discoverer + exporters/apps.yml). Per endpoint ("route" or "path"

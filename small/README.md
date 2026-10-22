@@ -148,8 +148,8 @@ services:
   the same dashboard filtered to that project (Project picker on top): its containers, resources by container, logs. Click a container → the dashboard for its
   `container.type` (backend → App Endpoints, db → PostgreSQL, ...; unlabelled → **Container**).
   Click its *lang* cell → the **Container** dashboard, whose HTTP and Runtime rows show that app's traffic and runtime.
-- **Logs**: search every container's logs; **Traces**: slow and failed requests.
-- **Alerts**: what is firing now and its history; **SLO** / **App SLO**: availability and error budgets.
+- **Logs**: search every container's logs. **Apps** (App Endpoints): per-endpoint traffic, latency, errors, plus the Traces rows.
+- **Alerts**: what is firing now and its history; **SLO**: availability and error budgets of sites (probes) and apps.
 - **Stack** (Self Monitoring): is the monitoring itself healthy (scrapes, storage, alert delivery).
 
 The links in the top bar go to the same dashboards from everywhere and keep the selected time range.
@@ -189,8 +189,8 @@ history matters to you.
 
 | What | Where |
 |------|-------|
-| App SLO — availability 99.5% (non-5xx) and latency 99% within 1s per service, error budget, multi-window burn-rate alerts `AppErrorBudget*` / `AppLatencyBudget*` | dashboard **App SLO**, `prometheus/rules/{recording,alerts}.yml` |
-| Probe SLO — 99.9% of blackbox probes, certificate expiry (`SslExpiresSoon` at 14 days, `SslExpiresCritical` at 3) | dashboard **Probes & SLO** |
+| App SLO — availability 99.5% (non-5xx) and latency 99% within 1s per service, error budget, multi-window burn-rate alerts `AppErrorBudget*` / `AppLatencyBudget*` | dashboard **SLO** (Apps rows), `prometheus/rules/{recording,alerts}.yml` |
+| Probe SLO — 99.9% of blackbox probes, certificate expiry (`SslExpiresSoon` at 14 days, `SslExpiresCritical` at 3) | dashboard **SLO** & SLO** |
 | Disk forecast — `DiskWillFillIn24h` / `DiskWillFillIn4h` (`predict_linear`), hours-until-full panel | dashboard **Server Overview** (Disks) |
 | Redis, PostgreSQL | dashboards **Redis**, **PostgreSQL** |
 | One project, one container | **Docker Projects → Project → Container** (or the type dashboard: App Endpoints, Frontend, Queue, Worker, Proxy, Search, NoSQL, Storage, Cron) |
@@ -250,7 +250,7 @@ through eBPF: requests/s, errors and latency per route, plus traces. Any languag
 
 Prometheus scrapes it (job `beyla`) and renames the metrics to `http_requests_total` /
 `http_request_duration_seconds` with `service`, `route`, `method`, `status`, so **App Endpoints** and
-**App SLO** show these apps like any other. Traces go to Vector, then Tempo.
+**SLO** show these apps like any other. Traces go to Vector, then Tempo.
 
 ## Container labels: the right dashboard per container
 
@@ -274,7 +274,7 @@ services:
 | `container.type` | Opens |
 |------------------|-------|
 | `backend`, `service`, `api` | **App Endpoints**: per endpoint 2xx/3xx/4xx/5xx and p50/p95/p99, status codes, Apdex, week-over-week, top errors |
-| `frontend` | **Frontend**: requests, 4xx/5xx, latency, top pages and 404s, humans vs bots, referrers, broken assets, 499s (nginx-style access logs) |
+| `frontend` | **Container**: HTTP requests and the Web pages row (top pages, 404s, referrers, humans vs bots, 499s) from access logs |
 | `db` | **PostgreSQL** (other databases: **Container**) |
 | `cache` | **Redis** |
 | `storage` | **Storage** (MinIO): capacity and forecast, S3 requests, errors, latency |

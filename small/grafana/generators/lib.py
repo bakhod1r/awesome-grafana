@@ -27,13 +27,11 @@ BAR = {"type": "gauge", "mode": "basic", "valueDisplayMode": "text"}
 NAV = [
     ("Home", "overview", "overview", "apps"),
     ("Docker", "docker-projects", "docker-projects", "docker"),
-    ("Services", "services", "services", "dashboard"),
+    ("Apps", "endpoints", "endpoints", "dashboard"),
     ("PostgreSQL", "postgres", "postgresql", "dashboard"),
     ("Logs", "logs", "logs", "doc"),
-    ("Traces", "traces", "traces", "dashboard"),
     ("Alerts", "alerts", "alerts", "bolt"),
     ("SLO", "probes-slo", "probes-slo", "dashboard"),
-    ("App SLO", "app-slo", "app-slo", "dashboard"),
     ("Stack", "self", "self", "cloud"),
 ]
 
@@ -256,9 +254,9 @@ SV = "container_label_com_docker_compose_service"
 CONTAINER_LABELS = ("type", "lang", "team", "env")  # container.* Docker labels → container_label_container_* in cAdvisor
 
 # container.type → dashboard uid. Regexes match "<type>|<image>", so db can pick PostgreSQL or MySQL from the image.
-TYPE_ROUTES = [("endpoints", "(backend|service|api)"), ("frontend", "frontend"), ("postgres", "db\\\\|.*postgres.*"),
+TYPE_ROUTES = [("endpoints", "(backend|service|api)"), ("postgres", "db\\\\|.*postgres.*"),
                ("redis", "cache"), ("storage", "storage"), ("worker", "worker"), ("self", "monitoring")]
-DASH_NAMES = {"container": "Container", "endpoints": "App Endpoints", "frontend": "Frontend", "postgres": "PostgreSQL",
+DASH_NAMES = {"container": "Container", "endpoints": "App Endpoints", "postgres": "PostgreSQL",
               "redis": "Redis", "storage": "Storage", "worker": "Worker", "self": "Self Monitoring"}
 
 

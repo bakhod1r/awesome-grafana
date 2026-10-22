@@ -39,10 +39,10 @@
       "targetBlank": false
     },
     {
-      "title": "Services",
+      "title": "Apps",
       "type": "link",
       "icon": "dashboard",
-      "url": "/d/services/services?${__url_time_range}",
+      "url": "/d/endpoints/endpoints?${__url_time_range}",
       "targetBlank": false
     },
     {
@@ -60,13 +60,6 @@
       "targetBlank": false
     },
     {
-      "title": "Traces",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/traces/traces?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
       "title": "Alerts",
       "type": "link",
       "icon": "bolt",
@@ -78,13 +71,6 @@
       "type": "link",
       "icon": "dashboard",
       "url": "/d/probes-slo/probes-slo?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
-      "title": "App SLO",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/app-slo/app-slo?${__url_time_range}",
       "targetBlank": false
     },
     {
@@ -1607,7 +1593,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m]))",
+          "expr": "(sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m])) or sum(rate(vector_frontend_http_requests_total{container=\"$container\"}[5m])))",
           "legendFormat": "",
           "datasource": {
             "type": "prometheus",
@@ -1672,7 +1658,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(http_requests_total{job=\"apps\", container=\"$container\", status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m])) * 100",
+          "expr": "(sum(rate(http_requests_total{job=\"apps\", container=\"$container\", status=~\"5..\"}[5m])) or sum(rate(vector_frontend_http_requests_total{container=\"$container\", status_class=\"5xx\"}[5m]))) / (sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m])) or sum(rate(vector_frontend_http_requests_total{container=\"$container\"}[5m]))) * 100",
           "legendFormat": "",
           "datasource": {
             "type": "prometheus",
@@ -1745,7 +1731,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(http_requests_total{job=\"apps\", container=\"$container\", status=~\"4..\"}[5m])) / sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m])) * 100",
+          "expr": "(sum(rate(http_requests_total{job=\"apps\", container=\"$container\", status=~\"4..\"}[5m])) or sum(rate(vector_frontend_http_requests_total{container=\"$container\", status_class=\"4xx\"}[5m]))) / (sum(rate(http_requests_total{job=\"apps\", container=\"$container\"}[5m])) or sum(rate(vector_frontend_http_requests_total{container=\"$container\"}[5m]))) * 100",
           "legendFormat": "",
           "datasource": {
             "type": "prometheus",
@@ -1810,7 +1796,7 @@
     {
       "type": "stat",
       "title": "p95 latency",
-      "description": "",
+      "description": "Frontends: needs rt=$request_time in the nginx log format.",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -1818,7 +1804,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"apps\", container=\"$container\"}[5m])))",
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job=\"apps\", container=\"$container\"}[5m]))) or histogram_quantile(0.95, sum by (le) (rate(vector_frontend_http_request_duration_seconds_bucket{container=\"$container\"}[5m]))))",
           "legendFormat": "",
           "datasource": {
             "type": "prometheus",
@@ -1883,7 +1869,7 @@
     {
       "type": "table",
       "title": "Endpoints (slowest p95 first)",
-      "description": "Beyla (beyla/beyla.yml) or the app's own /metrics. Empty: the container serves no HTTP that is measured.",
+      "description": "Backends: Beyla (beyla/beyla.yml) or the app's own /metrics. Frontends: see Web pages below.",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -2059,6 +2045,15 @@
             "type": "prometheus",
             "uid": "victoriametrics"
           }
+        },
+        {
+          "refId": "B",
+          "expr": "label_replace(sum by (status_class) (rate(vector_frontend_http_requests_total{container=\"$container\"}[5m])), \"status_class\", \"(none)\", \"status_class\", \"\")",
+          "legendFormat": "{{status_class}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          }
         }
       ],
       "fieldConfig": {
@@ -2122,11 +2117,381 @@
     {
       "type": "row",
       "id": 28,
-      "title": "Runtime ($lang)",
+      "title": "Web pages (frontend access logs)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
         "y": 80,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Top pages",
+      "description": "Empty: No access lines",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "container:=\"$container\" | extract \"<_> - <_> [<_>] \\\"<method> <path> <_>\\\" <status> <bytes> \" | filter path:!\"\" | stats by (path) count() hits | sort by (hits desc) | limit 20"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns",
+            "valueLabel": "__name__"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true,
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "hits",
+            "desc": true
+          }
+        ]
+      },
+      "id": 29,
+      "gridPos": {
+        "x": 0,
+        "y": 81,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "type": "table",
+      "title": "Top 404s",
+      "description": "Broken links and missing assets (.js / .css / images / fonts break the page). Empty: No access lines",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "container:=\"$container\" | extract \"<_> - <_> [<_>] \\\"<method> <path> <_>\\\" <status> <bytes> \" | filter status:=404 | stats by (path) count() hits | sort by (hits desc) | limit 20"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns",
+            "valueLabel": "__name__"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true,
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "hits",
+            "desc": true
+          }
+        ]
+      },
+      "id": 30,
+      "gridPos": {
+        "x": 8,
+        "y": 81,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "type": "table",
+      "title": "Top referrers",
+      "description": "Empty: No access lines",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "container:=\"$container\" | extract \"<_> - <_> [<_>] \\\"<method> <path> <_>\\\" <status> <bytes> \\\"<referer>\\\" \\\"<agent>\\\"\" | filter referer:!\"-\" referer:!\"\" | stats by (referer) count() hits | sort by (hits desc) | limit 15"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns",
+            "valueLabel": "__name__"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true,
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "hits",
+            "desc": true
+          }
+        ]
+      },
+      "id": 31,
+      "gridPos": {
+        "x": 16,
+        "y": 81,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Humans vs bots (requests)",
+      "description": "Bots = crawlers, scripts and monitors (blackbox probes count as bots).",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "statsRange",
+          "expr": "container:=\"$container\" | extract \"<_> - <_> [<_>] \\\"<method> <path> <_>\\\" <status> <bytes> \\\"<referer>\\\" \\\"<agent>\\\"\" | format if (agent:~\"(?i)bot|crawl|spider|slurp|curl|wget|python|go-http|java/|okhttp|headless|monitor|blackbox|uptime\") \"bot\" as kind | format if (!agent:~\"(?i)bot|crawl|spider|slurp|curl|wget|python|go-http|java/|okhttp|headless|monitor|blackbox|uptime\") \"human\" as kind | stats by (kind) count()",
+          "legendFormat": "{{kind}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic-by-name"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 80,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "links": [],
+          "noValue": "No access lines"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "sum"
+          ],
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 32,
+      "gridPos": {
+        "x": 0,
+        "y": 90,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "table",
+      "title": "Clients that gave up (499)",
+      "description": "The browser closed the connection before the answer: the page was too slow. Empty: No access lines",
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "victorialogs"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "victorialogs"
+          },
+          "queryType": "stats",
+          "expr": "container:=\"$container\" | extract \"<_> - <_> [<_>] \\\"<method> <path> <_>\\\" <status> <bytes> \" | filter status:=499 | stats by (path) count() hits | sort by (hits desc) | limit 20"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns",
+            "valueLabel": "__name__"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true,
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "noValue": "-"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "hits",
+            "desc": true
+          }
+        ]
+      },
+      "id": 33,
+      "gridPos": {
+        "x": 12,
+        "y": 90,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "row",
+      "id": 34,
+      "title": "Runtime ($lang)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 98,
         "w": 24,
         "h": 1
       },
@@ -2238,10 +2603,10 @@
           "sort": "desc"
         }
       },
-      "id": 29,
+      "id": 35,
       "gridPos": {
         "x": 0,
-        "y": 81,
+        "y": 99,
         "w": 12,
         "h": 10
       }
@@ -2343,10 +2708,10 @@
           "sort": "desc"
         }
       },
-      "id": 30,
+      "id": 36,
       "gridPos": {
         "x": 12,
-        "y": 81,
+        "y": 99,
         "w": 12,
         "h": 10
       }
@@ -2448,10 +2813,10 @@
           "sort": "desc"
         }
       },
-      "id": 31,
+      "id": 37,
       "gridPos": {
         "x": 0,
-        "y": 91,
+        "y": 109,
         "w": 24,
         "h": 10
       }

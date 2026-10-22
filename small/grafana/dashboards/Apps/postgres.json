@@ -53,10 +53,10 @@
       "targetBlank": false
     },
     {
-      "title": "Services",
+      "title": "Apps",
       "type": "link",
       "icon": "dashboard",
-      "url": "/d/services/services?${__url_time_range}",
+      "url": "/d/endpoints/endpoints?${__url_time_range}",
       "targetBlank": false
     },
     {
@@ -64,13 +64,6 @@
       "type": "link",
       "icon": "doc",
       "url": "/d/logs/logs?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
-      "title": "Traces",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/traces/traces?${__url_time_range}",
       "targetBlank": false
     },
     {
@@ -85,13 +78,6 @@
       "type": "link",
       "icon": "dashboard",
       "url": "/d/probes-slo/probes-slo?${__url_time_range}",
-      "targetBlank": false
-    },
-    {
-      "title": "App SLO",
-      "type": "link",
-      "icon": "dashboard",
-      "url": "/d/app-slo/app-slo?${__url_time_range}",
       "targetBlank": false
     },
     {

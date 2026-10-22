@@ -171,7 +171,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 2m  # condition must hold 2m before firing
         labels: { severity: critical }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: app-slo  # Grafana "App SLO" dashboard (uid app-slo)
+          dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
           summary: "{{ $labels.service }}: error budget burning fast ({{ $value | printf \"%.0f\" }}x)"  # message headline
           description: "At this pace the 30-day 99.5% availability budget is gone in under 2 days. Check the slowest/failing endpoints on the App Endpoints dashboard."  # message body
       - alert: AppErrorBudgetSlowBurn  # alert name, also the alertname label
@@ -182,7 +182,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 15m  # condition must hold 15m before firing
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: app-slo  # Grafana "App SLO" dashboard (uid app-slo)
+          dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
           summary: "{{ $labels.service }}: error budget burning ({{ $value | printf \"%.1f\" }}x)"  # message headline
           description: "Intermittent 5xx over the last 6 hours are eating the 30-day 99.5% budget (gone in ~5 days at this pace)."  # message body
       - alert: AppLatencyBudgetFastBurn  # alert name, also the alertname label
@@ -193,7 +193,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 2m  # condition must hold 2m before firing
         labels: { severity: critical }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: app-slo  # Grafana "App SLO" dashboard (uid app-slo)
+          dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
           summary: "{{ $labels.service }}: latency budget burning fast ({{ $value | printf \"%.0f\" }}x)"  # message headline
           description: "Far more than 1% of requests take over 1s. At this pace the 30-day latency budget is gone in under 2 days."  # message body
       - alert: AppLatencyBudgetSlowBurn  # alert name, also the alertname label
@@ -204,7 +204,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 15m  # condition must hold 15m before firing
         labels: { severity: warning }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: app-slo  # Grafana "App SLO" dashboard (uid app-slo)
+          dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
           summary: "{{ $labels.service }}: latency budget burning ({{ $value | printf \"%.1f\" }}x)"  # message headline
           description: "Slow requests (over 1s) over the last 6 hours are eating the 30-day latency budget."  # message body
   # Docker containers (cadvisor).
@@ -404,7 +404,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
         labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
-          dashboard: traces  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
+          dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
           summary: "{{ $labels.service }}: {{ $value | humanizePercentage }} of requests fail"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "More than 5% of incoming requests (server spans) ended with an error for 5 minutes."  # message body
       # 95th percentile of server span duration above 1 second.
@@ -413,7 +413,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
         labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: traces  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
+          dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
           summary: "{{ $labels.service }} is slow: p95 {{ $value | printf \"%.2f\" }}s"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "95% of incoming requests take longer than 1 second (10 minutes)."  # message body
       # Tempo refused spans: ingestion limit, trace too big, or not enough memory. Those traces are incomplete.
@@ -422,7 +422,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
         labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: traces  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
+          dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
           summary: "Tempo is dropping spans ({{ $labels.reason }})"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "{{ $value | printf \"%.1f\" }} spans/s refused. Raise the limit in tempo/tempo.yaml overrides or find the noisy app."  # message body
       # Vector cannot deliver spans to Tempo (Tempo down or overloaded).
@@ -431,7 +431,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
         labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
-          dashboard: traces  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
+          dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
           summary: "Vector cannot send traces to Tempo"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "Spans are being lost. Check: docker compose logs tempo"  # message body
   # Disk health (smartctl-exporter, profile "smart") and internet speed (speedtest-exporter).
