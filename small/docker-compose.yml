@@ -71,6 +71,11 @@ services:  # containers this file runs; each key below is one service
     image: ghcr.io/google/cadvisor:v0.60.6  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     privileged: true                # required to read cgroup and device stats
+    command:  # arguments passed to the program at start
+      # cAdvisor's default set plus "process" (processes, threads, open files per container on the
+      # Container dashboard). The list replaces the default, so keep every group the dashboards read.
+      - --enable_metrics=cpu,memory,network,disk,diskIO,oom_event,process
+      - --docker_only=true          # skip systemd slices and other non-container cgroups: fewer series
     volumes:  # named volumes; data here survives `docker compose down`
       - /:/rootfs:ro  # host root filesystem, read-only: filesystem stats
       # Docker socket: maps container IDs to names (the "name" label used by alerts and dashboards)

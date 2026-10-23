@@ -1973,6 +1973,13 @@
       "targetBlank": false
     },
     {
+      "title": "SRE",
+      "type": "link",
+      "icon": "heart",
+      "url": "/d/sre/sre?${__url_time_range}",
+      "targetBlank": false
+    },
+    {
       "title": "Stack",
       "type": "link",
       "icon": "cloud",

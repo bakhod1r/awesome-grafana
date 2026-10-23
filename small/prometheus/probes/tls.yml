@@ -3,4 +3,4 @@
 # Format host:port. Re-read every 30s, no restart needed.
 
 - targets:  # one group of targets (can carry shared labels)
-    - smtp.gmail.com:465  # example: SMTPS; replace with your own TLS ports
+    - api.telegram.org:443  # Alertmanager sends every alert here: unreachable = no alert messages

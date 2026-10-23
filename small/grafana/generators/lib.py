@@ -31,6 +31,7 @@ NAV = [
     ("PostgreSQL", "postgres", "postgresql", "dashboard"),
     ("Logs", "logs", "logs", "doc"),
     ("Alerts", "alerts", "alerts", "bolt"),
+    ("SRE", "sre", "sre", "heart"),
     ("SLO", "probes-slo", "probes-slo", "dashboard"),
     ("Stack", "self", "self", "cloud"),
 ]

@@ -63,6 +63,13 @@
       "targetBlank": false
     },
     {
+      "title": "SRE",
+      "type": "link",
+      "icon": "heart",
+      "url": "/d/sre/sre?${__url_time_range}",
+      "targetBlank": false
+    },
+    {
       "title": "SLO",
       "type": "link",
       "icon": "dashboard",
@@ -1155,8 +1162,8 @@
                 "id": "links",
                 "value": [
                   {
-                    "title": "Project overview: ${__data.fields.project}",
-                    "url": "/d/project/project?${__url_time_range}&var-project=${__data.fields.project}"
+                    "title": "Show only ${__data.fields.project}",
+                    "url": "/d/docker-projects/docker-projects?${__url_time_range}&var-project=${__data.fields.project}"
                   }
                 ]
               }
@@ -2663,8 +2670,8 @@
     },
     {
       "type": "state-timeline",
-      "title": "Container presence (up / gone)",
-      "description": "When each container was running. Gap = stopped or gone, break in colour = restarted.",
+      "title": "Container presence",
+      "description": "When each container was running. Green = running, red = gone (not seen for 5 min; shown for an hour, then the row ends), colour break = restarted. Rows: project · service; containers started without compose show their name only.",
       "datasource": {
         "type": "prometheus",
         "uid": "victoriametrics"
@@ -2672,8 +2679,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "label_replace(label_replace(label_replace(label_replace(count by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}), \"project\", \"$1\", \"container_label_com_docker_compose_project\", \"(.+)\"), \"project\", \"(standalone)\", \"project\", \"\"), \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\")",
-          "legendFormat": "{{project}} / {{service}}",
+          "expr": "label_replace(label_join(label_replace(label_replace((time() - max by (container_label_com_docker_compose_project, container_label_com_docker_compose_service, name) (last_over_time(container_last_seen{name!=\"\", container_label_com_docker_compose_project=~\"$project\", container_label_com_docker_compose_service=~\"$service\", container_label_container_type=~\"$type\", container_label_container_lang=~\"$lang\", container_label_container_team=~\"$team\", container_label_container_env=~\"$env\"}[1h]))) < bool 300, \"service\", \"$1\", \"name\", \"(.+)\"), \"service\", \"$1\", \"container_label_com_docker_compose_service\", \"(.+)\"), \"row\", \" · \", \"container_label_com_docker_compose_project\", \"service\"), \"row\", \"$1\", \"row\", \"^ · (.*)\")",
+          "legendFormat": "{{row}}",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2684,7 +2691,8 @@
         "defaults": {
           "unit": "short",
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed",
+            "fixedColor": "#56A64B"
           },
           "thresholds": {
             "mode": "absolute",
@@ -2700,16 +2708,21 @@
               "type": "value",
               "options": {
                 "1": {
-                  "text": "up",
-                  "color": "green",
+                  "text": "running",
+                  "color": "#56A64B",
                   "index": 0
+                },
+                "0": {
+                  "text": "gone",
+                  "color": "#E02F44",
+                  "index": 1
                 }
               }
             }
           ],
           "custom": {
-            "fillOpacity": 80,
-            "lineWidth": 0
+            "fillOpacity": 85,
+            "lineWidth": 1
           }
         },
         "overrides": []
@@ -2717,13 +2730,16 @@
       "options": {
         "showValue": "never",
         "mergeValues": true,
-        "rowHeight": 0.85,
-        "alignValue": "left",
+        "rowHeight": 0.75,
+        "alignValue": "center",
         "legend": {
-          "showLegend": false
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "id": 16,
@@ -2731,8 +2747,9 @@
         "x": 0,
         "y": 66,
         "w": 24,
-        "h": 8
-      }
+        "h": 22
+      },
+      "interval": "1m"
     },
     {
       "type": "table",
@@ -2855,7 +2872,7 @@
       "id": 903,
       "gridPos": {
         "x": 0,
-        "y": 74,
+        "y": 88,
         "w": 8,
         "h": 7
       }
@@ -2928,7 +2945,7 @@
       "id": 17,
       "gridPos": {
         "x": 8,
-        "y": 74,
+        "y": 88,
         "w": 16,
         "h": 7
       }
@@ -2940,7 +2957,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 81,
+        "y": 95,
         "w": 24,
         "h": 1
       },
@@ -3018,7 +3035,7 @@
       "id": 19,
       "gridPos": {
         "x": 0,
-        "y": 82,
+        "y": 96,
         "w": 12,
         "h": 8
       }
@@ -3095,7 +3112,7 @@
       "id": 906,
       "gridPos": {
         "x": 12,
-        "y": 82,
+        "y": 96,
         "w": 12,
         "h": 8
       }
@@ -3172,7 +3189,7 @@
       "id": 20,
       "gridPos": {
         "x": 0,
-        "y": 90,
+        "y": 104,
         "w": 12,
         "h": 8
       }
@@ -3249,7 +3266,7 @@
       "id": 21,
       "gridPos": {
         "x": 12,
-        "y": 90,
+        "y": 104,
         "w": 12,
         "h": 8
       }
@@ -3326,7 +3343,7 @@
       "id": 22,
       "gridPos": {
         "x": 0,
-        "y": 98,
+        "y": 112,
         "w": 12,
         "h": 8
       }
@@ -3403,7 +3420,7 @@
       "id": 23,
       "gridPos": {
         "x": 12,
-        "y": 98,
+        "y": 112,
         "w": 12,
         "h": 8
       }
@@ -3476,7 +3493,7 @@
       "id": 24,
       "gridPos": {
         "x": 0,
-        "y": 106,
+        "y": 120,
         "w": 8,
         "h": 8
       }
@@ -3549,7 +3566,7 @@
       "id": 25,
       "gridPos": {
         "x": 8,
-        "y": 106,
+        "y": 120,
         "w": 8,
         "h": 8
       }
@@ -3609,7 +3626,7 @@
       "id": 26,
       "gridPos": {
         "x": 16,
-        "y": 106,
+        "y": 120,
         "w": 8,
         "h": 8
       }
@@ -3621,7 +3638,7 @@
       "collapsed": true,
       "gridPos": {
         "x": 0,
-        "y": 114,
+        "y": 128,
         "w": 24,
         "h": 1
       },
@@ -3706,7 +3723,7 @@
           "id": 28,
           "gridPos": {
             "x": 0,
-            "y": 103,
+            "y": 117,
             "w": 12,
             "h": 10
           }
@@ -3791,7 +3808,7 @@
           "id": 29,
           "gridPos": {
             "x": 12,
-            "y": 103,
+            "y": 117,
             "w": 12,
             "h": 10
           }
@@ -3876,7 +3893,7 @@
           "id": 30,
           "gridPos": {
             "x": 0,
-            "y": 113,
+            "y": 127,
             "w": 12,
             "h": 10
           }
@@ -3954,7 +3971,7 @@
           "id": 904,
           "gridPos": {
             "x": 12,
-            "y": 113,
+            "y": 127,
             "w": 12,
             "h": 10
           }
@@ -4040,7 +4057,7 @@
           "id": 31,
           "gridPos": {
             "x": 0,
-            "y": 123,
+            "y": 137,
             "w": 12,
             "h": 10
           }
@@ -4126,7 +4143,7 @@
           "id": 32,
           "gridPos": {
             "x": 12,
-            "y": 123,
+            "y": 137,
             "w": 12,
             "h": 10
           }
@@ -4140,7 +4157,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 131,
+        "y": 145,
         "w": 24,
         "h": 1
       },
@@ -4217,7 +4234,7 @@
       "id": 34,
       "gridPos": {
         "x": 0,
-        "y": 132,
+        "y": 146,
         "w": 12,
         "h": 7
       }
@@ -4293,7 +4310,7 @@
       "id": 35,
       "gridPos": {
         "x": 12,
-        "y": 132,
+        "y": 146,
         "w": 12,
         "h": 7
       }
@@ -4330,7 +4347,7 @@
       "id": 905,
       "gridPos": {
         "x": 0,
-        "y": 139,
+        "y": 153,
         "w": 14,
         "h": 11
       }
@@ -4448,7 +4465,7 @@
       "id": 36,
       "gridPos": {
         "x": 14,
-        "y": 139,
+        "y": 153,
         "w": 10,
         "h": 11
       }

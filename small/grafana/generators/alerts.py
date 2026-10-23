@@ -158,4 +158,4 @@ d.add(vl_ts("Errors by component", 'service:~"alertmanager|vmalert|prometheus|gr
 d.add(logs("Alerting component logs", 'service:~"alertmanager|vmalert|prometheus" level:(error OR fatal OR panic OR warn) | sort by (_time desc) | limit 300',
            desc="Recent warnings and errors: failed notifications, bad rules, config reload problems."), 24, 10)
 
-d.write("Observability/alerts.json")
+d.write("SRE/alerts.json")

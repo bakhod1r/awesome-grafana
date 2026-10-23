@@ -67,6 +67,13 @@
       "targetBlank": false
     },
     {
+      "title": "SRE",
+      "type": "link",
+      "icon": "heart",
+      "url": "/d/sre/sre?${__url_time_range}",
+      "targetBlank": false
+    },
+    {
       "title": "SLO",
       "type": "link",
       "icon": "dashboard",
@@ -2583,7 +2590,7 @@
             ]
           },
           "links": [],
-          "noValue": "No runtime metrics for $lang (needs the app's /metrics)"
+          "noValue": "No runtime metrics: the app exposes no /metrics, or has no container.lang label"
         },
         "overrides": []
       },
@@ -2688,7 +2695,7 @@
             ]
           },
           "links": [],
-          "noValue": "No runtime metrics for $lang (needs the app's /metrics)"
+          "noValue": "No runtime metrics: the app exposes no /metrics, or has no container.lang label"
         },
         "overrides": []
       },
@@ -2793,7 +2800,7 @@
             ]
           },
           "links": [],
-          "noValue": "No runtime metrics for $lang (needs the app's /metrics)"
+          "noValue": "No runtime metrics: the app exposes no /metrics, or has no container.lang label"
         },
         "overrides": []
       },

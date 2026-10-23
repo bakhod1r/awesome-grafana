@@ -133,6 +133,6 @@ d.add(ts("Concurrency", [tgt(lang(f"max(nodejs_eventloop_lag_p99_seconds{{{R}}})
                          tgt(lang(f"sum(dotnet_threadpool_num_threads{{{R}}})", "dotnet"), "thread pool")], fill=0,
          desc="Node.js: event loop lag above 100ms = the app is blocked. Go: goroutines growing forever = leak."), 8, 8)
 for p in d.panels[-3:]:
-    p["fieldConfig"]["defaults"]["noValue"] = "No runtime metrics for $lang (needs the app's /metrics)"
+    p["fieldConfig"]["defaults"]["noValue"] = "No runtime metrics: the app exposes no /metrics, or has no container.lang label"
 
 d.write("Infra/container.json")
