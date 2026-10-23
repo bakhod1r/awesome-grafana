@@ -148,11 +148,11 @@ services:  # containers this file runs; each key below is one service
   # PostgreSQL: connections, transactions, locks, long-running queries, replication lag.
   # Dashboard: "PostgreSQL" (uid postgres). Per-service breakdown uses application_name,
   # so set it in every app's connection string (?application_name=shop-api).
-  # One exporter per PostgreSQL server, both share the settings below via the &postgres-exporter anchor:
+  # One exporter per PostgreSQL server:
   #   postgres-exporter-docker  PostgreSQL running in a Docker container  (POSTGRES_EXPORTER_DSN_DOCKER)
   #   postgres-exporter-server  PostgreSQL installed on the server itself  (POSTGRES_EXPORTER_DSN_SERVER)
   # A database on the host (or published on a host port) is reached as host.docker.internal:<port>.
-  postgres-exporter-docker: &postgres-exporter  # PostgreSQL metrics exporter (database in Docker)
+  postgres-exporter-docker:  # PostgreSQL metrics exporter (database in Docker)
     container_name: grafana-s-postgres-exporter-docker  # fixed name; grafana-s-* = this stack (small)
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
@@ -177,13 +177,33 @@ services:  # containers this file runs; each key below is one service
     extra_hosts: ["host.docker.internal:host-gateway"]  # host IP alias for databases on the host
     ports: ["39187:9187"]            # raw metrics: http://localhost:39187/metrics
 
-  # PostgreSQL installed on the server itself (not in Docker). Same settings, its own DSN and port.
+  # PostgreSQL installed on the server itself (not in Docker). A native PostgreSQL usually listens on
+  # 127.0.0.1 only, which a container cannot reach, so this exporter runs in the host's network and
+  # connects to localhost. It listens on the Docker bridge address only (not public); Prometheus
+  # reaches it as host.docker.internal:39188.
   postgres-exporter-server:
-    <<: *postgres-exporter
     container_name: grafana-s-postgres-exporter-server  # fixed name; grafana-s-* = this stack (small)
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1  # same version as postgres-exporter-docker
+    labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
+    profiles: [postgres]  # started only with --profile postgres
+    volumes:
+      - ./postgres/queries.yaml:/etc/postgres-exporter/queries.yaml:ro  # custom SQL metrics
+    network_mode: host  # see above: reach PostgreSQL on 127.0.0.1
+    command:  # same collectors as postgres-exporter-docker, plus the listen address
+      - --web.listen-address=172.17.0.1:39188  # docker0 bridge: Prometheus only, not the internet
+      - --auto-discover-databases
+      - --exclude-databases=template0,template1
+      - --extend.query-path=/etc/postgres-exporter/queries.yaml
+      - --collector.stat_statements
+      - --collector.statio_user_tables
+      - --collector.statio_user_indexes
+      - --collector.long_running_transactions
+      - --collector.database_wraparound
+      - --collector.stat_activity_autovacuum
+      - --collector.postmaster
+      - --collector.replication_slots
     environment:  # environment variables inside the container
-      - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN_SERVER:-postgresql://postgres_exporter:exporter@host.docker.internal:5432/postgres?sslmode=disable}
-    ports: ["39188:9187"]            # raw metrics: http://localhost:39188/metrics
+      - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN_SERVER:-postgresql://postgres_exporter:exporter@localhost:5432/postgres?sslmode=disable}
 
   # Redis: memory, hit ratio, evictions, connected clients.
   redis-exporter:  # Redis metrics exporter

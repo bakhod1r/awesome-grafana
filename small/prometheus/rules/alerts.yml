@@ -139,6 +139,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         expr: |  # error ratio over 1h AND over 5m, both above 14.4x budget
           (1 - avg_over_time(probe_success{job=~"blackbox-(http|tcp|tls|dns)"}[1h])) / 0.001 > 14.4
           and (1 - avg_over_time(probe_success{job=~"blackbox-(http|tcp|tls|dns)"}[5m])) / 0.001 > 14.4
+          and on (job, instance) probe_success  # still probed: a removed target stops alerting at once
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
         labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
@@ -150,6 +151,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         expr: |  # error ratio over 6h AND over 30m, both above 6x budget
           (1 - avg_over_time(probe_success{job=~"blackbox-(http|tcp|tls|dns)"}[6h])) / 0.001 > 6
           and (1 - avg_over_time(probe_success{job=~"blackbox-(http|tcp|tls|dns)"}[30m])) / 0.001 > 6
+          and on (job, instance) probe_success  # still probed: a removed target stops alerting at once
         for: 15m  # condition must hold 15m before firing (shorter blips are ignored)
         labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing

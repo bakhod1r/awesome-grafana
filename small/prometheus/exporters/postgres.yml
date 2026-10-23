@@ -6,5 +6,5 @@
 # "instance" is the name shown in the dashboard's Server picker.
 - targets: [grafana-s-postgres-exporter-docker:9187]
   labels: { instance: docker }   # PostgreSQL in a Docker container
-- targets: [grafana-s-postgres-exporter-server:9187]
+- targets: [host.docker.internal:39188]  # runs in the host network (docker-compose.yml)
   labels: { instance: server }   # PostgreSQL installed on the server itself
