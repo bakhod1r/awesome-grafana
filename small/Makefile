@@ -46,11 +46,11 @@ check:  ## run every dashboard panel query, list errors and "No data"
 targets:  ## Prometheus scrape targets that are down
 	@curl -s http://localhost:39090/api/v1/targets | python3 -c 'import sys,json; [print(t["health"].upper(), t["labels"]["job"], t["scrapeUrl"], t["lastError"][:80]) for t in json.load(sys.stdin)["data"]["activeTargets"] if t["health"]!="up"]'
 
-reload-prometheus:  ## apply Prometheus config and rule changes (restart: no --web.enable-lifecycle)
+reload-prometheus:  ## apply prometheus.yml changes (restart: no --web.enable-lifecycle); rules: make reload-alerts
 	$(DC) restart prometheus
 
-reload-alerts:  ## reload vmalert rules and Alertmanager config
-	curl -s -X POST http://localhost:38880/-/reload && curl -s -X POST http://localhost:39093/-/reload && echo reloaded
+reload-alerts:  ## reload both vmalerts (metric + log rules) and Alertmanager config
+	curl -s -X POST http://localhost:38881/-/reload && curl -s -X POST http://localhost:38880/-/reload && curl -s -X POST http://localhost:39093/-/reload && echo reloaded
 
 pg-check:  ## can the PostgreSQL exporters reach their databases (pg_up 1 = yes)
 	@for a in 172.17.0.1:39187 172.17.0.1:39188; do printf "%s " $$a; curl -s $$a/metrics | grep '^pg_up' || echo "exporter not running"; done

@@ -288,21 +288,21 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           summary: "Prometheus config reload failed"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "prometheus.yml or a rules file is invalid. Check the Prometheus logs."  # message body
       # A rule's query errors at evaluation time (e.g. bad label matching), so it can never fire.
-      - alert: PrometheusRuleEvaluationFailing  # alert name, also the alertname label
-        expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0  # failed rule evaluations in 5m
+      - alert: RuleEvaluationFailing  # alert name, also the alertname label
+        expr: sum by (instance, group) (increase(vmalert_execution_errors_total[5m])) > 0  # failed group evaluations in 5m (both vmalerts)
         labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
-          summary: "Alert rule evaluation failing: {{ $labels.rule_group }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value | printf \"%.0f\" }} failed evaluations in 5 minutes."  # message body
-      # Prometheus has no Alertmanager to send to: every alert above is lost.
-      - alert: PrometheusAlertmanagerMissing  # alert name, also the alertname label
-        expr: prometheus_notifications_alertmanagers_discovered < 1  # number of Alertmanagers Prometheus can send to
+          summary: "Alert rule evaluation failing: {{ $labels.group }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "{{ $value | printf \"%.0f\" }} failed evaluations in 5 minutes ({{ $labels.instance }})."  # message body
+      # vmalert cannot hand alerts to Alertmanager: every alert is lost.
+      - alert: VmalertNotifierFailing  # alert name, also the alertname label
+        expr: sum by (instance) (rate(vmalert_alerts_send_errors_total[5m])) > 0  # failed sends to Alertmanager
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
         labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
-          summary: "Prometheus is not connected to Alertmanager"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          summary: "vmalert cannot reach Alertmanager ({{ $labels.instance }})"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "Alerts cannot be delivered."  # message body
       # Telegram API rejected or unreachable (bad token/chat_id, network). This message may not arrive;
       # Grafana's WatchdogMissing/AlertmanagerDown rules are the backup path.

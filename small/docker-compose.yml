@@ -386,6 +386,26 @@ services:  # containers this file runs; each key below is one service
 
   # Evaluates log alert rules (LogsQL) against VictoriaLogs and sends firing alerts to
   # the same Alertmanager as Prometheus, so routing, silences and Telegram are shared.
+  # Metric rules (alerts + recording rules in prometheus/rules/*.yml, PromQL) run here, against
+  # VictoriaMetrics: Prometheus only scrapes. Rules see the whole history, not Prometheus's 2-day buffer.
+  # Recording rules and alert state (ALERTS) are written back to VictoriaMetrics.
+  vmalert-metrics:  # metric alert + recording rule evaluator
+    container_name: grafana-s-vmalert-metrics  # fixed name; grafana-s-* = this stack (small)
+    image: victoriametrics/vmalert:v1.154.1  # same version as vmalert
+    labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
+    command:  # arguments passed to the program at start
+      - -rule=/etc/vmalert-metrics/*.yml  # rule files to load (glob): prometheus/rules
+      - -evaluationInterval=15s  # same pace as the scrape interval
+      - -datasource.url=http://victoriametrics:8428  # where rules run their PromQL/MetricsQL queries
+      - -notifier.url=http://alertmanager:9093  # send firing alerts here
+      - -remoteWrite.url=http://victoriametrics:8428  # recording rule results + alert state (ALERTS)
+      - -remoteRead.url=http://victoriametrics:8428  # restore pending/firing state on restart
+      - -external.url=${VMALERT_METRICS_URL:-http://localhost:38881}  # public URL for the links in Telegram
+    volumes:
+      - ./prometheus/rules:/etc/vmalert-metrics:ro  # rule files from this repo, read-only
+    ports: ["38881:8880"]            # UI: http://localhost:38881 (rules, alerts, last evaluations)
+    depends_on: [victoriametrics, alertmanager]  # start order only, not readiness
+
   vmalert:  # log alert rule evaluator
     container_name: grafana-s-vmalert  # fixed name; grafana-s-* = this stack (small)
     image: victoriametrics/vmalert:v1.154.1  # pinned version: upgrades only happen when you change this tag

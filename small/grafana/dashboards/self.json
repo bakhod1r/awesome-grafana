@@ -1030,7 +1030,7 @@
       },
       "targets": [
         {
-          "expr": "label_replace(sum by (rule_group) (increase(prometheus_rule_evaluation_failures_total[5m])), \"group\", \"$1\", \"rule_group\", \".*;(.*)\")",
+          "expr": "sum by (group) (increase(vmalert_execution_errors_total{instance=~\".*vmalert-metrics.*\"}[5m]))",
           "refId": "A",
           "legendFormat": "{{group}}"
         }
@@ -1251,7 +1251,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(prometheus_notifications_dropped_total[5m]))",
+          "expr": "sum(rate(vmalert_alerts_send_errors_total{instance=~\".*vmalert-metrics.*\"}[5m]))",
           "refId": "A",
           "legendFormat": "dropped/s"
         }

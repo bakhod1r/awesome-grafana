@@ -1,21 +1,13 @@
-# Prometheus: scrapes metrics from targets, evaluates alert rules, forwards data to VictoriaMetrics.
+# Prometheus: scrapes metrics from targets and forwards them to VictoriaMetrics.
+# Alert and recording rules (rules/*.yml) are evaluated by vmalert-metrics against VictoriaMetrics.
 # Reload after editing: docker compose restart prometheus
 
 global:  # defaults for all jobs
   # How often every target is scraped. Lower = finer graphs, more storage and CPU.
   # 15s is the common default; rate()/increase() windows should be at least 4x this (1m+).
   scrape_interval: 15s  # how often each target is scraped
-  # How often alert rules are evaluated. Defaults to 1m; matching scrape_interval makes alerts react faster.
-  evaluation_interval: 15s  # how often alert rules run
 
-# Alert rule files. Glob, so any new *.yml dropped in rules/ is picked up on reload.
-rule_files:  # alert rule files
-  - /etc/prometheus/rules/*.yml  # every .yml in rules/
-
-# Where firing alerts are sent.
-alerting:  # where to send alerts
-  alertmanagers:  # Alertmanager instances
-    - static_configs: [{ targets: ["grafana-s-alertmanager:9093"] }]  # our Alertmanager
+# No rule_files / alerting here: rules/*.yml run in vmalert-metrics (docker-compose.yml).
 
 # Copy every scraped sample to VictoriaMetrics for long-term storage.
 # If VictoriaMetrics is down, Prometheus queues samples and retries (backed by its 2d local storage).
@@ -172,7 +164,7 @@ scrape_configs:  # scrape jobs
       - { source_labels: [http_response_status_code], target_label: status }
       - { target_label: job, replacement: apps }
   - job_name: vmalert  # job="vmalert" label on every metric from this job
-    static_configs: [{ targets: ["grafana-s-vmalert:8880"] }]  # scrape http://vmalert:8880/metrics
+    static_configs: [{ targets: ["grafana-s-vmalert:8880", "grafana-s-vmalert-metrics:8880"] }]  # log rules + metric rules
 
   # Traces stack health: received/refused spans, block flushes, compaction, generator remote_write.
   - job_name: tempo  # job="tempo" label on every metric from this job
