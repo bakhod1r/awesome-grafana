@@ -159,7 +159,7 @@ services:  # containers this file runs; each key below is one service
       - --collector.database_wraparound     # transaction id age (XID wraparound risk)
       - --collector.stat_activity_autovacuum  # running autovacuum workers
       - --collector.postmaster              # server start time (uptime)
-      - --collector.replication_slot        # slots and retained WAL
+      - --collector.replication_slots       # slots and retained WAL (renamed from replication_slot in v0.18)
     environment:  # environment variables inside the container
       # Set POSTGRES_EXPORTER_DSN in .env (your database, user with the pg_monitor role).
       - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN:-postgresql://postgres_exporter:exporter@postgres:5432/postgres?sslmode=disable}  # postgresql://user:pass@host:5432/db?sslmode=disable
