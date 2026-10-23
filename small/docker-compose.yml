@@ -183,7 +183,7 @@ services:  # containers this file runs; each key below is one service
           cat /etc/postgres-exporter/queries-statements.yaml >> /tmp/queries.yaml
           set -- "$$@" --collector.stat_statements
         fi
-        exec /bin/postgres_exporter --extend.query-path=/tmp/queries.yaml "$$@"
+        exec /bin/postgres_exporter --config.file=/etc/postgres-exporter/postgres_exporter.yml --extend.query-path=/tmp/queries.yaml "$$@"
       - --
     command:  # arguments passed to the program at start
       - --web.listen-address=172.17.0.1:39187  # docker0 bridge: Prometheus only, not the internet

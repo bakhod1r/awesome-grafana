@@ -7,7 +7,7 @@ PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 DC := $(COMPOSE) $(PROFILE_FLAGS)
 
 .DEFAULT_GOAL := help
-.PHONY: help up down restart ps logs pull upgrade update dashboards check targets reload-prometheus reload-alerts pg-check minio-token config
+.PHONY: help up down restart ps logs pull upgrade update dashboards check targets reload-prometheus reload-alerts pg-check minio-token test-alert config
 
 help:  ## list targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -57,6 +57,9 @@ pg-check:  ## can the PostgreSQL exporters reach their databases (pg_up 1 = yes)
 
 minio-token:  ## build + test the MinIO metrics token from MINIO_* in .env, write it for Prometheus
 	@set -a; . ./.env; set +a; python3 scripts/minio-token.py
+
+test-alert:  ## send a fake alert to Telegram (sev=critical|warning, default warning); resolves in 5m
+	@curl -s -XPOST localhost:39093/api/v2/alerts -H 'Content-Type: application/json' -d '[{"labels":{"alertname":"TestAlert","severity":"$(or $(sev),warning)"},"annotations":{"summary":"Test alert from make test-alert","description":"If you read this in Telegram, alerting works."},"endsAt":"'$$(date -u -d '+5 min' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+5M +%Y-%m-%dT%H:%M:%SZ)'"}]' && echo "sent; Telegram in ~30s (group_wait). Errors: make logs s=alertmanager"
 
 config:  ## validate docker-compose.yml
 	$(DC) config -q && echo ok

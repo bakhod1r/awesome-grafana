@@ -23,11 +23,15 @@ templates:  # notification templates
   - orgId: 1  # default organisation
     name: deadman.message  # template name used in message above
     template: |
+      {{/* Telegram rejects messages over 4096 characters and a cut mid-tag breaks parse_mode HTML,
+           so: at most 5 alerts, text cut to 300 characters and HTML-escaped (same as Alertmanager's template). */}}
+      {{ define "deadman.cut" }}{{ reReplaceAll "(?s)^(.{300}).+$" "$1…" . | html }}{{ end }}
       {{ define "deadman.message" }}
-      {{- range .Alerts }}
-      {{- if eq .Status "firing" }}🚨{{ else }}✅{{ end }} <b>{{ .Labels.alertname }}</b> [{{ .Labels.severity }}] (Grafana)
-      {{ .Annotations.summary }}
-      {{ .Annotations.description }}
+      {{- range $i, $a := .Alerts }}{{ if lt $i 5 }}{{ with $a }}
+      {{- if eq .Status "firing" }}🚨{{ else }}✅{{ end }} <b>{{ .Labels.alertname | html }}</b> [{{ .Labels.severity | html }}] (Grafana)
+      {{ template "deadman.cut" .Annotations.summary }}
+      {{ template "deadman.cut" .Annotations.description }}
       🕒 Started: {{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}
-      {{ end }}
+      {{ end }}{{ end }}{{ end }}
+      {{- if gt (len .Alerts) 5 }}… showing 5 of {{ len .Alerts }} alerts{{ end }}
       {{- end }}

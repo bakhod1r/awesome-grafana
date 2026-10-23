@@ -1,0 +1,4 @@
+# postgres-exporter config file. Only needed for multi-target auth modules, which this stack does not
+# use (one exporter per DSN, docker-compose.yml). It exists so the exporter does not log
+# "Error loading config" on every start.
+auth_modules: {}
