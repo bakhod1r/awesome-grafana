@@ -143,7 +143,10 @@ services:  # containers this file runs; each key below is one service
   # PostgreSQL: connections, transactions, locks, long-running queries, replication lag.
   # Dashboard: "PostgreSQL" (uid postgres). Per-service breakdown uses application_name,
   # so set it in every app's connection string (?application_name=shop-api).
-  postgres-exporter:  # PostgreSQL metrics exporter
+  # One exporter per PostgreSQL server: postgres-exporter (POSTGRES_EXPORTER_DSN) and
+  # postgres-exporter-2 (POSTGRES_EXPORTER_DSN_2) share the settings below via the &postgres-exporter anchor.
+  # A database on the host (or published on a host port) is reached as host.docker.internal:<port>.
+  postgres-exporter: &postgres-exporter  # PostgreSQL metrics exporter
     container_name: grafana-s-postgres-exporter  # fixed name; grafana-s-* = this stack (small)
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
@@ -165,7 +168,16 @@ services:  # containers this file runs; each key below is one service
       - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN:-postgresql://postgres_exporter:exporter@postgres:5432/postgres?sslmode=disable}  # postgresql://user:pass@host:5432/db?sslmode=disable
     volumes:
       - ./postgres/queries.yaml:/etc/postgres-exporter/queries.yaml:ro  # custom SQL metrics
+    extra_hosts: ["host.docker.internal:host-gateway"]  # host IP alias for databases on the host
     ports: ["39187:9187"]            # raw metrics: http://localhost:39187/metrics
+
+  # Second PostgreSQL server (e.g. prod next to dev). Same settings, its own DSN and port.
+  postgres-exporter-2:
+    <<: *postgres-exporter
+    container_name: grafana-s-postgres-exporter-2  # fixed name; grafana-s-* = this stack (small)
+    environment:  # environment variables inside the container
+      - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN_2:-postgresql://postgres_exporter:exporter@postgres-2:5432/postgres?sslmode=disable}
+    ports: ["39188:9187"]            # raw metrics: http://localhost:39188/metrics
 
   # Redis: memory, hit ratio, evictions, connected clients.
   redis-exporter:  # Redis metrics exporter

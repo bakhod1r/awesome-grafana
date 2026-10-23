@@ -1,7 +1,10 @@
 # PostgreSQL metrics from postgres-exporter (job "postgres"), shown on the "PostgreSQL" dashboard.
-# Off by default: no database is watched until you connect one.
-# 1. Set POSTGRES_EXPORTER_DSN in .env (user with the pg_monitor role).
+# 1. Set POSTGRES_EXPORTER_DSN (and POSTGRES_EXPORTER_DSN_2 for a second server) in .env
+#    (user with the pg_monitor role).
 # 2. docker compose --profile postgres up -d
-# 3. Replace [] with the target below. Prometheus re-reads this file every 30s.
-#- targets: [grafana-s-postgres-exporter:9187]
-[]
+# 3. Keep one entry per running exporter. Prometheus re-reads this file every 30s.
+# "instance" is the name shown in the dashboard's Server picker.
+- targets: [grafana-s-postgres-exporter:9187]
+  labels: { instance: lms-dev }
+- targets: [grafana-s-postgres-exporter-2:9187]
+  labels: { instance: lms-prod }
