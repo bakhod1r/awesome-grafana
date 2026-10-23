@@ -16,7 +16,7 @@ services:  # containers this file runs; each key below is one service
   # Long-term metrics storage. Prometheus pushes everything here; Grafana reads from here.
   victoriametrics:  # metrics database
     container_name: grafana-s-victoriametrics  # fixed name; grafana-s-* = this stack (small)
-    image: victoriametrics/victoria-metrics:v1.103.0  # pinned version: upgrades only happen when you change this tag
+    image: victoriametrics/victoria-metrics:v1.154.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
       - -storageDataPath=/storage   # where data lives inside the container (backed by the vm-data volume)
@@ -28,7 +28,7 @@ services:  # containers this file runs; each key below is one service
   # Scrapes every exporter on a schedule, evaluates alert rules and forwards data to VictoriaMetrics.
   prometheus:  # metrics collector + alert rules
     container_name: grafana-s-prometheus  # fixed name; grafana-s-* = this stack (small)
-    image: prom/prometheus:v2.54.1  # pinned version: upgrades only happen when you change this tag
+    image: prom/prometheus:v3.15.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
       - --config.file=/etc/prometheus/prometheus.yml  # config file path inside the container
@@ -56,7 +56,7 @@ services:  # containers this file runs; each key below is one service
   # Host metrics: CPU, memory, disk, network. On macOS this measures Docker's Linux VM, not the Mac.
   node-exporter:  # host metrics exporter
     container_name: grafana-s-node-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: prom/node-exporter:v1.8.2  # pinned version: upgrades only happen when you change this tag
+    image: prom/node-exporter:v1.12.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     # Without the host root mounted, node-exporter sees only the container's own files and there is
     # no mountpoint="/" series: disk panels show "No data" and DiskAlmostFull/DiskWillFill never fire.
@@ -68,7 +68,7 @@ services:  # containers this file runs; each key below is one service
   # Per-container metrics: CPU, memory, restarts. Needs read access to Docker and kernel paths.
   cadvisor:  # container metrics exporter
     container_name: grafana-s-cadvisor  # fixed name; grafana-s-* = this stack (small)
-    image: gcr.io/cadvisor/cadvisor:v0.55.1  # pinned version: upgrades only happen when you change this tag
+    image: ghcr.io/google/cadvisor:v0.60.6  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     privileged: true                # required to read cgroup and device stats
     volumes:  # named volumes; data here survives `docker compose down`
@@ -88,7 +88,7 @@ services:  # containers this file runs; each key below is one service
   # The list of sites lives in prometheus/sites.yml, not here.
   blackbox-exporter:  # website prober
     container_name: grafana-s-blackbox-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: prom/blackbox-exporter:v0.25.0  # pinned version: upgrades only happen when you change this tag
+    image: prom/blackbox-exporter:v0.29.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
       - --config.file=/etc/blackbox/blackbox.yml  # config file path inside the container
@@ -103,7 +103,7 @@ services:  # containers this file runs; each key below is one service
   #   echo "batch_last_success_timestamp_seconds $(date +%s)" | curl --data-binary @- http://localhost:39091/metrics/job/backup
   pushgateway:  # metrics inbox for batch jobs
     container_name: grafana-s-pushgateway  # fixed name; grafana-s-* = this stack (small)
-    image: prom/pushgateway:v1.9.0  # pinned version: upgrades only happen when you change this tag
+    image: prom/pushgateway:v1.11.5  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
       - --persistence.file=/data/pushgateway.db  # pushed metrics survive a restart
@@ -118,7 +118,7 @@ services:  # containers this file runs; each key below is one service
   # Overrides per container: labels prometheus.scrape=false / prometheus.port / prometheus.path.
   discoverer:  # finds app /metrics endpoints automatically
     container_name: grafana-s-discoverer  # fixed name; grafana-s-* = this stack (small)
-    image: python:3.12.7-alpine3.20  # pinned version: upgrades only happen when you change this tag
+    image: python:3.14.9-alpine3.24  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command: ["python", "-u", "/app/discoverer.py"]  # -u: log lines appear immediately
     environment:  # environment variables inside the container
@@ -145,7 +145,7 @@ services:  # containers this file runs; each key below is one service
   # so set it in every app's connection string (?application_name=shop-api).
   postgres-exporter:  # PostgreSQL metrics exporter
     container_name: grafana-s-postgres-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1  # pinned version: upgrades only happen when you change this tag
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     profiles: [postgres]  # started only with --profile postgres
     command:  # arguments passed to the program at start
@@ -170,7 +170,7 @@ services:  # containers this file runs; each key below is one service
   # Redis: memory, hit ratio, evictions, connected clients.
   redis-exporter:  # Redis metrics exporter
     container_name: grafana-s-redis-exporter  # fixed name; grafana-s-* = this stack (small)
-    image: oliver006/redis_exporter:v1.62.0  # pinned version: upgrades only happen when you change this tag
+    image: oliver006/redis_exporter:v1.95.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     profiles: [redis]  # started only with --profile redis
     environment:  # environment variables inside the container
@@ -181,7 +181,7 @@ services:  # containers this file runs; each key below is one service
   # Receives alerts from Prometheus, groups/deduplicates them and sends them to Telegram.
   alertmanager:  # alert router and Telegram sender
     container_name: grafana-s-alertmanager  # fixed name; grafana-s-* = this stack (small)
-    image: prom/alertmanager:v0.28.1  # pinned version: upgrades only happen when you change this tag
+    image: prom/alertmanager:v0.34.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     environment:  # environment variables inside the container
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is not set in .env}  # required: from .env, startup fails with this message if missing
@@ -202,7 +202,7 @@ services:  # containers this file runs; each key below is one service
   # Dashboards, plus its own alert rules that watch the rest of the stack (dead man's switch).
   grafana:  # dashboards UI + dead man's switch
     container_name: grafana-s-grafana  # fixed name; grafana-s-* = this stack (small)
-    image: grafana/grafana:11.6.0  # pinned version: upgrades only happen when you change this tag
+    image: grafana/grafana:13.2.4  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     environment:  # environment variables inside the container
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}  # Grafana login name, from .env (default admin)
@@ -233,7 +233,7 @@ services:  # containers this file runs; each key below is one service
   # background image, and this keeps the official image untouched. :3002 is the plain look.
   grafana-proxy:  # themed entry point to Grafana
     container_name: grafana-s-grafana-proxy  # fixed name; grafana-s-* = this stack (small)
-    image: nginx:1.27.5-alpine  # pinned version: upgrades only happen when you change this tag
+    image: nginx:1.30.6-alpine  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: proxy }  # which dashboard Docker Projects opens for it (README: Container labels)
     volumes:  # config from this repo, read-only
       - ./grafana-proxy/nginx.conf:/etc/nginx/nginx.conf:ro  # proxy + stylesheet injection
@@ -249,7 +249,7 @@ services:  # containers this file runs; each key below is one service
   # Log storage. Every field is searchable; data is split into daily partitions on local disk.
   victorialogs:  # logs database
     container_name: grafana-s-victorialogs  # fixed name; grafana-s-* = this stack (small)
-    image: victoriametrics/victoria-logs:v1.36.1  # pinned version: upgrades only happen when you change this tag
+    image: victoriametrics/victoria-logs:v1.53.0  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
       - -storageDataPath=/vlogs  # data directory (vlogs-data volume)
@@ -264,7 +264,7 @@ services:  # containers this file runs; each key below is one service
   # Which ports/apps to watch: beyla/beyla.yml. Starts with plain `docker compose up -d`.
   beyla:  # eBPF auto-instrumentation
     container_name: grafana-s-beyla  # fixed name; grafana-s-* = this stack (small)
-    image: grafana/beyla:2.1.0  # pinned version: upgrades only happen when you change this tag
+    image: grafana/beyla:3.39.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     pid: host          # sees the host's processes, also apps on --network host
     privileged: true   # loads eBPF programs into the kernel
@@ -279,7 +279,7 @@ services:  # containers this file runs; each key below is one service
   # Also the OTLP entry point for apps (traces → Tempo, metrics → Prometheus, logs → VictoriaLogs).
   vector:  # log + OTLP collector
     container_name: grafana-s-vector  # fixed name; grafana-s-* = this stack (small)
-    image: timberio/vector:0.59.0-alpine  # pinned version: upgrades only happen when you change this tag
+    image: timberio/vector:0.60.0-alpine  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command: ["--config", "/etc/vector/vector.yaml", "--watch-config"]  # reload on config edits
     volumes:  # named volumes; data here survives `docker compose down`
@@ -309,7 +309,7 @@ services:  # containers this file runs; each key below is one service
   # Trace storage. Blocks on local disk, kept 90 days (tempo/tempo.yaml).
   tempo:  # trace database
     container_name: grafana-s-tempo  # fixed name; grafana-s-* = this stack (small)
-    image: grafana/tempo:2.8.2  # pinned version: upgrades only happen when you change this tag
+    image: grafana/tempo:2.10.10  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command: ["-config.file=/etc/tempo/tempo.yaml"]  # config file path inside the container
     # The image runs as uid 10001, but a fresh named volume is owned by root: without this
@@ -325,7 +325,7 @@ services:  # containers this file runs; each key below is one service
   # the same Alertmanager as Prometheus, so routing, silences and Telegram are shared.
   vmalert:  # log alert rule evaluator
     container_name: grafana-s-vmalert  # fixed name; grafana-s-* = this stack (small)
-    image: victoriametrics/vmalert:v1.122.0  # pinned version: upgrades only happen when you change this tag
+    image: victoriametrics/vmalert:v1.154.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
       - -rule=/etc/vmalert/rules/*.yml  # rule files to load (glob)
