@@ -1,11 +1,9 @@
 # PostgreSQL metrics from postgres-exporter (job "postgres"), shown on the "PostgreSQL" dashboard.
-# 1. Set POSTGRES_EXPORTER_DSN in .env: one DSN, or two separated by a comma
-#    (user with the pg_monitor role).
+# Targets come from .env: the discoverer writes one per DSN in POSTGRES_EXPORTER_DSN
+# (/etc/prometheus-auto/postgres.json, Server names "docker" and "server").
+# 1. Set POSTGRES_EXPORTER_DSN in .env: one DSN, or two separated by a comma (pg_monitor role).
 # 2. docker compose --profile postgres up -d
-# 3. Keep one entry per DSN. Prometheus re-reads this file every 30s.
-# Both exporters run in the host network (docker-compose.yml). "instance" is the name shown in
-# the dashboard's Server picker.
-- targets: [host.docker.internal:39187]
-  labels: { instance: docker }   # 1st DSN: PostgreSQL in a Docker container
-- targets: [host.docker.internal:39188]
-  labels: { instance: server }   # 2nd DSN: PostgreSQL installed on the server itself
+# Add an exporter you run yourself below, e.g.:
+#- targets: [my-postgres-exporter:9187]
+#  labels: { instance: billing-db }
+[]

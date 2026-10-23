@@ -1,7 +1,7 @@
 # MinIO cluster metrics (job "minio"), shown on the "Storage" dashboard.
-# 1. Set MINIO_* in .env, then `make minio-token`: it tests the endpoint and writes
-#    prometheus/secrets/minio-token (the bearer token Prometheus sends).
-# 2. Target = MINIO_ENDPOINT:MINIO_PORT. Prometheus re-reads this file every 30s.
-# "instance" is the name shown in the dashboard's Server picker.
-- targets: [cdn.rabola.uz:9000]
-  labels: { instance: minio }
+# The target comes from .env: the discoverer writes MINIO_ENDPOINT:MINIO_PORT to
+# /etc/prometheus-auto/minio.json. Then `make minio-token` writes the bearer token.
+# Add another MinIO below, e.g.:
+#- targets: [minio.example.com:9000]
+#  labels: { instance: backups }
+[]

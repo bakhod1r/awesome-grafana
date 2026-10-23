@@ -36,6 +36,11 @@ SELF_PROJECT = os.environ.get("SELF_PROJECT", "")  # our own compose project: sc
 JOINERS = os.environ.get("JOINERS", "prometheus,blackbox-exporter,discoverer").split(",")
 SITES_FILE = os.environ.get("SITES_FILE", "/targets/sites.json")  # blackbox-http targets from SITES_* (.env)
 SITES_PROJECT = os.environ.get("SITES_PROJECT", "")  # project label on those sites
+# Targets that depend on .env, written once at start (same volume as TARGETS_FILE), so nothing
+# server-specific lives in the repo: an unset variable means no target and no TargetDown.
+POSTGRES_FILE = os.environ.get("POSTGRES_FILE", "/targets/postgres.json")
+MINIO_FILE = os.environ.get("MINIO_FILE", "/targets/minio.json")
+BEYLA_FILE = os.environ.get("BEYLA_FILE", "/targets/beyla.yml")
 METRICS_RE = re.compile(rb"^# (TYPE|HELP) [a-zA-Z_:][a-zA-Z0-9_:]* ", re.M)
 
 
@@ -80,7 +85,7 @@ def write_sites():
     """Sites to probe from .env: SITES_PROD=https://a,https://b becomes targets with env="prod"
     (any SITES_<ENV> variable; commas or spaces between URLs). Written once at start.
     An item may be service=url: the service label ties the probe to that container's dashboards
-    (Frontend uptime / SSL), e.g. SITES_DEV=github_dev_lms_admin=https://dev.admin.example.com/"""
+    (Frontend uptime / SSL), e.g. SITES_DEV=dev_admin=https://dev.admin.example.com/"""
     groups = []
     for key, value in sorted(os.environ.items()):
         if not key.startswith("SITES_") or key in ("SITES_FILE", "SITES_PROJECT"):
@@ -99,10 +104,61 @@ def write_sites():
     log("wrote", sum(len(g["targets"]) for g in groups), "sites from .env")
 
 
+def write_json(path, data):
+    with open(path + ".tmp", "w") as f:
+        json.dump(data, f, indent=2)
+    os.replace(path + ".tmp", path)
+
+
+def write_env_targets():
+    """postgres.json: one target per DSN in POSTGRES_EXPORTER_DSN (comma-separated, at most two;
+    the exporters listen on the Docker bridge, ports 39187 and 39188, see docker-compose.yml).
+    minio.json: MINIO_ENDPOINT:MINIO_PORT, https when MINIO_USE_SSL=true."""
+    dsns = [d for d in os.environ.get("POSTGRES_EXPORTER_DSN", "").split(",") if d.strip()][:2]
+    names = ["docker", "server"]  # instance label = name in the PostgreSQL dashboard's Server picker
+    write_json(POSTGRES_FILE, [{"targets": [f"host.docker.internal:{39187 + i}"], "labels": {"instance": names[i]}}
+                               for i in range(len(dsns))])
+    endpoint = os.environ.get("MINIO_ENDPOINT", "")
+    minio = []
+    if endpoint:
+        labels = {"instance": "minio"}
+        if os.environ.get("MINIO_USE_SSL", "false").lower() == "true":
+            labels["__scheme__"] = "https"
+        minio.append({"targets": [f'{endpoint}:{os.environ.get("MINIO_PORT", "9000")}'], "labels": labels})
+    write_json(MINIO_FILE, minio)
+    log("wrote", len(dsns), "postgres and", len(minio), "minio targets from .env")
+
+
+def write_beyla_config():
+    """Beyla config from BEYLA_SERVICES: name=port, or name=exe:port when several processes share
+    the port (e.g. frontend_nginx=nginx:80); commas between entries. Beyla starts after this file exists."""
+    services = []
+    for item in (s for s in re.split(r"[,\s]+", os.environ.get("BEYLA_SERVICES", "")) if s):
+        name, _, spec = item.partition("=")
+        exe, _, port = spec.rpartition(":")
+        svc = {"name": name, "open_ports": port}
+        if exe:
+            svc["exe_path"] = exe
+        services.append(svc)
+    cfg = {
+        # JSON is valid YAML. Same settings as beyla/beyla.yml (documented there), plus the services.
+        "discovery": {"services": services,
+                      # Docker publishes ports through dockerd/docker-proxy: they also "own" the port.
+                      "exclude_services": [{"exe_path": "dockerd|docker-proxy|containerd"}]},
+        "routes": {"unmatched": "heuristic"},
+        "prometheus_export": {"port": 9400, "path": "/metrics", "features": ["application"]},
+        "otel_traces_export": {"endpoint": "http://vector:4317", "protocol": "grpc"},
+    }
+    write_json(BEYLA_FILE, cfg)
+    log("wrote beyla config with", len(services), "services")
+
+
 def main():
     if not SELF_PROJECT:
         sys.exit("SELF_PROJECT is not set")
     write_sites()
+    write_env_targets()
+    write_beyla_config()
     found = {}      # container id -> file_sd entry, or None = no metrics found
     checked = {}    # container id -> time of last probe
     joined = set()  # (network id, our container id) pairs already connected

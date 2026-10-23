@@ -125,7 +125,7 @@ scrape_configs:  # scrape jobs
   # Optional exporters for your own services. Each targets file is empty until you enable it
   # (instructions inside the file), so a disabled exporter never shows up as TargetDown.
   - job_name: postgres  # postgres-exporter (compose profile "postgres")
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/postgres.yml], refresh_interval: 30s }]  # targets file
+    file_sd_configs: [{ files: [/etc/prometheus/exporters/postgres.yml, /etc/prometheus-auto/postgres.json], refresh_interval: 30s }]  # extra targets + one per DSN in .env
   - job_name: redis  # redis_exporter (compose profile "redis")
     file_sd_configs: [{ files: [/etc/prometheus/exporters/redis.yml], refresh_interval: 30s }]  # targets file
   # MinIO's own cluster metrics (Storage dashboard). No exporter: MinIO serves them itself, behind a
@@ -133,7 +133,7 @@ scrape_configs:  # scrape jobs
   - job_name: minio
     metrics_path: /minio/v2/metrics/cluster
     authorization: { credentials_file: /etc/prometheus/secrets/minio-token }  # gitignored
-    file_sd_configs: [{ files: [/etc/prometheus/exporters/minio.yml], refresh_interval: 30s }]  # targets file
+    file_sd_configs: [{ files: [/etc/prometheus/exporters/minio.yml, /etc/prometheus-auto/minio.json], refresh_interval: 30s }]  # extra targets + MINIO_ENDPOINT from .env
 
   # Your own apps exposing /metrics. Containers in any compose project are found by the
   # discoverer service (/etc/prometheus-auto/auto.json); exporters/apps.yml is for apps outside Docker.
