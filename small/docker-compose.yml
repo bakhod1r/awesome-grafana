@@ -170,14 +170,24 @@ services:  # containers this file runs; each key below is one service
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     profiles: [postgres]  # started only with --profile postgres
     network_mode: host  # see above: reach PostgreSQL on localhost
-    # Picks its own DSN (field DSN_INDEX of the comma-separated list), then starts the exporter.
-    entrypoint: ["/bin/sh", "-c", 'export DATA_SOURCE_NAME="$$(echo "$$DSNS" | cut -d, -f$$DSN_INDEX)"; exec /bin/postgres_exporter "$$@"', "--"]
+    # Picks its own DSN (field DSN_INDEX of the comma-separated list), builds the custom query file
+    # (plus top statements when PG_STAT_STATEMENTS=true, see postgres/queries-statements.yaml), starts the exporter.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        export DATA_SOURCE_NAME="$$(echo "$$DSNS" | cut -d, -f$$DSN_INDEX)"
+        cat /etc/postgres-exporter/queries.yaml > /tmp/queries.yaml
+        if [ "$$PG_STAT_STATEMENTS" = true ]; then
+          cat /etc/postgres-exporter/queries-statements.yaml >> /tmp/queries.yaml
+          set -- "$$@" --collector.stat_statements
+        fi
+        exec /bin/postgres_exporter --extend.query-path=/tmp/queries.yaml "$$@"
+      - --
     command:  # arguments passed to the program at start
       - --web.listen-address=172.17.0.1:39187  # docker0 bridge: Prometheus only, not the internet
       - --auto-discover-databases           # also collect table stats from every database, not only the DSN one
       - --exclude-databases=template0,template1  # templates have no user tables
-      - --extend.query-path=/etc/postgres-exporter/queries.yaml  # per-service activity, top queries, table sizes
-      - --collector.stat_statements         # per-query stats (needs the pg_stat_statements extension)
       - --collector.statio_user_tables      # heap/index cache hit per table
       - --collector.statio_user_indexes     # cache hit per index
       - --collector.long_running_transactions  # oldest transaction age
@@ -189,8 +199,10 @@ services:  # containers this file runs; each key below is one service
       # postgresql://user:pass@localhost:5432/db?sslmode=disable[,second DSN]; user with the pg_monitor role.
       - DSNS=${POSTGRES_EXPORTER_DSN:-postgresql://postgres_exporter:exporter@localhost:5432/postgres?sslmode=disable}
       - DSN_INDEX=1
+      # true = top queries (pg_stat_statements); only when the extension is installed in the database.
+      - PG_STAT_STATEMENTS=${POSTGRES_STAT_STATEMENTS:-false}
     volumes:
-      - ./postgres/queries.yaml:/etc/postgres-exporter/queries.yaml:ro  # custom SQL metrics
+      - ./postgres:/etc/postgres-exporter:ro  # custom SQL metrics (queries.yaml, queries-statements.yaml)
 
   postgres-exporter-server:  # 2nd DSN: PostgreSQL installed on the server itself
     <<: *postgres-exporter
@@ -199,8 +211,6 @@ services:  # containers this file runs; each key below is one service
       - --web.listen-address=172.17.0.1:39188  # docker0 bridge: Prometheus only, not the internet
       - --auto-discover-databases
       - --exclude-databases=template0,template1
-      - --extend.query-path=/etc/postgres-exporter/queries.yaml
-      - --collector.stat_statements
       - --collector.statio_user_tables
       - --collector.statio_user_indexes
       - --collector.long_running_transactions
@@ -211,6 +221,7 @@ services:  # containers this file runs; each key below is one service
     environment:  # environment variables inside the container
       - DSNS=${POSTGRES_EXPORTER_DSN:-}
       - DSN_INDEX=2
+      - PG_STAT_STATEMENTS=${POSTGRES_STAT_STATEMENTS:-false}
 
   # Redis: memory, hit ratio, evictions, connected clients.
   redis-exporter:  # Redis metrics exporter
@@ -260,6 +271,9 @@ services:  # containers this file runs; each key below is one service
       - TZ=Asia/Tashkent  # time zone for logs, message times and the maintenance window
       # Downloaded from grafana.com on first start (needs internet), kept in the grafana-data volume.
       - GF_INSTALL_PLUGINS=victoriametrics-logs-datasource 0.32.0  # plugin id + exact version, installed on first start
+      # Drilldown menu: keep Metrics (VictoriaMetrics) and Traces (Tempo). Logs drilldown only works with
+      # Loki and Profiles with Pyroscope, neither is in this stack: hidden, and not loaded (less memory).
+      - GF_PLUGINS_DISABLE_PLUGINS=grafana-lokiexplore-app,grafana-pyroscope-app,grafana-pyroscope-datasource
       # Home page (logo / "Home" link) opens Server Overview instead of the default welcome page.
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/overview.json  # dashboard JSON shown as Home
     # Fills the Telegram chat_id into provisioning before start (see the script for why).

@@ -1,0 +1,48 @@
+# Top statements from pg_stat_statements. Loaded only with POSTGRES_STAT_STATEMENTS=true in .env
+# (docker-compose.yml, postgres exporters): without the extension every scrape would fail with
+# 'relation "pg_stat_statements" does not exist' and fill the PostgreSQL log with errors.
+# Needs: shared_preload_libraries = 'pg_stat_statements' and CREATE EXTENSION pg_stat_statements.
+
+# Top 30 statements by total execution time, with the (normalised, truncated) query text.
+# Counters reset when pg_stat_statements_reset() is called; rate()/increase() handle that.
+pg_top_statements:
+  master: true
+  query: |
+    SELECT s.queryid::text AS queryid,
+           d.datname AS datname,
+           r.rolname AS usename,
+           left(regexp_replace(s.query, '\s+', ' ', 'g'), 160) AS query,
+           s.calls AS calls,
+           s.total_exec_time / 1000 AS exec_seconds,
+           s.mean_exec_time / 1000 AS mean_seconds,
+           s.max_exec_time / 1000 AS max_seconds,
+           s.stddev_exec_time / 1000 AS stddev_seconds,
+           s.rows AS rows,
+           s.shared_blks_hit AS shared_blks_hit,
+           s.shared_blks_read AS shared_blks_read,
+           s.temp_blks_written AS temp_blks_written,
+           (s.blk_read_time + s.blk_write_time) / 1000 AS io_seconds
+    FROM pg_stat_statements s
+    JOIN pg_database d ON d.oid = s.dbid
+    JOIN pg_roles r ON r.oid = s.userid
+    WHERE s.query NOT ILIKE '%pg_stat_statements%'
+    ORDER BY s.total_exec_time DESC
+    LIMIT 30
+  metrics:
+    - queryid: { usage: LABEL, description: pg_stat_statements query id }
+    - datname: { usage: LABEL, description: database }
+    - usename: { usage: LABEL, description: database user }
+    - query: { usage: LABEL, description: normalised query text, first 160 characters }
+    - calls: { usage: COUNTER, description: Executions }
+    - exec_seconds: { usage: COUNTER, description: Total execution time }
+    - mean_seconds: { usage: GAUGE, description: Mean execution time since the last reset }
+    - max_seconds: { usage: GAUGE, description: Slowest execution since the last reset }
+    - stddev_seconds: { usage: GAUGE, description: Standard deviation of execution time }
+    - rows: { usage: COUNTER, description: Rows returned or affected }
+    - shared_blks_hit: { usage: COUNTER, description: Blocks served from shared buffers }
+    - shared_blks_read: { usage: COUNTER, description: Blocks read from disk or OS cache }
+    - temp_blks_written: { usage: COUNTER, description: Temp blocks written (sorts/hashes spilling to disk) }
+    - io_seconds: { usage: COUNTER, description: Time spent reading and writing blocks (track_io_timing) }
+
+# Per-table size, scans, writes, cache hit and vacuum age, in every database.
+# (The exporter's built-in table collectors only see the DSN database; this query runs in all of them.)
