@@ -176,7 +176,8 @@ services:  # containers this file runs; each key below is one service
       - /bin/sh
       - -c
       - |
-        export DATA_SOURCE_NAME="$$(echo "$$DSNS" | cut -d, -f$$DSN_INDEX)"
+        export DATA_SOURCE_NAME="$$(echo "$$DSNS" | tr ',' '\n' | sed -n "$${DSN_INDEX}p")"
+        if [ -z "$$DATA_SOURCE_NAME" ]; then echo "no DSN #$$DSN_INDEX in POSTGRES_EXPORTER_DSN: nothing to watch"; exit 0; fi
         cat /etc/postgres-exporter/queries.yaml > /tmp/queries.yaml
         if [ "$$PG_STAT_STATEMENTS" = true ]; then
           cat /etc/postgres-exporter/queries-statements.yaml >> /tmp/queries.yaml
