@@ -4112,7 +4112,7 @@
     {
       "type": "row",
       "id": 1025,
-      "title": "Services: Scrape targets — butun stack",
+      "title": "Services: Scrape targets — whole stack",
       "collapsed": true,
       "gridPos": {
         "x": 0,
@@ -4190,15 +4190,15 @@
                 "excludeByName": {
                   "Time": true,
                   "__name__": true,
-                  "job": true,
-                  "instance": true,
                   "server": true
                 },
                 "renameByName": {
                   "Value #A": "Up",
                   "Value #B": "Scrape time",
                   "Value #C": "Samples",
-                  "Value #D": "New series"
+                  "Value #D": "New series",
+                  "job": "Job",
+                  "instance": "Target"
                 },
                 "indexByName": {
                   "job": 0,
@@ -4232,7 +4232,7 @@
               {
                 "matcher": {
                   "id": "byName",
-                  "options": "instance"
+                  "options": "Target"
                 },
                 "properties": [
                   {

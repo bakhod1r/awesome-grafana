@@ -170,6 +170,10 @@ python3 grafana/generators/build.py      # rebuild all dashboards (Grafana reloa
 python3 scripts/check-dashboards.py      # every panel query against the live stack: errors and "No data"
 ```
 
+The same commands, and the usual stack operations, are in the `Makefile` (`make` lists them):
+`make up PROFILES="postgres redis"`, `make update` (server: git pull + pull images + recreate),
+`make dashboards`, `make check`, `make targets` (scrape targets that are down), `make logs s=vector`.
+
 Edits made in the Grafana UI are not saved to the files: export the JSON or change the generator.
 
 ### 6. Day-to-day

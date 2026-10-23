@@ -1,0 +1,56 @@
+# Shortcuts for the small stack. Run `make` (or `make help`) to list targets.
+# Optional exporters: make up PROFILES="postgres redis"
+
+COMPOSE  := docker compose
+PROFILES ?=
+PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
+DC := $(COMPOSE) $(PROFILE_FLAGS)
+
+.DEFAULT_GOAL := help
+.PHONY: help up down restart ps logs pull upgrade update dashboards check targets reload-prometheus reload-alerts config
+
+help:  ## list targets
+	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+
+up:  ## start the stack (add PROFILES="postgres redis" for optional exporters)
+	$(DC) up -d
+
+down:  ## stop and remove containers (volumes are kept)
+	$(DC) down
+
+restart:  ## restart one service: make restart s=grafana
+	$(DC) restart $(s)
+
+ps:  ## container status
+	$(DC) ps -a
+
+logs:  ## follow logs, all or one service: make logs s=vector
+	$(DC) logs -f --tail=100 $(s)
+
+pull:  ## pull the image versions pinned in docker-compose.yml
+	$(DC) pull
+
+upgrade: pull  ## pull pinned images and recreate changed containers
+	$(DC) up -d --remove-orphans
+
+update:  ## on the server: git pull, then apply image and config changes
+	git pull --ff-only
+	$(MAKE) upgrade
+
+dashboards:  ## rebuild generated dashboards (Grafana reloads them within seconds)
+	python3 grafana/generators/build.py
+
+check:  ## run every dashboard panel query, list errors and "No data"
+	python3 scripts/check-dashboards.py
+
+targets:  ## Prometheus scrape targets that are down
+	@curl -s http://localhost:39090/api/v1/targets | python3 -c 'import sys,json; [print(t["health"].upper(), t["labels"]["job"], t["scrapeUrl"], t["lastError"][:80]) for t in json.load(sys.stdin)["data"]["activeTargets"] if t["health"]!="up"]'
+
+reload-prometheus:  ## apply Prometheus config and rule changes (restart: no --web.enable-lifecycle)
+	$(DC) restart prometheus
+
+reload-alerts:  ## reload vmalert rules and Alertmanager config
+	curl -s -X POST http://localhost:38880/-/reload && curl -s -X POST http://localhost:39093/-/reload && echo reloaded
+
+config:  ## validate docker-compose.yml
+	$(DC) config -q && echo ok
