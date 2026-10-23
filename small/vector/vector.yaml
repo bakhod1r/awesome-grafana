@@ -122,20 +122,31 @@ transforms:
       kw = if kl.v != null { get!(klog, [kl.v]) } else { null }
       level = kv.v || kw || wd.v || "unknown"
 
-      # PostgreSQL logs (log_line_prefix = 'app=%a db=%d user=%u pid=%p ', see docker-compose.yml):
+      # PostgreSQL logs. A container counts as PostgreSQL when its compose service is "postgres" or
+      # its image is postgres / postgis / timescaledb, whatever the container is called; its service
+      # becomes "postgres", which the PostgreSQL dashboard filters on.
+      # Two line formats are understood:
       #   app=shop-api db=shop user=shop pid=42 LOG:  duration: 1.234 ms  statement: SELECT ...
+      #       log_line_prefix = 'app=%a db=%d user=%u pid=%p ' → per-service and per-database split
+      #   2026-10-23 06:47:16.801 UTC [42] LOG:  duration: 1.234 ms  statement: SELECT ...
+      #       PostgreSQL's default prefix → level and latency only (pg_app / pg_db stay empty)
       # → fields pg_app / pg_db (filter logs by service and database), level from the severity
       # word, and a latency histogram per service and database from the "duration:" lines
       # (vector_postgres_statement_duration_seconds, p50/p95/p99 on the PostgreSQL dashboard).
-      if .service == "postgres" {
+      # "duration:" lines need log_min_duration_statement set in PostgreSQL (README: PostgreSQL logs).
+      if .service == "postgres" || match(to_string(.image) ?? "", r'(^|/)(postgres|postgis|timescaledb)[^/]*(:|$)') {
+        .service = "postgres"
         pg, err = parse_regex(msg, r'^app=(?P<app>\S*) db=(?P<db>\S*) user=\S* pid=\d+ (?P<sev>[A-Z]+):\s+(?:duration: (?P<ms>[0-9.]+) ms  (?:statement|execute))?')
+        if err != null {
+          pg, err = parse_regex(msg, r'^\d{4}-\d\d-\d\d [0-9:.]+ \S+ \[\d+\] (?P<sev>[A-Z]+):\s+(?:duration: (?P<ms>[0-9.]+) ms  (?:statement|execute))?')
+        }
         if err == null {
-          .pg_app = pg.app
-          .pg_db = pg.db
+          .pg_app = pg.app || ""
+          .pg_db = pg.db || ""
           # LOG/DETAIL → info, ERROR/STATEMENT → error
           level = (get({"LOG": "info", "ERROR": "error", "STATEMENT": "error", "WARNING": "warn", "FATAL": "fatal", "PANIC": "panic"}, [pg.sev]) ?? null) || "info"
           # statement only: parse and bind steps of the same query also log one
-          if pg.ms != "" { .pg_duration_seconds = to_float!(pg.ms) / 1000 }
+          if pg.ms != null && pg.ms != "" { .pg_duration_seconds = to_float!(pg.ms) / 1000 }
         }
       }
 

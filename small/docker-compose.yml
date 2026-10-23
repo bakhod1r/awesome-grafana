@@ -143,11 +143,12 @@ services:  # containers this file runs; each key below is one service
   # PostgreSQL: connections, transactions, locks, long-running queries, replication lag.
   # Dashboard: "PostgreSQL" (uid postgres). Per-service breakdown uses application_name,
   # so set it in every app's connection string (?application_name=shop-api).
-  # One exporter per PostgreSQL server: postgres-exporter (POSTGRES_EXPORTER_DSN) and
-  # postgres-exporter-2 (POSTGRES_EXPORTER_DSN_2) share the settings below via the &postgres-exporter anchor.
+  # One exporter per PostgreSQL server, both share the settings below via the &postgres-exporter anchor:
+  #   postgres-exporter-docker  PostgreSQL running in a Docker container  (POSTGRES_EXPORTER_DSN_DOCKER)
+  #   postgres-exporter-server  PostgreSQL installed on the server itself  (POSTGRES_EXPORTER_DSN_SERVER)
   # A database on the host (or published on a host port) is reached as host.docker.internal:<port>.
-  postgres-exporter: &postgres-exporter  # PostgreSQL metrics exporter
-    container_name: grafana-s-postgres-exporter  # fixed name; grafana-s-* = this stack (small)
+  postgres-exporter-docker: &postgres-exporter  # PostgreSQL metrics exporter (database in Docker)
+    container_name: grafana-s-postgres-exporter-docker  # fixed name; grafana-s-* = this stack (small)
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     profiles: [postgres]  # started only with --profile postgres
@@ -164,19 +165,19 @@ services:  # containers this file runs; each key below is one service
       - --collector.postmaster              # server start time (uptime)
       - --collector.replication_slots       # slots and retained WAL (renamed from replication_slot in v0.18)
     environment:  # environment variables inside the container
-      # Set POSTGRES_EXPORTER_DSN in .env (your database, user with the pg_monitor role).
-      - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN:-postgresql://postgres_exporter:exporter@postgres:5432/postgres?sslmode=disable}  # postgresql://user:pass@host:5432/db?sslmode=disable
+      # Set POSTGRES_EXPORTER_DSN_DOCKER in .env (your database, user with the pg_monitor role).
+      - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN_DOCKER:-postgresql://postgres_exporter:exporter@postgres:5432/postgres?sslmode=disable}  # postgresql://user:pass@host:5432/db?sslmode=disable
     volumes:
       - ./postgres/queries.yaml:/etc/postgres-exporter/queries.yaml:ro  # custom SQL metrics
     extra_hosts: ["host.docker.internal:host-gateway"]  # host IP alias for databases on the host
     ports: ["39187:9187"]            # raw metrics: http://localhost:39187/metrics
 
-  # Second PostgreSQL server (e.g. prod next to dev). Same settings, its own DSN and port.
-  postgres-exporter-2:
+  # PostgreSQL installed on the server itself (not in Docker). Same settings, its own DSN and port.
+  postgres-exporter-server:
     <<: *postgres-exporter
-    container_name: grafana-s-postgres-exporter-2  # fixed name; grafana-s-* = this stack (small)
+    container_name: grafana-s-postgres-exporter-server  # fixed name; grafana-s-* = this stack (small)
     environment:  # environment variables inside the container
-      - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN_2:-postgresql://postgres_exporter:exporter@postgres-2:5432/postgres?sslmode=disable}
+      - DATA_SOURCE_NAME=${POSTGRES_EXPORTER_DSN_SERVER:-postgresql://postgres_exporter:exporter@host.docker.internal:5432/postgres?sslmode=disable}
     ports: ["39188:9187"]            # raw metrics: http://localhost:39188/metrics
 
   # Redis: memory, hit ratio, evictions, connected clients.

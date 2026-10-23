@@ -7,7 +7,7 @@ PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 DC := $(COMPOSE) $(PROFILE_FLAGS)
 
 .DEFAULT_GOAL := help
-.PHONY: help up down restart ps logs pull upgrade update dashboards check targets reload-prometheus reload-alerts config
+.PHONY: help up down restart ps logs pull upgrade update dashboards check targets reload-prometheus reload-alerts pg-check minio-token config
 
 help:  ## list targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -51,6 +51,12 @@ reload-prometheus:  ## apply Prometheus config and rule changes (restart: no --w
 
 reload-alerts:  ## reload vmalert rules and Alertmanager config
 	curl -s -X POST http://localhost:38880/-/reload && curl -s -X POST http://localhost:39093/-/reload && echo reloaded
+
+pg-check:  ## can the PostgreSQL exporters reach their databases (pg_up 1 = yes)
+	@for p in 39187 39188; do printf "%s " $$p; curl -s localhost:$$p/metrics | grep '^pg_up' || echo "exporter not running"; done
+
+minio-token:  ## build + test the MinIO metrics token from MINIO_* in .env, write it for Prometheus
+	@set -a; . ./.env; set +a; python3 scripts/minio-token.py
 
 config:  ## validate docker-compose.yml
 	$(DC) config -q && echo ok

@@ -128,6 +128,12 @@ scrape_configs:  # scrape jobs
     file_sd_configs: [{ files: [/etc/prometheus/exporters/postgres.yml], refresh_interval: 30s }]  # targets file
   - job_name: redis  # redis_exporter (compose profile "redis")
     file_sd_configs: [{ files: [/etc/prometheus/exporters/redis.yml], refresh_interval: 30s }]  # targets file
+  # MinIO's own cluster metrics (Storage dashboard). No exporter: MinIO serves them itself, behind a
+  # bearer token. `make minio-token` builds it from MINIO_* in .env and writes the file below.
+  - job_name: minio
+    metrics_path: /minio/v2/metrics/cluster
+    authorization: { credentials_file: /etc/prometheus/secrets/minio-token }  # gitignored
+    file_sd_configs: [{ files: [/etc/prometheus/exporters/minio.yml], refresh_interval: 30s }]  # targets file
 
   # Your own apps exposing /metrics. Containers in any compose project are found by the
   # discoverer service (/etc/prometheus-auto/auto.json); exporters/apps.yml is for apps outside Docker.
