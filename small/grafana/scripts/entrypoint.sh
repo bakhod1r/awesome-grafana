@@ -11,7 +11,8 @@ cp -R "$src"/. "$dst"/
 # Grafana also scans these; create them so it does not log "no such file or directory".
 mkdir -p "$dst/plugins" "$dst/notifiers"
 chat_id=$(printf '%s' "$TELEGRAM_CHAT_ID" | sed 's/[|&\\]/\\&/g')
-topic_id=$(printf '%s' "${TELEGRAM_TOPIC_ID:-}" | sed 's/[|&\\]/\\&/g')
+# Dead man's switch is about the monitoring stack itself: SRE topic when set, else the critical topic.
+topic_id=$(printf '%s' "${TELEGRAM_TOPIC_SRE:-${TELEGRAM_TOPIC_ID:-}}" | sed 's/[|&\\]/\\&/g')
 sed -i -e "s|__TELEGRAM_CHAT_ID__|$chat_id|g" -e "s|__TELEGRAM_TOPIC_ID__|$topic_id|g" "$dst"/alerting/*.yml
 export GF_PATHS_PROVISIONING="$dst"
 exec /run.sh "$@"

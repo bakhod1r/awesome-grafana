@@ -11,16 +11,16 @@ Self-hosted observability stack in one `docker compose up`: metrics, logs, trace
 | Metrics collection | Prometheus, node-exporter, cAdvisor, blackbox-exporter, pushgateway, discoverer (auto-finds app `/metrics`) |
 | Logs, traces | Vector (Docker logs, host nginx log files, OTLP), Beyla (eBPF) |
 | Storage | VictoriaMetrics (metrics, 12 months), VictoriaLogs (logs, 90 days / 20 GiB), Tempo (traces + span metrics) |
-| Alerting | vmalert ×2: metric rules (PromQL on VictoriaMetrics) + log rules (LogsQL on VictoriaLogs) → Alertmanager → Telegram |
+| Alerting | vmalert: metric rules (PromQL on VictoriaMetrics) + log rules (LogsQL on VictoriaLogs), via vmauth → Alertmanager → Telegram |
 | UI | Grafana (provisioned datasources and dashboards), grafana-proxy (themed nginx front) |
 | Optional exporters | PostgreSQL, Redis (your own databases, enabled via profiles) |
 
 ## How data flows
 
-1. **Metrics** — Prometheus scrapes exporters and apps (static jobs + `discoverer` file_sd targets) and `remote_write`s everything to VictoriaMetrics. vmalert-metrics evaluates the recording/alert rules (`prometheus/rules/`) against VictoriaMetrics. Grafana reads metrics from VictoriaMetrics.
+1. **Metrics** — Prometheus scrapes exporters and apps (static jobs + `discoverer` file_sd targets) and `remote_write`s everything to VictoriaMetrics. vmalert evaluates the recording/alert rules (`prometheus/rules/`) against VictoriaMetrics. Grafana reads metrics from VictoriaMetrics.
 2. **Logs** — Vector reads container stdout through the Docker socket and nginx file logs, parses levels, masks secrets, turns lines into metrics (`vector_*` on `:9598`) and ships them to VictoriaLogs. vmalert runs LogsQL alert rules against VictoriaLogs.
 3. **Traces** — apps send OTLP to Vector (`vector:4317` gRPC, `vector:4318` HTTP inside Docker; `34317` / `34318` on the host), Vector forwards traces to Tempo, metrics to Prometheus, logs to VictoriaLogs. No CORS: browser SDKs need a reverse proxy in front. Tempo's metrics generator writes span metrics (with exemplars) back to Prometheus.
-4. **Alerts** — vmalert-metrics and vmalert (logs) fire into Alertmanager, which sends Telegram messages (critical loud, warnings silent).
+4. **Alerts** — vmalert (metric and log rules) fires into Alertmanager, which sends Telegram messages (critical loud, warnings silent).
 
 ## Quick start
 
@@ -45,6 +45,7 @@ PostgreSQL and Redis targets are off (`[]`) in `prometheus/exporters/<name>.yml`
 | `TELEGRAM_CHAT_ID` | Chat for critical alerts (sent with sound). Groups and channels start with `-100`; check with `https://api.telegram.org/bot<TOKEN>/getChat?chat_id=<id>`. The bot must be a member (admin in a channel). Required. |
 | `TELEGRAM_WARNING_CHAT_ID` | Chat for warnings (sent silently). Empty = same as `TELEGRAM_CHAT_ID`. |
 | `TELEGRAM_TOPIC_ID`, `TELEGRAM_WARNING_TOPIC_ID` | Forum topic inside the group. Empty = General. |
+| `TELEGRAM_TOPIC_<CATEGORY>` | One topic per alert category (SERVER, CONTAINERS, SITES, DATABASE, LOGS, SRE, DEPLOYS), routed by the rules' `category` label. Create them in the group, ids from the topic link. Empty = the critical / warning chat. |
 | `GRAFANA_URL`, `PROMETHEUS_URL`, `ALERTMANAGER_URL` | Public addresses used only for links in Telegram messages (Dashboard, Logs, Query). On a server, put its IP or domain here, not `localhost`, or the links will not open from a phone. |
 | `GRAFANA_HOST` | IP Grafana binds to: `0.0.0.0` every interface, `127.0.0.1` this machine only. |
 | `GRAFANA_PORT`, `GRAFANA_DIRECT_PORT` | Main UI (themed proxy, default `3000`) and plain Grafana (default `3002`). Keep `GRAFANA_URL` in sync. |
@@ -156,7 +157,7 @@ The links in the top bar go to the same dashboards from everywhere and keep the 
 
 ### 4. Alerts
 
-Rules live in `prometheus/rules/alerts.yml` (metrics, run by vmalert-metrics) and `vmalert/` (log patterns). Critical alerts come to
+Rules live in `prometheus/rules/alerts.yml` (metrics, run by vmalert) and `vmalert/` (log patterns). Every alert with an example Telegram message: [docs/alerts.md](docs/alerts.md). Critical alerts come to
 Telegram with sound, warnings silently; each message links to the query, the dashboard and the logs, and has
 a one-click Silence. Containers labelled `container.team` / `container.env` show them in the message.
 Targets with `env: demo` (the demo cache, queue, proxy) are routed nowhere, so demos never page you.
@@ -225,8 +226,7 @@ The check exits non-zero on a query error or an unexpected empty panel, so it ca
 | http://localhost:38428/vmui | VictoriaMetrics UI |
 | http://localhost:39428/select/vmui | VictoriaLogs UI |
 | http://localhost:39093 | Alertmanager |
-| http://localhost:38881 | vmalert-metrics (metric rules) |
-| http://localhost:38880 | vmalert (log rules) |
+| http://localhost:38880 | vmalert (all alert + recording rules) |
 | http://localhost:33200 | Tempo API |
 | http://localhost:38686/health | Vector health |
 | http://localhost:38080 | cAdvisor |

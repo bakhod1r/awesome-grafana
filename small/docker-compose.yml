@@ -246,6 +246,14 @@ services:  # containers this file runs; each key below is one service
       - TELEGRAM_TOPIC_ID=${TELEGRAM_TOPIC_ID:-}                 # forum topic id; empty = general chat
       - TELEGRAM_WARNING_CHAT_ID=${TELEGRAM_WARNING_CHAT_ID:-}   # empty = same chat as critical
       - TELEGRAM_WARNING_TOPIC_ID=${TELEGRAM_WARNING_TOPIC_ID:-} # empty = same topic as critical (when same chat)
+      # Per-category topics (topic ids from the topic links); empty = the critical / warning chat above.
+      - TELEGRAM_TOPIC_SERVER=${TELEGRAM_TOPIC_SERVER:-}
+      - TELEGRAM_TOPIC_CONTAINERS=${TELEGRAM_TOPIC_CONTAINERS:-}
+      - TELEGRAM_TOPIC_SITES=${TELEGRAM_TOPIC_SITES:-}
+      - TELEGRAM_TOPIC_DATABASE=${TELEGRAM_TOPIC_DATABASE:-}
+      - TELEGRAM_TOPIC_LOGS=${TELEGRAM_TOPIC_LOGS:-}
+      - TELEGRAM_TOPIC_SRE=${TELEGRAM_TOPIC_SRE:-}
+      - TELEGRAM_TOPIC_DEPLOYS=${TELEGRAM_TOPIC_DEPLOYS:-}
       - GRAFANA_URL=${GRAFANA_URL:-http://localhost:${GRAFANA_PORT:-33000}}         # for "Dashboard" links in messages
       - ALERTMANAGER_URL=${ALERTMANAGER_URL:-http://localhost:39093} # for "Silence" links in messages
       - TZ=Asia/Tashkent            # times in messages and the maintenance window use this zone
@@ -269,6 +277,7 @@ services:  # containers this file runs; each key below is one service
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is not set in .env}  # required: from .env, startup fails with this message if missing
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is not set in .env}  # required: from .env, startup fails with this message if missing
       - TELEGRAM_TOPIC_ID=${TELEGRAM_TOPIC_ID:-}  # forum topic id; empty = general chat
+      - TELEGRAM_TOPIC_SRE=${TELEGRAM_TOPIC_SRE:-}  # dead man's switch goes to the SRE topic when set
       - TZ=Asia/Tashkent  # time zone for logs, message times and the maintenance window
       # Downloaded from grafana.com on first start (needs internet), kept in the grafana-data volume.
       - GF_INSTALL_PLUGINS=victoriametrics-logs-datasource 0.32.0  # plugin id + exact version, installed on first start
@@ -386,45 +395,39 @@ services:  # containers this file runs; each key below is one service
 
   # Evaluates log alert rules (LogsQL) against VictoriaLogs and sends firing alerts to
   # the same Alertmanager as Prometheus, so routing, silences and Telegram are shared.
-  # Metric rules (alerts + recording rules in prometheus/rules/*.yml, PromQL) run here, against
-  # VictoriaMetrics: Prometheus only scrapes. Rules see the whole history, not Prometheus's 2-day buffer.
-  # Recording rules and alert state (ALERTS) are written back to VictoriaMetrics.
-  vmalert-metrics:  # metric alert + recording rule evaluator
-    container_name: grafana-s-vmalert-metrics  # fixed name; grafana-s-* = this stack (small)
-    image: victoriametrics/vmalert:v1.154.1  # same version as vmalert
-    labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
-    command:  # arguments passed to the program at start
-      - -rule=/etc/vmalert-metrics/*.yml  # rule files to load (glob): prometheus/rules
-      - -evaluationInterval=15s  # same pace as the scrape interval
-      - -datasource.url=http://victoriametrics:8428  # where rules run their PromQL/MetricsQL queries
-      - -notifier.url=http://alertmanager:9093  # send firing alerts here
-      - -remoteWrite.url=http://victoriametrics:8428  # recording rule results + alert state (ALERTS)
-      - -remoteRead.url=http://victoriametrics:8428  # restore pending/firing state on restart
-      - -external.url=${VMALERT_METRICS_URL:-http://localhost:38881}  # public URL for the links in Telegram
-    volumes:
-      - ./prometheus/rules:/etc/vmalert-metrics:ro  # rule files from this repo, read-only
-    ports: ["38881:8880"]            # UI: http://localhost:38881 (rules, alerts, last evaluations)
-    depends_on: [victoriametrics, alertmanager]  # start order only, not readiness
-
-  vmalert:  # log alert rule evaluator
+  # All alert and recording rules run here, in one vmalert:
+  #   prometheus/rules/*.yml  PromQL against VictoriaMetrics (Prometheus itself only scrapes)
+  #   vmalert/rules/*.yml     LogsQL against VictoriaLogs (groups with type: vlogs)
+  # It queries both through vmauth, which routes by path. Recording rule results and alert state
+  # (ALERTS) are written to VictoriaMetrics and restored from it after a restart.
+  vmalert:  # alert + recording rule evaluator (metrics and logs)
     container_name: grafana-s-vmalert  # fixed name; grafana-s-* = this stack (small)
     image: victoriametrics/vmalert:v1.154.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
     command:  # arguments passed to the program at start
-      - -rule=/etc/vmalert/rules/*.yml  # rule files to load (glob)
-      - -rule.defaultRuleType=vlogs               # rules are LogsQL queries, not PromQL
-      - -datasource.url=http://victorialogs:9428  # where rules run their LogsQL queries
+      - -rule=/etc/vmalert/rules/*.yml   # log rules (LogsQL)
+      - -rule=/etc/vmalert-metrics/*.yml  # metric rules (PromQL), from prometheus/rules
+      - -evaluationInterval=15s  # same pace as the scrape interval
+      - -datasource.url=http://vmauth:8427  # VictoriaMetrics or VictoriaLogs, by query path (vmauth/config.yml)
       - -notifier.url=http://alertmanager:9093  # send firing alerts here
-      # Store alert state (ALERTS series) in VictoriaMetrics: the Alerts dashboard shows log
-      # alerts too, and pending/firing state survives a vmalert restart.
-      - -remoteWrite.url=http://victoriametrics:8428  # write alert state to VictoriaMetrics
-      - -remoteRead.url=http://victoriametrics:8428  # restore alert state from VictoriaMetrics on restart
-      # Base for the "Query" link in Telegram messages.
-      - -external.url=${VMALERT_URL:-http://localhost:38880}  # public vmalert URL for links
-    volumes:  # named volumes; data here survives `docker compose down`
-      - ./vmalert:/etc/vmalert:ro  # config directory from this repo, read-only
+      - -remoteWrite.url=http://victoriametrics:8428  # recording rule results + alert state (ALERTS)
+      - -remoteRead.url=http://victoriametrics:8428  # restore pending/firing state on restart
+      - -external.url=${VMALERT_URL:-http://localhost:38880}  # public vmalert URL for the links in Telegram
+    volumes:  # config from this repo, read-only
+      - ./vmalert:/etc/vmalert:ro  # log rules
+      - ./prometheus/rules:/etc/vmalert-metrics:ro  # metric rules (outside /etc/vmalert: that mount is read-only)
     ports: ["38880:8880"]            # UI: http://localhost:38880 (rules, alerts, last evaluations)
-    depends_on: [victorialogs, alertmanager, victoriametrics]  # start after victorialogs, alertmanager, victoriametrics (start order only, not readiness)
+    depends_on: [vmauth, alertmanager]  # start order only, not readiness
+
+  # Routes vmalert's queries: /select/logsql → VictoriaLogs, the rest → VictoriaMetrics.
+  vmauth:  # query router for vmalert
+    container_name: grafana-s-vmauth  # fixed name; grafana-s-* = this stack (small)
+    image: victoriametrics/vmauth:v1.154.1  # same version as vmalert
+    labels: { container.type: monitoring }  # which dashboard Docker Projects opens for it (README: Container labels)
+    command: ["-auth.config=/etc/vmauth/config.yml"]
+    volumes:
+      - ./vmauth:/etc/vmauth:ro  # routing config
+    depends_on: [victoriametrics, victorialogs]  # start order only, not readiness
 
 # One network for the whole stack. Apps can join it as an external network:
 #   networks: { grafana-s-network: { external: true } }

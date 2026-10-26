@@ -2676,7 +2676,7 @@
     {
       "type": "row",
       "id": 29,
-      "title": "vmalert-metrics — metric rules (prometheus/rules, PromQL) evaluation and sending",
+      "title": "vmalert — rule evaluation and sending (prometheus/rules + vmalert/rules)",
       "collapsed": true,
       "gridPos": {
         "x": 0,
@@ -2696,7 +2696,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "label_replace(max by (group) (vmalert_iteration_duration_seconds{instance=~\".*vmalert-metrics.*\", quantile=\"0.99\"}) / max by (group) (vmalert_iteration_interval_seconds{instance=~\".*vmalert-metrics.*\"}), \"group\", \"(none)\", \"group\", \"\")",
+              "expr": "label_replace(max by (group) (vmalert_iteration_duration_seconds{quantile=\"0.99\"}) / max by (group) (vmalert_iteration_interval_seconds), \"group\", \"(none)\", \"group\", \"\")",
               "legendFormat": "{{group}}",
               "datasource": {
                 "type": "prometheus",
@@ -2781,7 +2781,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "sum by (group) (increase(vmalert_execution_errors_total{instance=~\".*vmalert-metrics.*\"}[5m]))",
+              "expr": "sum by (group) (increase(vmalert_execution_errors_total[5m]))",
               "legendFormat": "{{group}} failures",
               "datasource": {
                 "type": "prometheus",
@@ -2790,7 +2790,7 @@
             },
             {
               "refId": "B",
-              "expr": "sum by (group) (increase(vmalert_iteration_missed_total{instance=~\".*vmalert-metrics.*\"}[5m]))",
+              "expr": "sum by (group) (increase(vmalert_iteration_missed_total[5m]))",
               "legendFormat": "{{group}} missed",
               "datasource": {
                 "type": "prometheus",
@@ -2859,7 +2859,7 @@
         {
           "type": "table",
           "title": "Rule groups",
-          "description": "Every rule group loaded by vmalert-metrics (prometheus/rules/*.yml).",
+          "description": "Every rule group loaded by vmalert: PromQL groups from prometheus/rules, LogsQL groups from vmalert/rules.",
           "datasource": {
             "type": "prometheus",
             "uid": "victoriametrics"
@@ -2867,7 +2867,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "count by (group) (vmalert_alerting_rules_last_evaluation_samples{instance=~\".*vmalert-metrics.*\"}) or count by (group) (vmalert_recording_rules_last_evaluation_samples{instance=~\".*vmalert-metrics.*\"})",
+              "expr": "count by (group) (vmalert_alerting_rules_last_evaluation_samples) or count by (group) (vmalert_recording_rules_last_evaluation_samples)",
               "legendFormat": "",
               "datasource": {
                 "type": "prometheus",
@@ -2879,7 +2879,7 @@
             },
             {
               "refId": "B",
-              "expr": "max by (group) (vmalert_iteration_interval_seconds{instance=~\".*vmalert-metrics.*\"})",
+              "expr": "max by (group) (vmalert_iteration_interval_seconds)",
               "legendFormat": "",
               "datasource": {
                 "type": "prometheus",
@@ -2891,7 +2891,7 @@
             },
             {
               "refId": "C",
-              "expr": "max by (group) (vmalert_iteration_duration_seconds{instance=~\".*vmalert-metrics.*\", quantile=\"0.99\"})",
+              "expr": "max by (group) (vmalert_iteration_duration_seconds{quantile=\"0.99\"})",
               "legendFormat": "",
               "datasource": {
                 "type": "prometheus",
@@ -2903,7 +2903,7 @@
             },
             {
               "refId": "D",
-              "expr": "sum by (group) (vmalert_alerting_rules_last_evaluation_samples{instance=~\".*vmalert-metrics.*\"}) or sum by (group) (vmalert_recording_rules_last_evaluation_samples{instance=~\".*vmalert-metrics.*\"})",
+              "expr": "sum by (group) (vmalert_alerting_rules_last_evaluation_samples) or sum by (group) (vmalert_recording_rules_last_evaluation_samples)",
               "legendFormat": "",
               "datasource": {
                 "type": "prometheus",
@@ -3057,7 +3057,7 @@
         },
         {
           "type": "timeseries",
-          "title": "vmalert-metrics → Alertmanager",
+          "title": "vmalert → Alertmanager",
           "description": "Alert notifications handed to Alertmanager. Errors > 0 = Alertmanager unreachable.",
           "datasource": {
             "type": "prometheus",
@@ -3066,7 +3066,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(vmalert_alerts_sent_total{instance=~\".*vmalert-metrics.*\"}[5m])) * 60",
+              "expr": "sum(rate(vmalert_alerts_sent_total[5m])) * 60",
               "legendFormat": "sent/min",
               "datasource": {
                 "type": "prometheus",
@@ -3075,7 +3075,7 @@
             },
             {
               "refId": "B",
-              "expr": "sum(rate(vmalert_alerts_send_errors_total{instance=~\".*vmalert-metrics.*\"}[5m])) * 60",
+              "expr": "sum(rate(vmalert_alerts_send_errors_total[5m])) * 60",
               "legendFormat": "errors/min",
               "datasource": {
                 "type": "prometheus",
@@ -3152,7 +3152,7 @@
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(vmalert_remotewrite_sent_rows_total{instance=~\".*vmalert-metrics.*\"}[5m]))",
+              "expr": "sum(rate(vmalert_remotewrite_sent_rows_total[5m]))",
               "legendFormat": "rows/s",
               "datasource": {
                 "type": "prometheus",
@@ -3161,7 +3161,7 @@
             },
             {
               "refId": "B",
-              "expr": "sum(rate(vmalert_remotewrite_errors_total{instance=~\".*vmalert-metrics.*\"}[5m])) + sum(rate(vmalert_remotewrite_dropped_rows_total{instance=~\".*vmalert-metrics.*\"}[5m]))",
+              "expr": "sum(rate(vmalert_remotewrite_errors_total[5m])) + sum(rate(vmalert_remotewrite_dropped_rows_total[5m]))",
               "legendFormat": "errors+dropped/s",
               "datasource": {
                 "type": "prometheus",
@@ -3232,7 +3232,7 @@
     {
       "type": "row",
       "id": 34,
-      "title": "vmalert — log rules (vmalert/rules, LogsQL)",
+      "title": "vmalert — alerts and remote write",
       "collapsed": true,
       "gridPos": {
         "x": 0,

@@ -7,7 +7,7 @@ PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 DC := $(COMPOSE) $(PROFILE_FLAGS)
 
 .DEFAULT_GOAL := help
-.PHONY: help up down restart ps logs pull upgrade update dashboards check targets reload-prometheus reload-alerts pg-check minio-token test-alert config
+.PHONY: help up down restart ps logs pull upgrade update dashboards check alert-catalog targets reload-prometheus reload-alerts pg-check minio-token test-alert config
 
 help:  ## list targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -43,14 +43,17 @@ dashboards:  ## rebuild generated dashboards (Grafana reloads them within second
 check:  ## run every dashboard panel query, list errors and "No data"
 	python3 scripts/check-dashboards.py
 
+alert-catalog:  ## rewrite docs/alerts.md (every alert with an example message)
+	python3 scripts/alert-catalog.py
+
 targets:  ## Prometheus scrape targets that are down
 	@curl -s http://localhost:39090/api/v1/targets | python3 -c 'import sys,json; [print(t["health"].upper(), t["labels"]["job"], t["scrapeUrl"], t["lastError"][:80]) for t in json.load(sys.stdin)["data"]["activeTargets"] if t["health"]!="up"]'
 
 reload-prometheus:  ## apply prometheus.yml changes (restart: no --web.enable-lifecycle); rules: make reload-alerts
 	$(DC) restart prometheus
 
-reload-alerts:  ## reload both vmalerts (metric + log rules) and Alertmanager config
-	curl -s -X POST http://localhost:38881/-/reload && curl -s -X POST http://localhost:38880/-/reload && curl -s -X POST http://localhost:39093/-/reload && echo reloaded
+reload-alerts:  ## reload vmalert rules (metrics + logs) and Alertmanager config
+	curl -s -X POST http://localhost:38880/-/reload && curl -s -X POST http://localhost:39093/-/reload && echo reloaded
 
 pg-check:  ## can the PostgreSQL exporters reach their databases (pg_up 1 = yes)
 	@for a in 172.17.0.1:39187 172.17.0.1:39188; do printf "%s " $$a; curl -s $$a/metrics | grep '^pg_up' || echo "exporter not running"; done

@@ -1030,7 +1030,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (group) (increase(vmalert_execution_errors_total{instance=~\".*vmalert-metrics.*\"}[5m]))",
+          "expr": "label_replace(sum by (group) (increase(vmalert_execution_errors_total[5m])), \"group\", \"(none)\", \"group\", \"\")",
           "refId": "A",
           "legendFormat": "{{group}}"
         }
@@ -1251,7 +1251,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(vmalert_alerts_send_errors_total{instance=~\".*vmalert-metrics.*\"}[5m]))",
+          "expr": "sum(rate(vmalert_alerts_send_errors_total[5m]))",
           "refId": "A",
           "legendFormat": "dropped/s"
         }

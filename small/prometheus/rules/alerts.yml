@@ -16,9 +16,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
     rules:  # rules of this group
       # Any scrape target unreachable. up is 1 on a successful scrape, 0 on failure.
       - alert: TargetDown  # alert name, also the alertname label
-        expr: up == 0  # 1 = last scrape worked, 0 = failed; returns every target that is down
+        expr: up{job!~"prometheus|victoriametrics|victorialogs|vector|vmalert|tempo|alertmanager"} == 0  # 1 = last scrape worked, 0 = failed; monitoring components: MonitoringComponentDown
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: server }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
           summary: "{{ $labels.job }} is down"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -27,7 +27,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: HighCpu  # alert name, also the alertname label
         expr: 100 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 > 90  # busy % per host = 100 - idle %, over 5m
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: server }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
           summary: "High CPU: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -36,16 +36,43 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: HighMemory  # alert name, also the alertname label
         expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90  # used % = 1 - available/total
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: server }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
           summary: "High memory: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "Memory usage on {{ $labels.instance }} is above 90%."  # message body
+      # Same, but at the edge: the kernel starts killing processes (OOM) or the server crawls on swap.
+      - alert: MemoryCritical  # alert name, also the alertname label
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 95  # used % = 1 - available/total
+        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
+        labels: { severity: critical, category: server }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        annotations:  # text for the message, not used for routing
+          dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
+          summary: "Memory almost exhausted: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "{{ $labels.instance }} has under 5% memory left: OOM kills are next. Find the biggest containers on the Docker dashboard."  # message body
+      # CPU pinned for a long time: everything on the server slows down, not just one app.
+      - alert: CpuCritical  # alert name, also the alertname label
+        expr: 100 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 > 95  # busy % = 100 - idle %
+        for: 15m  # condition must hold 15m before firing (shorter blips are ignored)
+        labels: { severity: critical, category: server }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        annotations:  # text for the message, not used for routing
+          dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
+          summary: "CPU saturated: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "CPU on {{ $labels.instance }} has been above 95% for 15 minutes."  # message body
+      # Heavy swap use: RAM is too small for what runs on the server, every page fault is a disk read.
+      - alert: SwapHigh  # alert name, also the alertname label
+        expr: (1 - node_memory_SwapFree_bytes / node_memory_SwapTotal_bytes) * 100 > 50 and node_memory_SwapTotal_bytes > 0  # used swap %, only when swap exists
+        for: 15m  # condition must hold 15m before firing (shorter blips are ignored)
+        labels: { severity: warning, category: server }  # severity warning: silent Telegram message, repeated every 4h
+        annotations:  # text for the message, not used for routing
+          dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
+          summary: "Swap {{ $value | printf \"%.0f\" }}% used"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "{{ $labels.instance }} keeps more than half its swap in use: the server needs more RAM or fewer containers."  # message body
       # Root filesystem only; tmpfs/overlay are virtual and would cause false alarms.
       - alert: DiskAlmostFull  # alert name, also the alertname label
         expr: instance:node_filesystem_root_used:percent > 85  # used % of the system disk (rules/recording.yml)
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: server }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
           summary: "Disk almost full: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -60,7 +87,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
             and node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*", mountpoint!~"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*", mountpoint!~"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*"} < 0.4
           )
         for: 30m  # trend must hold 30m (a big temporary file does not count)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: server }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
           summary: "Disk will be full within 24h: {{ $labels.device }} on {{ $labels.instance }}"  # message headline
@@ -72,7 +99,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
             and node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*", mountpoint!~"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|erofs|squashfs|fakeowner|nsfs|ramfs|devtmpfs|fuse.*", mountpoint!~"/etc/.+|/oldroot.*|/host_mnt.*|/run.*|/boot.*"} < 0.2
           )
         for: 10m  # trend must hold 10m
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: server }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
           summary: "Disk full within 4 hours: {{ $labels.device }} on {{ $labels.instance }}"  # message headline
@@ -84,7 +111,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: SiteDown  # alert name, also the alertname label
         expr: probe_success{job="blackbox-http"} == 0  # 1 = probe succeeded, 0 = failed
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sites }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
           summary: "Site down: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -93,7 +120,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: SiteSlow  # alert name, also the alertname label
         expr: probe_duration_seconds{job="blackbox-http"} > 3  # total probe time in seconds
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sites }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
           summary: "Site slow: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -102,7 +129,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: SslExpiresSoon  # alert name, also the alertname label
         expr: (probe_ssl_earliest_cert_expiry{job=~"blackbox-(http|tls)"} - time()) / 86400 < 14  # days until the certificate expires
         for: 1h  # condition must hold 1h before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sites }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
           summary: "SSL certificate expiring: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -111,7 +138,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: SslExpiresCritical  # alert name, also the alertname label
         expr: (probe_ssl_earliest_cert_expiry{job=~"blackbox-(http|tls)"} - time()) / 86400 < 3  # days until the certificate expires
         for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sites }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
           summary: "SSL certificate expires in days: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -120,7 +147,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: ProbeDown  # alert name, also the alertname label
         expr: probe_success{job=~"blackbox-(tcp|tls|icmp|dns)"} == 0  # 1 = probe succeeded, 0 = failed
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sites }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
           summary: "{{ $labels.job }} probe failing: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -141,7 +168,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           and (1 - avg_over_time(probe_success{job=~"blackbox-(http|tcp|tls|dns)"}[5m])) / 0.001 > 14.4
           and on (job, instance) probe_success  # still probed: a removed target stops alerting at once
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sites }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
           summary: "Error budget burning fast: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -153,7 +180,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           and (1 - avg_over_time(probe_success{job=~"blackbox-(http|tcp|tls|dns)"}[30m])) / 0.001 > 6
           and on (job, instance) probe_success  # still probed: a removed target stops alerting at once
         for: 15m  # condition must hold 15m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sites }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
           summary: "Error budget burning: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -171,7 +198,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           and service:app_request_errors:ratio_rate5m / 0.005 > 14.4
           and service:app_requests:rate1h > 0.05
         for: 2m  # condition must hold 2m before firing
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
+        labels: { severity: critical, category: sites }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
           summary: "{{ $labels.service }}: error budget burning fast ({{ $value | printf \"%.0f\" }}x)"  # message headline
@@ -182,7 +209,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           and service:app_request_errors:ratio_rate30m / 0.005 > 6
           and service:app_requests:rate6h > 0.05
         for: 15m  # condition must hold 15m before firing
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sites }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
           summary: "{{ $labels.service }}: error budget burning ({{ $value | printf \"%.1f\" }}x)"  # message headline
@@ -193,7 +220,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           and service:app_request_slow:ratio_rate5m / 0.01 > 14.4
           and service:app_requests:rate1h > 0.05
         for: 2m  # condition must hold 2m before firing
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
+        labels: { severity: critical, category: sites }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
           summary: "{{ $labels.service }}: latency budget burning fast ({{ $value | printf \"%.0f\" }}x)"  # message headline
@@ -204,7 +231,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           and service:app_request_slow:ratio_rate30m / 0.01 > 6
           and service:app_requests:rate6h > 0.05
         for: 15m  # condition must hold 15m before firing
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sites }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
           summary: "{{ $labels.service }}: latency budget burning ({{ $value | printf \"%.1f\" }}x)"  # message headline
@@ -216,26 +243,15 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: ContainerHighMemory  # alert name, also the alertname label
         expr: container_memory_working_set_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""} > 0.9 and container_spec_memory_limit_bytes{name!=""} > 0  # usage / limit, only for containers that have a limit
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: containers }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
           summary: "Container memory almost full: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "{{ $labels.name }} is using over 90% of its memory limit."  # message body
-      # A restart creates a fresh cgroup, so the container's CPU counter drops back to ~0.
-      # resets() counts those drops. (container_start_time_seconds is not used: cadvisor keeps
-      # reporting the original start time after `docker restart`, so it misses restarts.)
-      # No "for": a restart is a one-off event and would be gone before a delay ran out.
-      - alert: ContainerRestarted  # alert name, also the alertname label
-        expr: resets(container_cpu_usage_seconds_total{name!=""}[5m]) > 0  # CPU counter resets in 5m = number of restarts
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
-          summary: "Container restarted: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.name }} restarted in the last 5 minutes."  # message body
       # Crash loop: 3+ starts in 15 minutes. Critical, so it inhibits the ContainerRestarted warning.
       - alert: ContainerRestartLoop  # alert name, also the alertname label
         expr: resets(container_cpu_usage_seconds_total{name!=""}[15m]) >= 3  # 3 or more restarts in 15m
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: containers }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
           summary: "Container restart loop: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -245,18 +261,31 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: ContainerGone  # alert name, also the alertname label
         expr: time() - container_last_seen{name!=""} > 60  # seconds since cadvisor last saw the container
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: containers }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
           summary: "Container stopped: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "{{ $labels.name }} has not been seen for over 1 minute."  # message body
+      # A container now runs an image it did not run 10 minutes ago: a deploy or a rollback.
+      # Informational, so a broken deploy can be matched with the alerts that follow it.
+      # Resolves by itself 10 minutes later (the old image drops out of the offset window).
+      - alert: ContainerUpdated  # alert name, also the alertname label
+        expr: |  # new (name, image) pair, on a container started in the last 2 minutes
+          (count by (name, image) (container_last_seen{name!="", image!=""})
+            unless count by (name, image) (container_last_seen{name!="", image!=""} offset 10m))
+          and on (name) (time() - container_start_time_seconds{name!=""} < 120)
+        labels: { severity: warning, category: deploys }  # severity warning: silent Telegram message
+        annotations:  # text for the message, not used for routing
+          dashboard: docker-projects  # Grafana "Docker Projects" dashboard (uid docker-projects)
+          summary: "Deployed: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "{{ $labels.name }} now runs {{ $labels.image }}."  # message body
   # Monitoring the monitoring: is the alert pipeline itself healthy.
   - name: meta  # group name, shown in the Prometheus/vmalert UI
     rules:  # rules of this group
       # Always firing. Grafana alerts if it disappears from VictoriaMetrics (Prometheus or remote_write is broken).
       - alert: Watchdog  # alert name, also the alertname label
         expr: vector(1)  # constant 1: always returns a result, so always firing
-        labels: { severity: none }  # severity none: matches no Telegram route; Alertmanager sends Watchdog to blackhole
+        labels: { severity: none, category: sre }  # severity none: matches no Telegram route; Alertmanager sends Watchdog to blackhole
         annotations:  # text for the message, not used for routing
           summary: "Watchdog heartbeat"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "Always firing. Proves the alerting pipeline works end to end."  # message body
@@ -264,7 +293,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PrometheusRemoteWriteFailing  # alert name, also the alertname label
         expr: rate(prometheus_remote_storage_samples_failed_total[5m]) > 0  # failed samples per second
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sre }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
           summary: "Prometheus cannot write to VictoriaMetrics"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -273,7 +302,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PrometheusRemoteWriteBehind  # alert name, also the alertname label
         expr: (prometheus_remote_storage_highest_timestamp_in_seconds - ignoring(remote_name, url) group_right prometheus_remote_storage_queue_highest_sent_timestamp_seconds) > 120  # seconds between newest scraped and newest sent sample
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sre }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
           summary: "Prometheus remote_write is lagging"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -282,7 +311,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PrometheusConfigReloadFailed  # alert name, also the alertname label
         expr: prometheus_config_last_reload_successful == 0  # 1 = last reload OK, 0 = failed
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sre }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
           summary: "Prometheus config reload failed"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -290,7 +319,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       # A rule's query errors at evaluation time (e.g. bad label matching), so it can never fire.
       - alert: RuleEvaluationFailing  # alert name, also the alertname label
         expr: sum by (instance, group) (increase(vmalert_execution_errors_total[5m])) > 0  # failed group evaluations in 5m (both vmalerts)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sre }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
           summary: "Alert rule evaluation failing: {{ $labels.group }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -299,7 +328,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: VmalertNotifierFailing  # alert name, also the alertname label
         expr: sum by (instance) (rate(vmalert_alerts_send_errors_total[5m])) > 0  # failed sends to Alertmanager
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sre }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
           summary: "vmalert cannot reach Alertmanager ({{ $labels.instance }})"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -309,7 +338,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: AlertmanagerNotificationsFailing  # alert name, also the alertname label
         expr: rate(alertmanager_notifications_failed_total[5m]) > 0  # failed notifications per second, per integration
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sre }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
           summary: "Alertmanager cannot deliver to {{ $labels.integration }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -322,7 +351,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: VectorLogsDropped  # alert name, also the alertname label
         expr: sum(rate(vector_component_discarded_events_total{component_id="victorialogs", intentional="false"}[5m])) > 0  # log lines dropped per second
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sre }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "Vector is dropping logs"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -331,7 +360,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: VectorCannotPush  # alert name, also the alertname label
         expr: sum(rate(vector_component_errors_total{component_id="victorialogs"}[5m])) > 0  # failed pushes per second
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sre }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "Vector cannot push logs to VictoriaLogs"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -340,7 +369,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: LogsNotIngested  # alert name, also the alertname label
         expr: sum(rate(vl_rows_ingested_total[15m])) == 0  # log lines ingested per second over 15m
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sre }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "VictoriaLogs receives no logs"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -348,7 +377,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       # A log rule query fails (e.g. LogsQL syntax), so that alert can never fire.
       - alert: VmalertRuleErrors  # alert name, also the alertname label
         expr: sum by (alertname) (increase(vmalert_alerting_rules_errors_total[5m])) > 0  # failed evaluations per log rule in 5m
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sre }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "Log alert rule failing: {{ $labels.alertname }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -364,65 +393,20 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           and on (service) (sum by (service) (max_over_time(service_level:log_lines:rate5m[30m])) == 0)
           and on (service) label_replace(max by (container_label_com_docker_compose_service) (time() - container_last_seen{name!=""} < 60), "service", "$1", "container_label_com_docker_compose_service", "(.+)")
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sre }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "No logs from {{ $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "{{ $labels.service }} usually logs but has been silent for 30 minutes while running. It may be hung."  # message body
 
-  # HTTP health from nginx access logs (Vector nginx_metrics).
-  - name: nginx-access-logs  # group name, shown in the Prometheus/vmalert UI
-    rules:  # rules of this group
-      # More than 5% of requests answered with 5xx over 5 minutes.
-      - alert: Nginx5xxHigh  # alert name, also the alertname label
-        expr: |  # 5xx requests / all requests, per service; "> 0" on the divisor avoids division by zero
-          sum by (service) (rate(vector_nginx_http_requests_total{status_class="5xx"}[5m]))
-            / (sum by (service) (rate(vector_nginx_http_requests_total[5m])) > 0) > 0.05
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
-        annotations:  # text for the message, not used for routing
-          dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
-          summary: "{{ $labels.service }}: {{ $value | humanizePercentage }} of requests fail (5xx)"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "More than 5% of HTTP requests returned 5xx for 5 minutes."  # message body
-      # 95th percentile response time above 1 second.
-      - alert: NginxSlow  # alert name, also the alertname label
-        expr: histogram_quantile(0.95, sum by (service, le) (rate(vector_nginx_http_request_duration_seconds_bucket[5m]))) > 1  # p95 request time in seconds
-        for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
-          summary: "{{ $labels.service }} is slow: p95 {{ $value | printf \"%.2f\" }}s"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "95% of requests take longer than 1 second (10 minutes)."  # message body
-
-
   # Traces. Span metrics come from Tempo's metrics generator (remote-written into Prometheus).
   - name: traces  # group name, shown in the Prometheus/vmalert UI
     rules:  # rules of this group
-      # More than 5% of server spans failed (status ERROR) over 5 minutes.
-      - alert: TraceErrorRateHigh  # alert name, also the alertname label
-        expr: |  # error spans / all spans, per service; "> 0" on the divisor avoids division by zero
-          sum by (service) (rate(traces_spanmetrics_calls_total{span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}[5m]))
-            / (sum by (service) (rate(traces_spanmetrics_calls_total{span_kind="SPAN_KIND_SERVER"}[5m])) > 0) > 0.05
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
-        annotations:  # text for the message, not used for routing
-          dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
-          summary: "{{ $labels.service }}: {{ $value | humanizePercentage }} of requests fail"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "More than 5% of incoming requests (server spans) ended with an error for 5 minutes."  # message body
-      # 95th percentile of server span duration above 1 second.
-      - alert: TraceLatencyHigh  # alert name, also the alertname label
-        expr: histogram_quantile(0.95, sum by (service, le) (rate(traces_spanmetrics_latency_bucket{span_kind="SPAN_KIND_SERVER"}[5m]))) > 1  # p95 in seconds
-        for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
-          summary: "{{ $labels.service }} is slow: p95 {{ $value | printf \"%.2f\" }}s"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "95% of incoming requests take longer than 1 second (10 minutes)."  # message body
       # Tempo refused spans: ingestion limit, trace too big, or not enough memory. Those traces are incomplete.
       - alert: TempoDiscardingSpans  # alert name, also the alertname label
         expr: sum by (reason) (rate(tempo_discarded_spans_total[5m])) > 0  # refused spans/s by reason (rate_limited, trace_too_large, ...)
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sre }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
           summary: "Tempo is dropping spans ({{ $labels.reason }})"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -431,7 +415,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: VectorTraceExportFailing  # alert name, also the alertname label
         expr: sum(rate(vector_component_errors_total{component_id="tempo"}[5m])) > 0  # failed trace pushes per second
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: sre }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
           summary: "Vector cannot send traces to Tempo"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -442,7 +426,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       # The disk's own self-assessment says it is failing. Back up now, replace the disk.
       - alert: DiskSmartFailed  # alert name, also the alertname label
         expr: smartctl_device_smart_status == 0  # 1 = SMART passed, 0 = failed
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: server }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview)
           summary: "SMART failed on {{ $labels.device }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -451,7 +435,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: DiskTemperatureHigh  # alert name, also the alertname label
         expr: smartctl_device_temperature{temperature_type="current"} > 55  # current disk temperature in °C
         for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: server }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview)
           summary: "Disk {{ $labels.device }} is hot: {{ $value }}°C"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -459,7 +443,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       # SSD wear: percentage of rated write endurance already used.
       - alert: SsdWearHigh  # alert name, also the alertname label
         expr: smartctl_device_percentage_used > 90  # % of rated endurance used
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: server }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview)
           summary: "SSD {{ $labels.device }} is {{ $value }}% worn"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -468,115 +452,78 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       # so look back 1h instead of using "for".
       - alert: SpeedtestFailing  # alert name, also the alertname label
         expr: max_over_time(speedtest_up[1h]) == 0  # 0 = every test in the last hour failed
-        labels: { severity: warning }  # severity warning: silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: server }  # severity warning: silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview)
           summary: "Speed test failing"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "No successful speed test for 1 hour. Check internet. Logs: docker compose logs speedtest-exporter"  # message body
-  # Per container type (container.type label): queues, workers, proxies. Demo targets carry env="demo"
-  # and are routed nowhere (alertmanager.yml), so the demo backlog does not page anyone.
+  # Proxies: upstream errors are the backend's problem, seen at the edge.
   - name: by-type  # group name, shown in the Prometheus/vmalert UI
     rules:  # rules of this group
-      # Backlog keeps growing for 15 minutes: consumers are too slow, stuck or gone.
-      - alert: QueueBacklogGrowing  # alert name, also the alertname label
-        expr: sum by (instance, queue, project, env) (deriv(rabbitmq_queue_messages_ready[15m])) > 1 and sum by (instance, queue, project, env) (rabbitmq_queue_messages_ready) > 1000  # growing by >1 msg/s and already over 1000
-        for: 15m  # condition must hold 15m before firing
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "Queue {{ $labels.queue }} keeps growing"  # message headline
-          description: "Messages waiting in {{ $labels.queue }} grow by {{ $value | printf \"%.1f\" }}/s: consumers can't keep up."  # message body
-      - alert: QueueNoConsumers  # alert name, also the alertname label
-        expr: sum by (instance, queue, project, env) (rabbitmq_queue_consumers) == 0 and sum by (instance, queue, project, env) (rabbitmq_queue_messages_ready) > 0  # messages but nobody reading
-        for: 5m  # condition must hold 5m before firing
-        labels: { severity: critical }  # loud Telegram message
-        annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "Queue {{ $labels.queue }} has no consumers"  # message headline
-          description: "Messages are waiting in {{ $labels.queue }} and no consumer is connected: the worker is down."  # message body
-      - alert: RabbitmqResourceAlarm  # alert name, also the alertname label
-        expr: max by (instance, project, env) (rabbitmq_process_resident_memory_bytes / rabbitmq_resident_memory_limit_bytes) > 0.9 or min by (instance, project, env) (rabbitmq_disk_space_available_bytes / rabbitmq_disk_space_available_limit_bytes) < 1.5  # near memory watermark or disk limit
-        for: 5m  # condition must hold 5m before firing
-        labels: { severity: critical }  # loud Telegram message
-        annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "RabbitMQ {{ $labels.instance }} near memory or disk limit"  # message headline
-          description: "At the limit RabbitMQ blocks every publisher."  # message body
-      - alert: KafkaConsumerLagGrowing  # alert name, also the alertname label
-        expr: sum by (consumergroup, topic, project) (deriv(kafka_consumergroup_lag[15m])) > 1 and sum by (consumergroup, topic, project) (kafka_consumergroup_lag) > 1000  # lag growing and large
-        for: 15m  # condition must hold 15m before firing
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "Kafka group {{ $labels.consumergroup }} falling behind on {{ $labels.topic }}"  # message headline
-          description: "Consumer lag keeps growing: the consumers are too slow."  # message body
-      # Workers: share of failed jobs (any of asynq / Celery / Sidekiq exporters).
-      - alert: WorkerJobsFailing  # alert name, also the alertname label
-        expr: |  # failed / (done + failed) per container, over 10%
-          (sum by (container, project) (rate(asynq_tasks_failed_total[10m])) or sum by (container, project) (rate(celery_task_failed_total[10m])) or sum by (container, project) (rate(sidekiq_jobs_failed_total[10m])))
-          / ((sum by (container, project) (rate(asynq_tasks_processed_total[10m])) or sum by (container, project) (rate(celery_task_succeeded_total[10m])) or sum by (container, project) (rate(sidekiq_jobs_executed_total[10m])))
-          + (sum by (container, project) (rate(asynq_tasks_failed_total[10m])) or sum by (container, project) (rate(celery_task_failed_total[10m])) or sum by (container, project) (rate(sidekiq_jobs_failed_total[10m])))) > 0.1
-        for: 10m  # condition must hold 10m before firing
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: worker  # Grafana "Worker" dashboard
-          summary: "{{ $labels.container }}: {{ $value | humanizePercentage }} of jobs fail"  # message headline
-          description: "Over 10% of background jobs failed in the last 10 minutes."  # message body
-      # Proxies: upstream errors are the backend's problem, seen at the edge.
       - alert: ProxyUpstreamErrors  # alert name, also the alertname label
         expr: sum by (instance, service, project, env) (rate(traefik_service_requests_total{code=~"502|503|504"}[5m])) / sum by (instance, service, project, env) (rate(traefik_service_requests_total[5m])) > 0.05  # over 5% bad gateway / unavailable / timeout
         for: 5m  # condition must hold 5m before firing
-        labels: { severity: critical }  # loud Telegram message
+        labels: { severity: critical, category: sites }  # loud Telegram message
         annotations:  # text for the message, not used for routing
           dashboard: container  # Grafana "Container" dashboard
           summary: "Proxy: upstream {{ $labels.service }} failing ({{ $value | humanizePercentage }} 502/503/504)"  # message headline
           description: "The backend behind {{ $labels.service }} is down, refusing connections or timing out."  # message body
-      # Cron / batch jobs pushing cron_job_* to the Pushgateway (see the "Cron" dashboard).
-      - alert: CronJobFailed  # alert name, also the alertname label
-        expr: max by (job, instance) (cron_job_exit_code) != 0  # last run exited non-zero
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+
+  # Monitoring stack health and alert quality. Goes to the SRE topic, not to the app teams.
+  - name: sre  # group name, shown in the Prometheus/vmalert UI
+    rules:  # rules of this group
+      # A monitoring component itself is down: its data (metrics, logs, traces, alerts) is missing.
+      # TargetDown skips these jobs, so each outage is reported once, here.
+      - alert: MonitoringComponentDown  # alert name, also the alertname label
+        expr: up{job=~"prometheus|victoriametrics|victorialogs|vector|vmalert|tempo|alertmanager"} == 0  # scrape of a monitoring component failed
+        for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
+        labels: { severity: critical, category: sre }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "Cron job {{ $labels.job }} failed (exit code {{ $value }})"  # message headline
-          description: "The last run of {{ $labels.job }} on {{ $labels.instance }} did not succeed."  # message body
-      - alert: CronJobNotSucceeding  # alert name, also the alertname label
-        expr: time() - max by (job, instance) (cron_job_last_success_timestamp_seconds) > 86400  # no success for a day
-        labels: { severity: critical }  # loud Telegram message
+          dashboard: sre  # Grafana "SRE" dashboard
+          summary: "Monitoring: {{ $labels.job }} is down"  # message headline
+          description: "{{ $labels.instance }} not responding for 1 minute. Its data is not collected. Logs: make logs s={{ $labels.job }}"  # message body
+      # Storage of VictoriaMetrics or VictoriaLogs runs out within a day at the current rate.
+      - alert: MonitoringStorageFillsIn24h  # alert name, also the alertname label
+        expr: predict_linear(vm_free_disk_space_bytes[6h], 86400) < 0 or predict_linear(vl_free_disk_space_bytes[6h], 86400) < 0  # free bytes in 24h, from the 6h trend
+        for: 30m  # condition must hold 30m before firing
+        labels: { severity: critical, category: sre }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "Cron job {{ $labels.job }}: no success for {{ $value | humanizeDuration }}"  # message headline
-          description: "Either it keeps failing or it stopped running (check the scheduler)."  # message body
-      # Search: a red cluster means some data cannot be read or written.
-      - alert: SearchClusterRed  # alert name, also the alertname label
-        expr: max by (cluster, project, env) (elasticsearch_cluster_health_status{color="red"}) == 1  # a primary shard is missing
-        for: 5m  # condition must hold 5m before firing
-        labels: { severity: critical }  # loud Telegram message
+          dashboard: sre  # Grafana "SRE" dashboard
+          summary: "Monitoring storage full within 24h ({{ $labels.job }})"  # message headline
+          description: "At the current rate the disk of {{ $labels.job }} runs out in a day: writes stop. Lower retention or add disk."  # message body
+      # Many new series per second for 30 minutes: a label with unbounded values (user id, URL, ...).
+      - alert: CardinalityExplosion  # alert name, also the alertname label
+        expr: sum(rate(vm_new_timeseries_created_total[10m])) > 100  # new series per second
+        for: 30m  # condition must hold 30m before firing
+        labels: { severity: warning, category: sre }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "Elasticsearch cluster {{ $labels.cluster }} is RED"  # message headline
-          description: "At least one primary shard is unassigned: searches and writes to that index fail."  # message body
-      - alert: SearchDiskWatermark  # alert name, also the alertname label
-        expr: max by (name, project, env) (1 - elasticsearch_filesystem_data_available_bytes / elasticsearch_filesystem_data_size_bytes) > 0.85  # low watermark
-        for: 10m  # condition must hold 10m before firing
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "Elasticsearch node {{ $labels.name }} disk {{ $value | humanizePercentage }} full"  # message headline
-          description: "Over 85% no new shards go to this node; at 95% its indices become read-only."  # message body
-      # NoSQL
-      - alert: MongodbDown  # alert name, also the alertname label
-        expr: max by (instance, project, env) (mongodb_up) == 0  # exporter cannot reach MongoDB
-        for: 2m  # condition must hold 2m before firing
-        labels: { severity: critical }  # loud Telegram message
-        annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "MongoDB unreachable ({{ $labels.instance }})"  # message headline
-          description: "mongodb_exporter cannot connect: MongoDB is down or the credentials changed."  # message body
-      - alert: MemcachedEvicting  # alert name, also the alertname label
-        expr: sum by (instance, project, env) (rate(memcached_items_evicted_total[10m])) > 1  # more than one eviction per second
+          dashboard: sre  # Grafana "SRE" dashboard
+          summary: "{{ $value | printf \"%.0f\" }} new series/s in VictoriaMetrics"  # message headline
+          description: "Some label has unbounded values: memory and disk grow fast. Find it: VictoriaMetrics UI > Cardinality explorer."  # message body
+      # Inserts that miss the cache are slow; over 10% means VictoriaMetrics needs more RAM or fewer series.
+      - alert: VictoriaMetricsSlowInserts  # alert name, also the alertname label
+        expr: sum(rate(vm_slow_row_inserts_total[5m])) / sum(rate(vm_rows_added_to_storage_total[5m])) > 0.1  # share of slow inserts
         for: 15m  # condition must hold 15m before firing
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: sre }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
-          dashboard: container  # Grafana "Container" dashboard
-          summary: "Memcached evicting {{ $value | printf \"%.1f\" }} items/s"  # message headline
-          description: "The cache is too small for its data: hit ratio drops, the database gets the load."  # message body
+          dashboard: sre  # Grafana "SRE" dashboard
+          summary: "VictoriaMetrics: {{ $value | humanizePercentage }} slow inserts"  # message headline
+          description: "Too many active series for the available RAM: ingestion lags and queries slow down."  # message body
+      # One alert keeps firing and resolving: its threshold or "for" is wrong, people start ignoring it.
+      # ALERTS_FOR_STATE (written by vmalert) holds the activation time; it changes on every new firing.
+      - alert: AlertFlapping  # alert name, also the alertname label
+        expr: sum by (alertname) (changes(ALERTS_FOR_STATE[1h])) > 4  # new activations in 1h
+        labels: { severity: warning, category: sre }  # silent Telegram message, repeated every 4h
+        annotations:  # text for the message, not used for routing
+          dashboard: alerts  # Grafana "Alerts" dashboard
+          summary: "Alert {{ $labels.alertname }} is flapping"  # message headline
+          description: "Fired {{ $value | printf \"%.0f\" }} times in 1 hour. Raise its threshold or its \"for\"."  # message body
+      # Many alerts at once usually share one cause (network, host, database): look for it first.
+      - alert: AlertStorm  # alert name, also the alertname label
+        expr: count(ALERTS{alertstate="firing", severity=~"critical|warning"}) > 20  # firing alerts right now
+        for: 5m  # condition must hold 5m before firing
+        labels: { severity: critical, category: sre }  # loud Telegram message, repeated every 1h
+        annotations:  # text for the message, not used for routing
+          dashboard: alerts  # Grafana "Alerts" dashboard
+          summary: "Alert storm: {{ $value }} alerts firing"  # message headline
+          description: "More than 20 alerts at once usually have one common cause. Start from the oldest one."  # message body

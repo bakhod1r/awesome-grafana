@@ -270,7 +270,7 @@ transforms:
         tags: { service: "{{ service }}", status_class: "{{ status_class }}", method: "{{ method }}" }
 
   # Sampling: keep 1 of every `rate` info/debug lines to save disk (1 = keep all, 10 = keep 10%).
-  # warn/error/fatal/panic are never sampled, so log alerts (LogPanic, LogOOM, LogErrorSpike) stay exact.
+  # warn/error/fatal/panic are never sampled, so log alerts (LogPanic, LogOOM, LogAuthFailures) stay exact.
   sampling:
     type: sample
     inputs: [parse, nginx_parse]

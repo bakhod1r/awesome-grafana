@@ -1,0 +1,11 @@
+# vmauth: one query address for vmalert, routed by path. vmalert takes a single -datasource.url,
+# but its rules query two databases:
+#   LogsQL rules  (vmalert/rules, group type: vlogs)  → /select/logsql/... → VictoriaLogs
+#   PromQL rules  (prometheus/rules)                   → everything else    → VictoriaMetrics
+# Internal only (no published port), no auth.
+unauthorized_user:
+  url_map:
+    - src_paths: ["/select/logsql/.*"]
+      url_prefix: http://victorialogs:9428
+    - src_paths: [".*"]  # not default_url: that one drops the request path
+      url_prefix: http://victoriametrics:8428

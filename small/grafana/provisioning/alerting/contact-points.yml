@@ -13,7 +13,7 @@ contactPoints:  # notification targets for Grafana-managed alerts
           # Not the usual env placeholder: Grafana would turn a numeric id into a number and reject it.
           chatid: "__TELEGRAM_CHAT_ID__"  # filled in by grafana/scripts/entrypoint.sh
           message_thread_id: "__TELEGRAM_TOPIC_ID__"  # forum topic, same trick; empty = general chat
-          parse_mode: HTML  # allow <b> tags
+          parse_mode: HTML  # allow <b> and <i> tags
           disable_notification: false             # these are always critical: play sound
           message: '{{ template "deadman.message" . }}'  # body built from the template below
         disableResolveMessage: false              # also send ✅ when it recovers
@@ -29,9 +29,11 @@ templates:  # notification templates
       {{ define "deadman.message" }}
       {{- range $i, $a := .Alerts }}{{ if lt $i 5 }}{{ with $a }}
       {{- if eq .Status "firing" }}🚨{{ else }}✅{{ end }} <b>{{ .Labels.alertname | html }}</b> [{{ .Labels.severity | html }}] (Grafana)
-      {{ template "deadman.cut" .Annotations.summary }}
-      {{ template "deadman.cut" .Annotations.description }}
-      🕒 Started: {{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}
+      {{- with .Annotations.summary }}
+      <b>{{ template "deadman.cut" . }}</b>{{ end }}
+      {{- with .Annotations.description }}
+      <i>{{ template "deadman.cut" . }}</i>{{ end }}
+      🕒 <b>Started:</b> <i>{{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}</i>
       {{ end }}{{ end }}{{ end }}
-      {{- if gt (len .Alerts) 5 }}… showing 5 of {{ len .Alerts }} alerts{{ end }}
+      {{- if gt (len .Alerts) 5 }}<i>… showing 5 of {{ len .Alerts }} alerts</i>{{ end }}
       {{- end }}

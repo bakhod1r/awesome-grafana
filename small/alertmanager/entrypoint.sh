@@ -14,10 +14,24 @@ fi
 : "${GRAFANA_URL:=http://localhost:33000}"
 export TELEGRAM_TOPIC_ID TELEGRAM_WARNING_TOPIC_ID TELEGRAM_WARNING_CHAT_ID GRAFANA_URL
 
+# Per-category destinations (receivers <category>-critical / -warning in alertmanager.yml).
+# TELEGRAM_TOPIC_<CATEGORY> set (topic ids from the topic links): both severities go to that topic of TELEGRAM_CHAT_ID.
+# Not set: critical goes where telegram-critical goes, warning where telegram-warning goes.
+vars="TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_TOPIC_ID TELEGRAM_WARNING_CHAT_ID TELEGRAM_WARNING_TOPIC_ID GRAFANA_URL"
+for cat in SERVER CONTAINERS SITES DATABASE LOGS SRE DEPLOYS; do
+  eval "topic=\${TELEGRAM_TOPIC_$cat:-}"
+  if [ -n "$topic" ]; then
+    eval "TG_${cat}_CRIT_CHAT=\$TELEGRAM_CHAT_ID TG_${cat}_CRIT_TOPIC=\$topic TG_${cat}_WARN_CHAT=\$TELEGRAM_CHAT_ID TG_${cat}_WARN_TOPIC=\$topic"
+  else
+    eval "TG_${cat}_CRIT_CHAT=\$TELEGRAM_CHAT_ID TG_${cat}_CRIT_TOPIC=\$TELEGRAM_TOPIC_ID TG_${cat}_WARN_CHAT=\$TELEGRAM_WARNING_CHAT_ID TG_${cat}_WARN_TOPIC=\$TELEGRAM_WARNING_TOPIC_ID"
+  fi
+  vars="$vars TG_${cat}_CRIT_CHAT TG_${cat}_CRIT_TOPIC TG_${cat}_WARN_CHAT TG_${cat}_WARN_TOPIC"
+done
+
 # render SRC DST: copy SRC to DST, replacing each ${VAR} from the list with its value.
 render() {
   out=$(cat "$1")
-  for var in TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_TOPIC_ID TELEGRAM_WARNING_CHAT_ID TELEGRAM_WARNING_TOPIC_ID GRAFANA_URL; do
+  for var in $vars; do
     eval "val=\$$var"                                   # value of the variable named in $var
     # Escape characters that are special in the sed replacement (| & \\), e.g. & in URLs.
     val=$(printf '%s' "$val" | sed 's/[|&\\]/\\&/g')

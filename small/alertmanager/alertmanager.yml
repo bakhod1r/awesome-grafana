@@ -43,7 +43,40 @@ route:  # root of the routing tree
     - matchers: [env="demo"]  # alerts from demo targets
       receiver: blackhole  # drop them
 
-    # Critical: loud Telegram message, reminder every hour while unresolved.
+    # Deploy notice (ContainerUpdated, category=deploys): one silent message, no reminder, no "resolved" follow-up.
+    - matchers: [category="deploys"]  # a container started a new image
+      receiver: deploys  # Deploys topic, silent, firing only
+      repeat_interval: 24h  # it resolves after 10 minutes anyway
+
+    # One Telegram topic per category (category label on every rule, TELEGRAM_TOPIC_<CATEGORY> in .env).
+    # Inside a topic, severity decides the sound: critical loud + hourly reminder, warning silent + every 4h.
+    # A category without its topic id falls back to the critical / warning chat (see entrypoint.sh).
+    - matchers: [category="server"]  # alerts of the server category
+      routes:  # split by severity
+        - { matchers: [severity="critical"], receiver: server-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [severity="warning"], receiver: server-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+    - matchers: [category="containers"]  # alerts of the containers category
+      routes:  # split by severity
+        - { matchers: [severity="critical"], receiver: containers-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [severity="warning"], receiver: containers-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+    - matchers: [category="sites"]  # alerts of the sites category
+      routes:  # split by severity
+        - { matchers: [severity="critical"], receiver: sites-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [severity="warning"], receiver: sites-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+    - matchers: [category="database"]  # alerts of the database category
+      routes:  # split by severity
+        - { matchers: [severity="critical"], receiver: database-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [severity="warning"], receiver: database-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+    - matchers: [category="logs"]  # alerts of the logs category
+      routes:  # split by severity
+        - { matchers: [severity="critical"], receiver: logs-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [severity="warning"], receiver: logs-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+    - matchers: [category="sre"]  # alerts of the sre category
+      routes:  # split by severity
+        - { matchers: [severity="critical"], receiver: sre-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [severity="warning"], receiver: sre-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+
+    # Alerts without a category label (custom rules, make test-alert): the general critical / warning chat.
     - matchers: [severity="critical"]  # alerts labelled severity=critical
       receiver: telegram-critical  # send via the telegram-critical receiver
       repeat_interval: 1h  # critical: remind every hour
@@ -89,6 +122,138 @@ receivers:  # notification targets
         disable_notifications: true           # delivered silently: visible, but no sound
         message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
 
+  # Per-category receivers. ${TG_<CATEGORY>_<CRIT|WARN>_CHAT/_TOPIC} are set by entrypoint.sh:
+  # the category topic when TELEGRAM_TOPIC_<CATEGORY> is set, otherwise the general chat/topic above.
+  - name: server-critical  # server topic, critical: loud
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_SERVER_CRIT_CHAT}  # group of the topic
+        message_thread_id: ${TG_SERVER_CRIT_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: false  # play sound
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: server-warning  # server topic, warning: silent
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_SERVER_WARN_CHAT}  # group of the topic
+        message_thread_id: ${TG_SERVER_WARN_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: true  # delivered silently
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: containers-critical  # containers topic, critical: loud
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_CONTAINERS_CRIT_CHAT}  # group of the topic
+        message_thread_id: ${TG_CONTAINERS_CRIT_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: false  # play sound
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: containers-warning  # containers topic, warning: silent
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_CONTAINERS_WARN_CHAT}  # group of the topic
+        message_thread_id: ${TG_CONTAINERS_WARN_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: true  # delivered silently
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: sites-critical  # sites topic, critical: loud
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_SITES_CRIT_CHAT}  # group of the topic
+        message_thread_id: ${TG_SITES_CRIT_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: false  # play sound
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: sites-warning  # sites topic, warning: silent
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_SITES_WARN_CHAT}  # group of the topic
+        message_thread_id: ${TG_SITES_WARN_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: true  # delivered silently
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: database-critical  # database topic, critical: loud
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_DATABASE_CRIT_CHAT}  # group of the topic
+        message_thread_id: ${TG_DATABASE_CRIT_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: false  # play sound
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: database-warning  # database topic, warning: silent
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_DATABASE_WARN_CHAT}  # group of the topic
+        message_thread_id: ${TG_DATABASE_WARN_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: true  # delivered silently
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: logs-critical  # logs topic, critical: loud
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_LOGS_CRIT_CHAT}  # group of the topic
+        message_thread_id: ${TG_LOGS_CRIT_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: false  # play sound
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: logs-warning  # logs topic, warning: silent
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_LOGS_WARN_CHAT}  # group of the topic
+        message_thread_id: ${TG_LOGS_WARN_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: true  # delivered silently
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: sre-critical  # sre topic, critical: loud
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_SRE_CRIT_CHAT}  # group of the topic
+        message_thread_id: ${TG_SRE_CRIT_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: false  # play sound
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: sre-warning  # sre topic, warning: silent
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_SRE_WARN_CHAT}  # group of the topic
+        message_thread_id: ${TG_SRE_WARN_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: true  # also send ✅ when resolved
+        disable_notifications: true  # delivered silently
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
+  - name: deploys  # Deploys topic: silent, no ✅ follow-up
+    telegram_configs:  # Telegram integration(s) of this receiver
+      - bot_token: ${TELEGRAM_BOT_TOKEN}  # bot token from .env
+        chat_id: ${TG_DEPLOYS_WARN_CHAT}  # group of the topic
+        message_thread_id: ${TG_DEPLOYS_WARN_TOPIC}  # forum topic; empty = general chat
+        parse_mode: HTML  # allow <b>, <i> and <a> tags
+        send_resolved: false  # nothing to resolve
+        disable_notifications: true  # delivered silently
+        message: '{{ template "telegram.message" . }}'  # body built from templates/telegram.tmpl
+
   # Receiver with no integrations: alerts routed here are accepted and dropped.
   - name: blackhole  # receiver with no integrations: accepts and drops
 
@@ -98,6 +263,7 @@ receivers:  # notification targets
 inhibit_rules:  # mute some alerts while others fire
   - source_matchers: [severity="critical"]  # if an alert like this is firing...
     target_matchers: [severity="warning"]  # ...mute alerts like this...
-    # Only inhibit when these labels match, i.e. the same host AND the same container.
-    # Without "name", one critical cadvisor alert would mute warnings for every container.
-    equal: [instance, name]  # ...when these labels are equal
+    # Only inhibit when these labels match, i.e. the same category, host AND container.
+    # Without "name", one critical cadvisor alert would mute warnings for every container;
+    # without "category", a server alert would mute a database warning on the same host.
+    equal: [category, instance, name]  # ...when these labels are equal

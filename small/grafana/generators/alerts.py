@@ -109,30 +109,30 @@ d.add(ts("Silences", [tgt('max by (state) (alertmanager_silences)', "{{state}}")
 d.add(ts("Suppressed notifications", [tgt('sum by (reason) (rate(alertmanager_notifications_suppressed_total[5m])) * 60', "{{reason}}")], draw="bars", fill=70,
          desc="Notifications not sent because of a silence, inhibition or the maintenance window (time_intervals)."),12, 10)
 
-d.row("vmalert-metrics — metric rules (prometheus/rules, PromQL) evaluation and sending", collapsed=True)
-pr = ts("Rule group evaluation time vs interval", [tgt('max by (group) (vmalert_iteration_duration_seconds{instance=~".*vmalert-metrics.*", quantile="0.99"}) / max by (group) (vmalert_iteration_interval_seconds{instance=~".*vmalert-metrics.*"})', "{{group}}")],
+d.row("vmalert — rule evaluation and sending (prometheus/rules + vmalert/rules)", collapsed=True)
+pr = ts("Rule group evaluation time vs interval", [tgt('max by (group) (vmalert_iteration_duration_seconds{quantile="0.99"}) / max by (group) (vmalert_iteration_interval_seconds)', "{{group}}")],
         unit="percentunit", th=steps((0.5, "yellow"), (0.9, "red")), fill=0,
         desc="How much of its interval each group needs (p99). Near 100% = the group cannot keep up and starts missing evaluations.")
 pr["id"] = P_PROM
 d.add(pr, 12, 8)
-d.add(ts("Evaluation failures & missed iterations", [tgt('sum by (group) (increase(vmalert_execution_errors_total{instance=~".*vmalert-metrics.*"}[5m]))', "{{group}} failures"),
-                                                    tgt('sum by (group) (increase(vmalert_iteration_missed_total{instance=~".*vmalert-metrics.*"}[5m]))', "{{group}} missed")],
+d.add(ts("Evaluation failures & missed iterations", [tgt('sum by (group) (increase(vmalert_execution_errors_total[5m]))', "{{group}} failures"),
+                                                    tgt('sum by (group) (increase(vmalert_iteration_missed_total[5m]))', "{{group}} missed")],
          draw="bars", fill=70, desc="Should be 0. Failures = broken query; missed = group too slow."), 12, 8)
 d.add(table("Rule groups", [
-    tgt('count by (group) (vmalert_alerting_rules_last_evaluation_samples{instance=~".*vmalert-metrics.*"}) or count by (group) (vmalert_recording_rules_last_evaluation_samples{instance=~".*vmalert-metrics.*"})', instant=True, fmt="table"),
-    tgt('max by (group) (vmalert_iteration_interval_seconds{instance=~".*vmalert-metrics.*"})', instant=True, fmt="table"),
-    tgt('max by (group) (vmalert_iteration_duration_seconds{instance=~".*vmalert-metrics.*", quantile="0.99"})', instant=True, fmt="table"),
-    tgt('sum by (group) (vmalert_alerting_rules_last_evaluation_samples{instance=~".*vmalert-metrics.*"}) or sum by (group) (vmalert_recording_rules_last_evaluation_samples{instance=~".*vmalert-metrics.*"})', instant=True, fmt="table"),
-], desc="Every rule group loaded by vmalert-metrics (prometheus/rules/*.yml).", sort=("Duration p99", True),
+    tgt('count by (group) (vmalert_alerting_rules_last_evaluation_samples) or count by (group) (vmalert_recording_rules_last_evaluation_samples)', instant=True, fmt="table"),
+    tgt('max by (group) (vmalert_iteration_interval_seconds)', instant=True, fmt="table"),
+    tgt('max by (group) (vmalert_iteration_duration_seconds{quantile="0.99"})', instant=True, fmt="table"),
+    tgt('sum by (group) (vmalert_alerting_rules_last_evaluation_samples) or sum by (group) (vmalert_recording_rules_last_evaluation_samples)', instant=True, fmt="table"),
+], desc="Every rule group loaded by vmalert: PromQL groups from prometheus/rules, LogsQL groups from vmalert/rules.", sort=("Duration p99", True),
     rename={"Value #A": "Rules", "Value #B": "Interval", "Value #C": "Duration p99", "Value #D": "Samples"},
     overrides=[col("group", width=380), col("Interval", unit="s"), col("Duration p99", unit="s", cell=TXT, th=steps((1, "yellow"), (10, "red")), decimals=3)]), 24, 8)
-d.add(ts("vmalert-metrics → Alertmanager", [tgt('sum(rate(vmalert_alerts_sent_total{instance=~".*vmalert-metrics.*"}[5m])) * 60', "sent/min"),
-                                           tgt('sum(rate(vmalert_alerts_send_errors_total{instance=~".*vmalert-metrics.*"}[5m])) * 60', "errors/min")], fill=0,
+d.add(ts("vmalert → Alertmanager", [tgt('sum(rate(vmalert_alerts_sent_total[5m])) * 60', "sent/min"),
+                                           tgt('sum(rate(vmalert_alerts_send_errors_total[5m])) * 60', "errors/min")], fill=0,
          desc="Alert notifications handed to Alertmanager. Errors > 0 = Alertmanager unreachable."), 12, 8)
-d.add(ts("Remote write (recording rules + alert state → VictoriaMetrics)", [tgt('sum(rate(vmalert_remotewrite_sent_rows_total{instance=~".*vmalert-metrics.*"}[5m]))', "rows/s"),
-      tgt('sum(rate(vmalert_remotewrite_errors_total{instance=~".*vmalert-metrics.*"}[5m])) + sum(rate(vmalert_remotewrite_dropped_rows_total{instance=~".*vmalert-metrics.*"}[5m]))', "errors+dropped/s")], fill=0), 12, 8)
+d.add(ts("Remote write (recording rules + alert state → VictoriaMetrics)", [tgt('sum(rate(vmalert_remotewrite_sent_rows_total[5m]))', "rows/s"),
+      tgt('sum(rate(vmalert_remotewrite_errors_total[5m])) + sum(rate(vmalert_remotewrite_dropped_rows_total[5m]))', "errors+dropped/s")], fill=0), 12, 8)
 
-d.row("vmalert — log rules (vmalert/rules, LogsQL)", collapsed=True)
+d.row("vmalert — alerts and remote write", collapsed=True)
 vm = ts("Log alerts firing / pending", [tgt('sum(vmalert_alerts_firing)', "firing"), tgt('sum(vmalert_alerts_pending)', "pending")], fill=0,
         desc="Alerts from vmalert's LogsQL rules (vmalert/rules/*.yml).")
 vm["id"] = P_VMA

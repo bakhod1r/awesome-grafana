@@ -15,6 +15,7 @@
 groups:  # list of rule groups; rules in a group are evaluated together, in order
   # Urgent single-line events: checked every minute, fire on the first match.
   - name: log-events  # group name, shown in the Prometheus/vmalert UI
+    type: vlogs  # LogsQL against VictoriaLogs (vmalert also runs PromQL groups from prometheus/rules)
     interval: 1m                    # evaluate every minute over the last minute of logs
     rules:  # rules of this group
       # Whole-word, case-insensitive match. Excludes vmalert/vector, whose own logs may quote rule queries.
@@ -24,7 +25,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         # -service:(...)   exclude these services
         # | stats by (service, container) count() as hits   → one alert per container, value = hits
         expr: '(i(panic) OR i(fatal) OR i(traceback) OR level:(panic OR fatal)) -service:(vmalert OR vector) | stats by (service, container) count() as hits'  # see the filter notes above
-        labels: { severity: critical }   # critical route: Telegram with sound, repeat every 1h
+        labels: { severity: critical, category: logs }   # critical route: Telegram with sound, repeat every 1h
         annotations:  # text for the message, not used for routing
           dashboard: logs              # Grafana dashboard uid for the message link
           summary: "Panic/fatal in logs: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -33,7 +34,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: LogOOM  # alert name, also the alertname label
         # i("a b") matches the exact phrase, case-insensitive.
         expr: '(i("out of memory") OR i(oomkilled) OR i("cannot allocate memory")) -service:(vmalert OR vector) | stats by (service, container) count() as hits'  # see the filter notes above
-        labels: { severity: critical }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { severity: critical, category: logs }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "Out of memory in logs: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -41,18 +42,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
 
   # Rates: need a wider window to tell a real problem from one stray error.
   - name: log-rates  # group name, shown in the Prometheus/vmalert UI
+    type: vlogs  # LogsQL against VictoriaLogs (vmalert also runs PromQL groups from prometheus/rules)
     interval: 5m                    # evaluate every 5 minutes over the last 5 minutes of logs
     rules:  # rules of this group
-      # More than 10 error lines from one container in 5 minutes. Tune per your apps' noise level.
-      - alert: LogErrorSpike  # alert name, also the alertname label
-        # | filter errors:>10   keep only containers above the threshold; the rest return nothing.
-        expr: 'level:error | stats by (service, container) count() as errors | filter errors:>10'  # see the filter notes above
-        labels: { severity: warning }    # warning route: silent Telegram message, repeat every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
-          summary: "Error spike: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value }} error lines in {{ $labels.service }} in the last 5 minutes."  # message body
-
       # Many failed logins / denied requests from one container: brute force or a broken client.
       # Matches nginx 401/403 access lines (status_class 4xx + code), "Failed password" (sshd),
       # and common auth error phrases. Our own Telegram delivery errors ("telegram: Unauthorized")
@@ -61,7 +53,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         # ~"regex"   regular expression match on the message
         # -i(x)      exclude lines containing word x
         expr: '(~"\" (401|403) " OR i("failed password") OR i("authentication failed") OR i("invalid credentials") OR i("invalid username or password")) -i(telegram) -service:(vmalert OR vector) | stats by (service, container) count() as failures | filter failures:>20'
-        labels: { severity: warning }    # warning route: silent Telegram message, repeat every 4h
+        labels: { severity: warning, category: logs }    # warning route: silent Telegram message, repeat every 4h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "Auth failures: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result

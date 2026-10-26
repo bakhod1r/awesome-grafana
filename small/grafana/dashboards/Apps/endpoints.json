@@ -862,7 +862,7 @@
           "sort": "desc"
         }
       },
-      "description": "Red line = AppEndpointSlow threshold (p95 > 5s for 5m)."
+      "description": "Red line = 5s: an endpoint this slow needs attention (alerts come from the latency SLO burn rate)."
     },
     {
       "type": "timeseries",
@@ -1030,7 +1030,7 @@
           "sort": "desc"
         }
       },
-      "description": "Red line = AppEndpointErrors threshold (5xx > 5% for 5m)."
+      "description": "Red line = 5%: an endpoint failing this often needs attention (alerts come from the error-budget burn rate)."
     },
     {
       "type": "heatmap",

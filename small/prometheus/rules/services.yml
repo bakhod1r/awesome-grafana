@@ -11,7 +11,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresDown  # alert name, also the alertname label
         expr: pg_up == 0  # 1 = exporter reached the database
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
+        labels: { severity: critical, category: database }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL unreachable: {{ $labels.instance }}"  # message headline
@@ -20,7 +20,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresTooManyConnections  # alert name, also the alertname label
         expr: sum by (instance) (pg_stat_activity_count) / on (instance) max by (instance) (pg_settings_max_connections) * 100 > 80  # used % of max_connections
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL connections at {{ $value | printf \"%.0f\" }}%"  # message headline
@@ -29,7 +29,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresLongTransaction  # alert name, also the alertname label
         expr: max by (instance, datname) (pg_stat_activity_max_tx_duration{state!="idle"}) > 300  # oldest open transaction, seconds
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "Long PostgreSQL transaction in {{ $labels.datname }}"  # message headline
@@ -38,7 +38,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresReplicationLag  # alert name, also the alertname label
         expr: pg_replication_lag_seconds > 30  # seconds since last replayed transaction
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL replica lagging: {{ $labels.instance }}"  # message headline
@@ -46,7 +46,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       # Deadlocks mean two transactions waited on each other; PostgreSQL killed one of them.
       - alert: PostgresDeadlocks  # alert name, also the alertname label
         expr: increase(pg_stat_database_deadlocks[10m]) > 0  # deadlocks in 10m
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL deadlocks in {{ $labels.datname }}"  # message headline
@@ -58,7 +58,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
             / (sum by (instance, datname) (rate(pg_stat_database_blks_hit[10m])) + sum by (instance, datname) (rate(pg_stat_database_blks_read[10m]))) < 0.9
           and sum by (instance, datname) (rate(pg_stat_database_blks_hit[10m]) + rate(pg_stat_database_blks_read[10m])) > 100
         for: 15m  # condition must hold 15m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL cache hit {{ $value | humanizePercentage }} in {{ $labels.datname }}"  # message headline
@@ -67,7 +67,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresIdleInTransaction  # alert name, also the alertname label
         expr: max by (instance, application, datname) (pg_app_activity_max_idle_tx_seconds) > 300  # seconds idle inside a transaction
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "{{ $labels.application }} idle in transaction in {{ $labels.datname }}"  # message headline
@@ -76,7 +76,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresBlockedSessions  # alert name, also the alertname label
         expr: max by (instance, application, datname) (pg_app_blocked_max_wait_seconds) > 60  # seconds waiting on a lock
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "{{ $labels.application }} blocked on locks in {{ $labels.datname }}"  # message headline
@@ -85,7 +85,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresSlowStatements  # alert name, also the alertname label
         expr: histogram_quantile(0.95, sum by (le, pg_app, pg_db) (rate(vector_postgres_statement_duration_seconds_bucket{pg_app!~"\\[unknown\\]|psql"}[5m]))) * 1000 > 500  # p95 in ms
         for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL p95 {{ $value | printf \"%.0f\" }} ms for {{ $labels.pg_app }}"  # message headline
@@ -94,7 +94,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresXidWraparound  # alert name, also the alertname label
         expr: max by (instance, datname) (pg_database_wraparound_age_datfrozenxid_seconds) > 1000000000  # transaction ids since the last freeze (the metric name says seconds, the value is a count)
         for: 30m  # condition must hold 30m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
+        labels: { severity: critical, category: database }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL XID age {{ $value | humanize }} in {{ $labels.datname }}"  # message headline
@@ -103,7 +103,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresTableBloat  # alert name, also the alertname label
         expr: pg_table_dead_tuples / (pg_table_live_tuples + pg_table_dead_tuples) > 0.2 and pg_table_dead_tuples > 10000  # dead row share, ignoring tiny tables
         for: 30m  # condition must hold 30m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "Dead rows {{ $value | humanizePercentage }} in {{ $labels.datname }}.{{ $labels.relname }}"  # message headline
@@ -112,146 +112,25 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresTempFiles  # alert name, also the alertname label
         expr: sum by (instance, datname) (rate(pg_stat_database_temp_bytes[10m])) > 10 * 1024 * 1024  # bytes/s written to temp files
         for: 15m  # condition must hold 15m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL temp files {{ $value | humanize1024 }}B/s in {{ $labels.datname }}"  # message headline
           description: "Queries spill sorts/hashes to disk. Raise work_mem for them or add indexes."  # message body
-      # The server restarted (crash, OOM kill or deploy).
-      - alert: PostgresRestarted  # alert name, also the alertname label
-        expr: changes(pg_postmaster_start_time_seconds[10m]) > 0  # start time changed
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
-          summary: "PostgreSQL restarted: {{ $labels.instance }}"  # message headline
-          description: "The postmaster start time changed in the last 10 minutes. Check the PostgreSQL logs on the dashboard."  # message body
-
-  # MySQL / MariaDB (mysqld-exporter).
-  - name: mysql  # group name, shown in the Prometheus UI
-    rules:  # rules of this group
-      - alert: MysqlDown  # alert name, also the alertname label
-        expr: mysql_up == 0  # 1 = exporter reached the database
-        for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "MySQL unreachable: {{ $labels.instance }}"  # message headline
-          description: "mysqld-exporter cannot connect to the database."  # message body
-      - alert: MysqlTooManyConnections  # alert name, also the alertname label
-        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections * 100 > 80  # used % of max_connections
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "MySQL connections at {{ $value | printf \"%.0f\" }}%"  # message headline
-          description: "{{ $labels.instance }} is close to max_connections."  # message body
-      # Queries slower than long_query_time (MySQL setting, default 10s).
-      - alert: MysqlSlowQueries  # alert name, also the alertname label
-        expr: increase(mysql_global_status_slow_queries[5m]) > 5  # slow queries in 5m
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "MySQL slow queries: {{ $labels.instance }}"  # message headline
-          description: "{{ $value | printf \"%.0f\" }} slow queries in 5 minutes. See the slow query log."  # message body
-      - alert: MysqlReplicationLag  # alert name, also the alertname label
-        expr: mysql_slave_status_seconds_behind_master > 30  # seconds behind the source
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "MySQL replica lagging: {{ $labels.instance }}"  # message headline
-          description: "Replica is {{ $value | humanizeDuration }} behind the source."  # message body
-
-  # Redis (redis_exporter).
-  - name: redis  # group name, shown in the Prometheus UI
-    rules:  # rules of this group
-      - alert: RedisDown  # alert name, also the alertname label
-        expr: redis_up == 0  # 1 = exporter reached Redis
-        for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "Redis unreachable: {{ $labels.instance }}"  # message headline
-          description: "redis_exporter cannot connect to Redis."  # message body
-      # Only when maxmemory is set; without it Redis grows until the host runs out.
-      - alert: RedisMemoryHigh  # alert name, also the alertname label
-        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90 and redis_memory_max_bytes > 0  # used % of maxmemory
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "Redis memory at {{ $value | printf \"%.0f\" }}%"  # message headline
-          description: "{{ $labels.instance }} is close to maxmemory; evictions or OOM errors follow."  # message body
-      # Keys removed to make room. Fine for a pure cache, data loss for anything else.
-      - alert: RedisEvictions  # alert name, also the alertname label
-        expr: increase(redis_evicted_keys_total[5m]) > 0  # evicted keys in 5m
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "Redis evicting keys: {{ $labels.instance }}"  # message headline
-          description: "{{ $value | printf \"%.0f\" }} keys evicted in 5 minutes (maxmemory reached)."  # message body
-
-  # nginx (stub_status) and Traefik (built-in metrics).
+  # nginx (stub_status). Upstream 502/503/504 at the edge: ProxyUpstreamErrors in alerts.yml.
   - name: proxies  # group name, shown in the Prometheus UI
     rules:  # rules of this group
       - alert: NginxDown  # alert name, also the alertname label
         expr: nginx_up == 0  # 1 = exporter read stub_status
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
+        labels: { severity: critical, category: sites }  # loud Telegram message, repeated every 1h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "nginx unreachable: {{ $labels.instance }}"  # message headline
           description: "nginx-exporter cannot read the stub_status page."  # message body
-      # More than 5% of requests to a Traefik service end in 5xx.
-      - alert: TraefikHigh5xx  # alert name, also the alertname label
-        expr: |  # 5xx share per service, only when it gets real traffic (>0.1 req/s)
-          sum by (service) (rate(traefik_service_requests_total{code=~"5.."}[5m]))
-            / sum by (service) (rate(traefik_service_requests_total[5m])) * 100 > 5
-          and sum by (service) (rate(traefik_service_requests_total[5m])) > 0.1
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "5xx errors at {{ $value | printf \"%.1f\" }}%: {{ $labels.service }}"  # message headline
-          description: "More than 5% of requests to {{ $labels.service }} fail with 5xx."  # message body
-      # 95th percentile latency per Traefik service above 1s.
-      - alert: TraefikSlow  # alert name, also the alertname label
-        expr: histogram_quantile(0.95, sum by (service, le) (rate(traefik_service_request_duration_seconds_bucket[5m]))) > 1  # p95 seconds
-        for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "Slow responses: {{ $labels.service }}"  # message headline
-          description: "p95 latency is {{ $value | printf \"%.2f\" }}s (over 1s)."  # message body
 
-  # Batch jobs (pushgateway). Convention: at the end of a successful run the job pushes
-  #   batch_last_success_timestamp_seconds <unix time>
-  # and, optionally, batch_max_age_seconds <how often it should succeed> to override the 26h default.
-  # Example: echo "batch_last_success_timestamp_seconds $(date +%s)" | curl --data-binary @- http://localhost:39091/metrics/job/backup
-  - name: batch  # group name, shown in the Prometheus UI
-    rules:  # rules of this group
-      # No successful run for longer than expected: the cron did not run, or kept failing.
-      - alert: BatchJobStale  # alert name, also the alertname label
-        expr: |  # seconds since last success, above the job's own limit (or 26h for daily jobs)
-          (time() - batch_last_success_timestamp_seconds)
-            > on (job, instance) group_left() (batch_max_age_seconds or batch_last_success_timestamp_seconds * 0 + 93600)
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "Batch job has not succeeded: {{ $labels.job }}"  # message headline
-          description: "Last success was {{ $value | humanizeDuration }} ago."  # message body
-      # Pushgateway down: no batch job can report, so BatchJobStale would fire for all of them later.
-      - alert: PushgatewayDown  # alert name, also the alertname label
-        expr: up{job="pushgateway"} == 0  # pushgateway scrape failed
-        for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "Pushgateway is down"  # message headline
-          description: "Batch jobs cannot report their results."  # message body
-
-  # Log-derived metrics (Vector log_to_metric). Complements vmalert's LogErrorSpike (absolute count):
-  # this one is relative, so it also catches quiet services where most lines are suddenly errors.
+  # Log-derived metrics (Vector log_to_metric). Relative error share, so it also catches quiet
+  # services where most lines are suddenly errors (vmalert's LogPanic/LogOOM catch single events).
   - name: log-metrics  # group name, shown in the Prometheus UI
     rules:  # rules of this group
       - alert: LogErrorRatioHigh  # alert name, also the alertname label
@@ -259,55 +138,8 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           service:log_error_ratio:rate5m * 100 > 20
           and on (service) sum by (service) (service_level:log_lines:rate5m) > 0.1
         for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
+        labels: { severity: warning, category: logs }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs)
           summary: "{{ $value | printf \"%.0f\" }}% of {{ $labels.service }} logs are errors"  # message headline
           description: "Error/fatal/panic lines make up over 20% of {{ $labels.service }}'s output for 10 minutes."  # message body
-
-  # MongoDB (percona mongodb_exporter, --compatible-mode names).
-  - name: mongodb  # group name, shown in the Prometheus UI
-    rules:  # rules of this group
-      # Exporter is up but cannot reach MongoDB (wrong URI, auth, server down).
-      - alert: MongoDown  # alert name, also the alertname label
-        expr: mongodb_up == 0  # 1 = exporter reached MongoDB
-        for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical }  # loud Telegram message, repeated every 1h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "MongoDB unreachable: {{ $labels.instance }}"  # message headline
-          description: "mongodb_exporter cannot connect to MongoDB."  # message body
-      # New connections are refused when "available" reaches 0.
-      - alert: MongoTooManyConnections  # alert name, also the alertname label
-        expr: sum by (instance) (mongodb_connections{state="current"}) / sum by (instance) (mongodb_connections{state=~"current|available"}) * 100 > 80  # used % of the connection limit
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: overview  # Grafana "Services" dashboard (uid services)
-          summary: "MongoDB connections {{ $value | printf \"%.0f\" }}% used on {{ $labels.instance }}"  # message headline
-          description: "Close to the connection limit. Check app connection pools for leaks."  # message body
-  # Your own apps (job "apps": discoverer + exporters/apps.yml). Per endpoint ("route" or "path"
-  # label): one slow endpoint is hidden in a service-wide p95 when the others are fast.
-  - name: app-endpoints  # group name, shown in the Prometheus UI
-    rules:  # rules of this group
-      - alert: AppEndpointSlow  # alert name, also the alertname label
-        expr: |  # p95 of one endpoint above 5s, with some traffic
-          histogram_quantile(0.95, sum by (service, route, path, le) (rate(http_request_duration_seconds_bucket{job="apps"}[5m]))) > 5
-          and on (service, route, path) sum by (service, route, path) (rate(http_requests_total{job="apps"}[5m])) > 0.01
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: endpoints  # Grafana "App Endpoints" dashboard (uid endpoints)
-          summary: "{{ $labels.service }} {{ $labels.route }}{{ $labels.path }}: p95 {{ $value | humanizeDuration }}"  # message headline
-          description: "95% of requests to this endpoint take up to {{ $value | humanizeDuration }} (5 minutes). Check its traces and the database."  # message body
-      - alert: AppEndpointErrors  # alert name, also the alertname label
-        expr: |  # 5xx share of one endpoint above 5%, with some traffic
-          sum by (service, route, path) (rate(http_requests_total{job="apps", status=~"5.."}[5m]))
-            / sum by (service, route, path) (rate(http_requests_total{job="apps"}[5m])) * 100 > 5
-          and on (service, route, path) sum by (service, route, path) (rate(http_requests_total{job="apps"}[5m])) > 0.01
-        for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning }  # silent Telegram message, repeated every 4h
-        annotations:  # text for the message, not used for routing
-          dashboard: endpoints  # Grafana "App Endpoints" dashboard (uid endpoints)
-          summary: "{{ $labels.service }} {{ $labels.route }}{{ $labels.path }}: {{ $value | printf \"%.1f\" }}% 5xx"  # message headline
-          description: "More than 5% of requests to this endpoint fail with 5xx for 5 minutes."  # message body

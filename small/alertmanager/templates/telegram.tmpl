@@ -9,27 +9,45 @@
   Telegram rejects messages over 4096 characters, and Alertmanager cuts longer ones mid-tag, which
   breaks the HTML and fails the whole notification. So the message stays short on purpose:
     - at most 5 alerts in full, then a "showing 5 of N" line (all of them are in Grafana / Alertmanager)
-    - summary and description cut to 300 characters
+    - summary (bold) and description (italic) cut to 300 characters
     - text from labels and annotations is HTML-escaped: a "<" in a log line would break parse_mode HTML
     - the Prometheus link points at the alerts page, not at the full query (a long query URL alone
       can take 1000+ characters)
 */}}
 {{ define "telegram.cut" }}{{ reReplaceAll "(?s)^(.{300}).+$" "$1…" . | html }}{{ end }}
+{{/* Icon from the alert name: finer than the topic (category label), e.g. SLO vs proxy inside Sites. */}}
+{{ define "telegram.icon" }}
+{{- if eq . "ContainerUpdated" }}🚀
+{{- else if match "^Postgres" . }}🐘
+{{- else if match "^(Nginx|Proxy)" . }}🔀
+{{- else if match "^Container" . }}📦
+{{- else if match "^(Site|Ssl|Probe)" . }}🌐
+{{- else if match "^(Slo|App.*Budget)" . }}🎯
+{{- else if match "^(DiskSmart|DiskTemperature|SsdWear|Speedtest)" . }}🔧
+{{- else if match "^(Tempo|VectorTrace)" . }}🧵
+{{- else if match "^(Vector|LogsNotIngested|LogSilence|VmalertRule)" . }}🚰
+{{- else if match "^Log" . }}📜
+{{- else if match "^(Watchdog|Prometheus|RuleEvaluation|VmalertNotifier|Alert|Monitoring|Cardinality|VictoriaMetrics)" . }}🛡️
+{{- else if match "^Test" . }}🧪
+{{- else }}🖥️{{ end }}
+{{- end }}
 {{ define "telegram.message" }}
 {{- range $i, $a := .Alerts }}{{ if lt $i 5 }}{{ with $a }}
-{{- if eq .Status "firing" }}{{ if eq .Labels.severity "critical" }}🚨{{ else }}⚠️{{ end }}{{ else }}✅{{ end }} <b>{{ .Labels.alertname | html }}</b> [{{ .Labels.severity | html }}]
-{{ template "telegram.cut" .Annotations.summary }}
-{{ template "telegram.cut" .Annotations.description }}
+{{- if eq .Status "firing" }}{{ if eq .Labels.severity "critical" }}🚨{{ else }}⚠️{{ end }}{{ else }}✅{{ end }} {{ template "telegram.icon" .Labels.alertname }} <b>{{ .Labels.alertname | html }}</b> [<i>{{ .Labels.severity | html }}</i>]
+{{- with .Annotations.summary }}
+<b>{{ template "telegram.cut" . }}</b>{{ end }}
+{{- with .Annotations.description }}
+<i>{{ template "telegram.cut" . }}</i>{{ end }}
 {{- /* container.* labels: cadvisor alerts carry container_label_container_*, log alerts team/env/type. */}}
 {{- $team := or .Labels.team (index .Labels "container_label_container_team") }}
 {{- $env := or .Labels.env (index .Labels "container_label_container_env") }}
 {{- $type := or .Labels.type (index .Labels "container_label_container_type") }}
 {{- if or $team $env $type }}
-👥 {{ if $team }}Team: {{ $team | html }}{{ end }}{{ if $env }}{{ if $team }} · {{ end }}Env: {{ $env | html }}{{ end }}{{ if $type }}{{ if or $team $env }} · {{ end }}Type: {{ $type | html }}{{ end }}
+👥 {{ if $team }}<b>Team:</b> {{ $team | html }}{{ end }}{{ if $env }}{{ if $team }} · {{ end }}<b>Env:</b> {{ $env | html }}{{ end }}{{ if $type }}{{ if or $team $env }} · {{ end }}<b>Type:</b> {{ $type | html }}{{ end }}
 {{- end }}
-🕒 Started: {{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}
+🕒 <b>Started:</b> <i>{{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}</i>
 {{- if eq .Status "resolved" }}
-🕒 Resolved: {{ .EndsAt.Local.Format "2006-01-02 15:04:05 MST" }}
+🕒 <b>Resolved:</b> <i>{{ .EndsAt.Local.Format "2006-01-02 15:04:05 MST" }}</i>
 {{- end }}
 {{- /* Logs link: log alerts carry "container", cadvisor alerts carry "name". Opens the Logs dashboard
        filtered to that container for the last hour. Omitted for alerts without a container. */}}
@@ -39,6 +57,6 @@
 {{- if eq .Status "firing" }} | <a href="{{ $.ExternalURL }}/#/silences/new?filter={{ printf "{alertname=\"%s\"}" .Labels.alertname | urlquery }}">Silence</a>{{ end }}
 
 {{ end }}{{ end }}{{ end }}
-{{- if gt (len .Alerts) 5 }}… showing 5 of {{ len .Alerts }} alerts. All of them: <a href="${GRAFANA_URL}/d/alerts">Alerts dashboard</a>
+{{- if gt (len .Alerts) 5 }}<i>… showing 5 of {{ len .Alerts }} alerts.</i> All of them: <a href="${GRAFANA_URL}/d/alerts">Alerts dashboard</a>
 {{ end }}
 {{- end }}
