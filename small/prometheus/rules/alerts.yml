@@ -513,6 +513,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       # ALERTS_FOR_STATE (written by vmalert) holds the activation time; it changes on every new firing.
       - alert: AlertFlapping  # alert name, also the alertname label
         expr: sum by (alertname) (changes(ALERTS_FOR_STATE[1h])) > 4  # new activations in 1h
+        for: 15m  # vmalert restarts and config changes also reset the state: skip that one-off burst
         labels: { severity: warning, category: sre }  # silent Telegram message, repeated every 4h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard
