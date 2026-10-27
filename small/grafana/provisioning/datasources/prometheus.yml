@@ -10,12 +10,19 @@ datasources:  # datasources to create
     type: prometheus  # Prometheus-compatible query API
     url: http://victoriametrics:8428  # reached over the Docker network
     isDefault: true  # preselected in Explore and new panels
+    # Alerting > Alert rules lists vmalert's rules (state, labels, "View dashboard") through this source:
+    # VictoriaMetrics proxies /api/v1/rules and /api/v1/alerts to vmalert (-vmalert.proxyURL).
+    # Read-only: rules are edited in prometheus/rules and vmalert/rules, not in the UI.
+    jsonData:  # type-specific settings
+      manageAlerts: true  # show this source's rules in the Alerting UI
 
   # Prometheus itself: only the last 2 days. Useful for debugging scrapes and live rule state.
   - name: Prometheus  # name shown in Grafana
     uid: prometheus  # stable id used by dashboards and rules
     type: prometheus  # Prometheus-compatible query API
     url: http://prometheus:9090  # reached over the Docker network
+    jsonData:  # type-specific settings
+      manageAlerts: false  # Prometheus has no rules (vmalert runs them); keep it out of the Alerting UI
 
   # Lets Grafana's Alerting UI show Alertmanager's alerts and create/expire silences.
   - name: Alertmanager  # name shown in Grafana

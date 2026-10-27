@@ -14,8 +14,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: database }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "PostgreSQL unreachable: {{ $labels.instance }}"  # message headline
-          description: "postgres-exporter cannot connect to the database."  # message body
+          description: "The exporter cannot connect: the database is down, or the DSN (host, port, password) in POSTGRES_EXPORTER_DSN is wrong. See: docker logs grafana-s-postgres-exporter-{{ $labels.instance }}"  # message body
       # New connections are refused at 100%; 80% leaves time to react (pooler, leak, max_connections).
       - alert: PostgresTooManyConnections  # alert name, also the alertname label
         expr: sum by (instance) (pg_stat_activity_count) / on (instance) max by (instance) (pg_settings_max_connections) * 100 > 80  # used % of max_connections
@@ -23,8 +24,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
-          summary: "PostgreSQL connections at {{ $value | printf \"%.0f\" }}%"  # message headline
-          description: "{{ $labels.instance }} is close to max_connections."  # message body
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "PostgreSQL {{ $value | printf \"%.0f\" }}% of max_connections used on {{ $labels.instance }}"  # message headline
+          description: "At 100% new connections are refused and apps fail. Look for a connection leak or add a pooler (PgBouncer)."  # message body
       # A transaction open for 5+ minutes holds locks and blocks VACUUM (table bloat).
       - alert: PostgresLongTransaction  # alert name, also the alertname label
         expr: max by (instance, datname) (pg_stat_activity_max_tx_duration{state!="idle"}) > 300  # oldest open transaction, seconds
@@ -32,8 +34,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
-          summary: "Long PostgreSQL transaction in {{ $labels.datname }}"  # message headline
-          description: "A transaction has been open for {{ $value | humanizeDuration }}. Check pg_stat_activity."  # message body
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Transaction open for {{ $value | humanizeDuration }} in {{ $labels.datname }}"  # message headline
+          description: "Long transactions hold locks and block VACUUM. Find it: SELECT pid, now()-xact_start, query FROM pg_stat_activity ORDER BY xact_start LIMIT 5;"  # message body
       # Replica behind the primary. Only reported on replicas.
       - alert: PostgresReplicationLag  # alert name, also the alertname label
         expr: pg_replication_lag_seconds > 30  # seconds since last replayed transaction
@@ -41,16 +44,18 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: database }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
-          summary: "PostgreSQL replica lagging: {{ $labels.instance }}"  # message headline
-          description: "Replica is {{ $value | humanizeDuration }} behind the primary."  # message body
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "PostgreSQL replica {{ $value | humanizeDuration }} behind: {{ $labels.instance }}"  # message headline
+          description: "Reads from the replica return old data, and a failover would lose the gap."  # message body
       # Deadlocks mean two transactions waited on each other; PostgreSQL killed one of them.
       - alert: PostgresDeadlocks  # alert name, also the alertname label
         expr: increase(pg_stat_database_deadlocks[10m]) > 0  # deadlocks in 10m
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "PostgreSQL deadlocks in {{ $labels.datname }}"  # message headline
-          description: "{{ $value | printf \"%.0f\" }} deadlocks in 10 minutes."  # message body
+          description: "{{ $value | printf \"%.0f\" }} deadlocks in 10 minutes: PostgreSQL killed one transaction each time and the app saw an error. Make the app lock rows in the same order."  # message body
       # Fewer than 90% of block reads served from shared_buffers: the working set no longer fits in RAM.
       - alert: PostgresCacheHitLow  # alert name, also the alertname label
         expr: |  # hit ratio per database, only when the database is actually reading (>100 blocks/s)
@@ -61,6 +66,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "PostgreSQL cache hit {{ $value | humanizePercentage }} in {{ $labels.datname }}"  # message headline
           description: "Queries read from disk instead of memory. Check shared_buffers and the top queries by blocks read."  # message body
       # A session opened a transaction and stopped talking: it holds locks and blocks VACUUM.
@@ -70,6 +76,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "{{ $labels.application }} idle in transaction in {{ $labels.datname }}"  # message headline
           description: "A session of {{ $labels.application }} has been idle inside a transaction for {{ $value | humanizeDuration }}. Fix the missing COMMIT or set idle_in_transaction_session_timeout."  # message body
       # Sessions waiting on another session's lock for over a minute.
@@ -79,6 +86,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "{{ $labels.application }} blocked on locks in {{ $labels.datname }}"  # message headline
           description: "Sessions have waited {{ $value | humanizeDuration }} for a lock. Find the blocker: SELECT pid, pg_blocking_pids(pid), query FROM pg_stat_activity WHERE cardinality(pg_blocking_pids(pid)) > 0;"  # message body
       # p95 statement latency per service from the statement log (Vector histogram).
@@ -88,6 +96,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "PostgreSQL p95 {{ $value | printf \"%.0f\" }} ms for {{ $labels.pg_app }}"  # message headline
           description: "95% of statements from {{ $labels.pg_app }} in {{ $labels.pg_db }} take up to {{ $value | printf \"%.0f\" }} ms. See Top queries on the dashboard."  # message body
       # XID age: at ~2.1 billion PostgreSQL stops accepting writes to prevent wraparound.
@@ -97,6 +106,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: database }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "PostgreSQL XID age {{ $value | humanize }} in {{ $labels.datname }}"  # message headline
           description: "Autovacuum is not freezing old rows. At 2.1 billion the database goes read-only. Run VACUUM FREEZE and look for long transactions or stale replication slots."  # message body
       # More than 20% dead rows: VACUUM is not keeping up, the table and its indexes bloat.
@@ -106,6 +116,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Dead rows {{ $value | humanizePercentage }} in {{ $labels.datname }}.{{ $labels.relname }}"  # message headline
           description: "Autovacuum is behind on this table. Check long transactions and autovacuum settings."  # message body
       # Sorts and hashes spilling to disk: work_mem is too small for some queries.
@@ -115,6 +126,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
+          __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "PostgreSQL temp files {{ $value | humanize1024 }}B/s in {{ $labels.datname }}"  # message headline
           description: "Queries spill sorts/hashes to disk. Raise work_mem for them or add indexes."  # message body
   # nginx (stub_status). Upstream 502/503/504 at the edge: ProxyUpstreamErrors in alerts.yml.
@@ -126,8 +138,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: sites }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Services" dashboard (uid services)
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
           summary: "nginx unreachable: {{ $labels.instance }}"  # message headline
-          description: "nginx-exporter cannot read the stub_status page."  # message body
+          description: "The exporter cannot read the stub_status page: nginx is down (all sites behind it are down) or stub_status is off."  # message body
 
   # Log-derived metrics (Vector log_to_metric). Relative error share, so it also catches quiet
   # services where most lines are suddenly errors (vmalert's LogPanic/LogOOM catch single events).
@@ -141,5 +154,6 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: logs }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs)
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
           summary: "{{ $value | printf \"%.0f\" }}% of {{ $labels.service }} logs are errors"  # message headline
-          description: "Error/fatal/panic lines make up over 20% of {{ $labels.service }}'s output for 10 minutes."  # message body
+          description: "Error/fatal/panic lines are over 20% of its output for 10 minutes: something is failing repeatedly. Open Logs for the lines."  # message body

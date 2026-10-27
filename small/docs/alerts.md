@@ -97,9 +97,9 @@ No metrics from node (api.example.com)
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-High CPU: 92%
+CPU 92% on api.example.com
 🔔 HighCpu · Server
-📝 CPU on api.example.com has been above 90% for 5 minutes.
+📝 Above 90% for 5 minutes: requests slow down. Find the busiest containers on the Docker dashboard.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -109,9 +109,9 @@ High CPU: 92%
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-High memory: 92%
+Memory 92% used on api.example.com
 🔔 HighMemory · Server
-📝 Memory usage on api.example.com is above 90%.
+📝 Above 90%: little headroom left before OOM kills. Find the biggest containers on the Docker dashboard.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -121,9 +121,9 @@ High memory: 92%
 
 ```
 🟥 PROD · 🟠 P2 · FIRING
-Memory almost exhausted: 92%
+Memory almost exhausted: 92% on api.example.com
 🔔 MemoryCritical · Server
-📝 api.example.com has under 5% memory left: OOM kills are next. Find the biggest containers on the Docker dashboard.
+📝 Under 5% RAM left: the kernel will start killing processes (OOM). Find the biggest containers on the Docker dashboard and restart or limit them.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -134,9 +134,9 @@ Memory almost exhausted: 92%
 
 ```
 🟥 PROD · 🟠 P2 · FIRING
-CPU saturated: 92%
+CPU saturated: 92% on api.example.com
 🔔 CpuCritical · Server
-📝 CPU on api.example.com has been above 95% for 15 minutes.
+📝 Above 95% for 15 minutes: every service on this host is slowed down. Find the busiest containers on the Docker dashboard; scale or limit them.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -147,9 +147,9 @@ CPU saturated: 92%
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Swap 92% used
+Swap 92% used on api.example.com
 🔔 SwapHigh · Server
-📝 api.example.com keeps more than half its swap in use: the server needs more RAM or fewer containers.
+📝 More than half of swap in use for a while: the server is short of RAM and everything runs slower. Add RAM or move containers away.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -159,9 +159,9 @@ Swap 92% used
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Disk almost full: 92%
+Disk / 92% full on api.example.com
 🔔 DiskAlmostFull · Server
-📝 More than 85% of / is used on api.example.com.
+📝 Over 85% used. At 100% databases and logs stop writing. Free space: docker system prune, old logs, unused volumes (docker system df).
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -186,7 +186,7 @@ Disk will be full within 24h: /dev/sda1 on api.example.com
 🟥 PROD · 🔴 P1 · FIRING
 Disk full within 4 hours: /dev/sda1 on api.example.com
 🔔 DiskWillFillIn4h · Server
-📝 Free space on /dev/sda1 is falling fast. Services writing to it will start failing soon.
+📝 Free space is falling fast; services writing to it will fail soon. Find what grows now: docker system df, du -sh /var/lib/docker/*.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -202,7 +202,7 @@ Disk full within 4 hours: /dev/sda1 on api.example.com
 🟥 PROD · 🔴 P1 · FIRING
 Site down: api.example.com
 🔔 SiteDown · Sites
-📝 api.example.com has not responded for 2 minutes.
+📝 No successful response for 2 minutes (timeout, error status, DNS or TLS failure): users cannot open it. Check the app container and the proxy in front of it.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -213,9 +213,9 @@ Site down: api.example.com
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Site slow: api.example.com
+Site slow: api.example.com (92s)
 🔔 SiteSlow · Sites
-📝 Response time 92s (over 3s).
+📝 Full response time (DNS + connect + TLS + response) over 3s for 5 minutes. Check the app's slowest endpoints and the database.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -225,9 +225,9 @@ Site slow: api.example.com
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-SSL certificate expiring: api.example.com
+SSL certificate expires in 92 days: api.example.com
 🔔 SslExpiresSoon · Sites
-📝 92 days left.
+📝 Under 14 days left, so automatic renewal has not happened yet. Check certbot / the proxy's ACME logs.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -237,9 +237,9 @@ SSL certificate expiring: api.example.com
 
 ```
 🟥 PROD · 🟠 P2 · FIRING
-SSL certificate expires in days: api.example.com
+SSL certificate expires in 92 days: api.example.com
 🔔 SslExpiresCritical · Sites
-📝 Only 92 days left. Automatic renewal is not working.
+📝 Under 3 days left and renewal is not working: browsers will block the site after expiry. Renew it by hand now.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -250,9 +250,9 @@ SSL certificate expires in days: api.example.com
 
 ```
 🟥 PROD · 🔴 P1 · FIRING
-node probe failing: api.example.com
+node check failing: api.example.com
 🔔 ProbeDown · Sites
-📝 api.example.com has failed its node check for 2 minutes.
+📝 Failed for 2 minutes: the port is closed, the TLS handshake fails, the host does not answer ping or the DNS server does not answer. Check that service and the network to it.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -266,9 +266,9 @@ node probe failing: api.example.com
 
 ```
 🟥 PROD · 🔴 P1 · FIRING
-Error budget burning fast: api.example.com
+Availability dropping fast: api.example.com
 🔔 SloFastBurn · Sites
-📝 Burn rate 92x: at this pace the 30-day 99.9% budget is gone in under 2 days.
+📝 Failing 92x faster than the 99.9% target allows: at this pace the 30-day error budget is gone in under 2 days. Treat as an outage.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -279,9 +279,9 @@ Error budget burning fast: api.example.com
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Error budget burning: api.example.com
+Availability slowly dropping: api.example.com
 🔔 SloSlowBurn · Sites
-📝 Burn rate 92x over 6h. Intermittent failures are eating the 30-day 99.9% budget.
+📝 Intermittent failures over 6 hours (92x the allowed rate) are eating the 30-day 99.9% budget. Look for flapping or timeouts.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -347,9 +347,9 @@ api: latency budget burning (92x)
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Container memory almost full: api-backend
+Container api-backend near its memory limit
 🔔 ContainerHighMemory · Containers
-📝 api-backend is using over 90% of its memory limit.
+📝 Over 90% of its memory limit: next it gets OOM-killed and restarts. Raise the limit or find the leak.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -359,9 +359,9 @@ Container memory almost full: api-backend
 
 ```
 🟥 PROD · 🟠 P2 · FIRING
-Container restart loop: api-backend
+Container api-backend keeps restarting
 🔔 ContainerRestartLoop · Containers
-📝 api-backend restarted 92 times in 15 minutes.
+📝 Restarted 92 times in 15 minutes: it crashes on start. The reason is in the last lines of its logs.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -374,7 +374,7 @@ Container restart loop: api-backend
 🟥 PROD · 🟠 P2 · FIRING
 Container stopped: api-backend
 🔔 ContainerGone · Containers
-📝 api-backend has not been seen for over 1 minute.
+📝 Not running for over 1 minute (stopped, removed, or crashed without a restart policy). If not intentional: docker start api-backend and check its logs.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -387,7 +387,7 @@ Container stopped: api-backend
 🟥 PROD · ℹ️ info · FIRING
 Deployed: api-backend
 🔔 ContainerUpdated · Deploys
-📝 api-backend now runs registry.example.com/api:1.4.2.
+📝 Now runs registry.example.com/api:1.4.2. If alerts follow, this deploy is the first suspect.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -414,7 +414,7 @@ Watchdog heartbeat
 🟥 PROD · 🟠 P2 · FIRING
 Prometheus cannot write to VictoriaMetrics
 🔔 PrometheusRemoteWriteFailing · Sre
-📝 92 samples/s are failing on remote_write.
+📝 92 samples/s fail on remote_write: long-term history and alerts are missing data. Check VictoriaMetrics: make logs s=victoriametrics
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -425,9 +425,9 @@ Prometheus cannot write to VictoriaMetrics
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Prometheus remote_write is lagging
+Prometheus remote_write is lagging 92s
 🔔 PrometheusRemoteWriteBehind · Sre
-📝 remote_write is 92s behind.
+📝 Metrics reach VictoriaMetrics late, so alerts fire late. Usually VictoriaMetrics is slow or the host is overloaded.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -439,7 +439,7 @@ Prometheus remote_write is lagging
 🟥 PROD · 🟠 P2 · FIRING
 Prometheus config reload failed
 🔔 PrometheusConfigReloadFailed · Sre
-📝 prometheus.yml or a rules file is invalid. Check the Prometheus logs.
+📝 prometheus.yml or a targets file is invalid; Prometheus keeps the old config. See the error: make logs s=prometheus
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -450,9 +450,9 @@ Prometheus config reload failed
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Alert rule evaluation failing: containers
+Alert rules failing in group containers
 🔔 RuleEvaluationFailing · Sre
-📝 92 failed evaluations in 5 minutes (api.example.com).
+📝 92 failed evaluations in 5 minutes: these alerts cannot fire. See the error in the vmalert UI (port 38880) or make logs s=vmalert
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -462,9 +462,9 @@ Alert rule evaluation failing: containers
 
 ```
 🟥 PROD · 🟠 P2 · FIRING
-vmalert cannot reach Alertmanager (api.example.com)
+vmalert cannot reach Alertmanager
 🔔 VmalertNotifierFailing · Sre
-📝 Alerts cannot be delivered.
+📝 No alert reaches Telegram right now. Check Alertmanager: make logs s=alertmanager
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -477,7 +477,7 @@ vmalert cannot reach Alertmanager (api.example.com)
 🟥 PROD · 🟠 P2 · FIRING
 Alertmanager cannot deliver to telegram
 🔔 AlertmanagerNotificationsFailing · Sre
-📝 Notifications are failing. Check the bot token and chat_id.
+📝 Alert messages are failing. Usually a revoked bot token, wrong chat_id or topic id. See: make logs s=alertmanager
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -493,7 +493,7 @@ Alertmanager cannot deliver to telegram
 🟥 PROD · 🟠 P2 · FIRING
 Vector is dropping logs
 🔔 VectorLogsDropped · Sre
-📝 92 log lines/s are not reaching VictoriaLogs.
+📝 92 log lines/s never reach VictoriaLogs: they are lost, and log alerts miss them. See: make logs s=vector
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -506,7 +506,7 @@ Vector is dropping logs
 🟥 PROD · 🟠 P2 · FIRING
 Vector cannot push logs to VictoriaLogs
 🔔 VectorCannotPush · Sre
-📝 Push requests are failing; logs are buffered and delayed.
+📝 Pushes fail; logs wait in the disk buffer and arrive late (lost if the buffer fills). Check VictoriaLogs: make logs s=victorialogs
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -519,7 +519,7 @@ Vector cannot push logs to VictoriaLogs
 🟥 PROD · 🟠 P2 · FIRING
 VictoriaLogs receives no logs
 🔔 LogsNotIngested · Sre
-📝 No log lines ingested in the last 15 minutes. Check Vector: docker compose logs vector
+📝 No log line in 15 minutes: log search and log alerts are blind. Check Vector: make logs s=vector
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -532,7 +532,7 @@ VictoriaLogs receives no logs
 🟥 PROD · 🟡 P3 · FIRING
 Log alert rule failing: SiteDown
 🔔 VmalertRuleErrors · Sre
-📝 vmalert cannot evaluate this rule. Check http://localhost:38880.
+📝 vmalert cannot evaluate this LogsQL rule, so it cannot fire. See the error in the vmalert UI (port 38880).
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -542,9 +542,9 @@ Log alert rule failing: SiteDown
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-No logs from api
+No logs from api for 30 minutes
 🔔 LogSilence · Sre
-📝 api usually logs but has been silent for 30 minutes while running. It may be hung.
+📝 It usually logs and is still running: it may be hung or deadlocked. Check it responds; restart if not.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -559,7 +559,7 @@ No logs from api
 🟥 PROD · 🟡 P3 · FIRING
 Tempo is dropping spans (rate_limited)
 🔔 TempoDiscardingSpans · Sre
-📝 92 spans/s refused. Raise the limit in tempo/tempo.yaml overrides or find the noisy app.
+📝 92 spans/s refused, so some traces are incomplete. Raise the limit in tempo/tempo.yaml overrides or find the noisy app.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -571,7 +571,7 @@ Tempo is dropping spans (rate_limited)
 🟥 PROD · 🟠 P2 · FIRING
 Vector cannot send traces to Tempo
 🔔 VectorTraceExportFailing · Sre
-📝 Spans are being lost. Check: docker compose logs tempo
+📝 Spans are being lost. Check Tempo: make logs s=tempo
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -743,7 +743,7 @@ Port port (process) is open to the internet
 🟥 PROD · 🟡 P3 · FIRING
 Open-port check is blind
 🔔 PortWatchBlind · Sre
-📝 No port answers on PUBLIC_IP, so PortExposed cannot fire. Check PUBLIC_IP in .env; on clouds without hairpin NAT run the check from another host.
+📝 No port answers on the public IP, so PortExposed cannot fire. Check PUBLIC_IP in .env; on clouds without hairpin NAT run the check from another host.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -758,7 +758,7 @@ Open-port check is blind
 🟥 PROD · 🔴 P1 · FIRING
 PostgreSQL unreachable: api.example.com
 🔔 PostgresDown · Database
-📝 postgres-exporter cannot connect to the database.
+📝 The exporter cannot connect: the database is down, or the DSN (host, port, password) in POSTGRES_EXPORTER_DSN is wrong. See: docker logs grafana-s-postgres-exporter-api.example.com
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -769,9 +769,9 @@ PostgreSQL unreachable: api.example.com
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-PostgreSQL connections at 92%
+PostgreSQL 92% of max_connections used on api.example.com
 🔔 PostgresTooManyConnections · Database
-📝 api.example.com is close to max_connections.
+📝 At 100% new connections are refused and apps fail. Look for a connection leak or add a pooler (PgBouncer).
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -781,9 +781,9 @@ PostgreSQL connections at 92%
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Long PostgreSQL transaction in app_db
+Transaction open for 1d 2h in app_db
 🔔 PostgresLongTransaction · Database
-📝 A transaction has been open for 1d 2h. Check pg_stat_activity.
+📝 Long transactions hold locks and block VACUUM. Find it: SELECT pid, now()-xact_start, query FROM pg_stat_activity ORDER BY xact_start LIMIT 5;
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -793,9 +793,9 @@ Long PostgreSQL transaction in app_db
 
 ```
 🟥 PROD · 🟠 P2 · FIRING
-PostgreSQL replica lagging: api.example.com
+PostgreSQL replica 1d 2h behind: api.example.com
 🔔 PostgresReplicationLag · Database
-📝 Replica is 1d 2h behind the primary.
+📝 Reads from the replica return old data, and a failover would lose the gap.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -808,7 +808,7 @@ PostgreSQL replica lagging: api.example.com
 🟥 PROD · 🟡 P3 · FIRING
 PostgreSQL deadlocks in app_db
 🔔 PostgresDeadlocks · Database
-📝 92 deadlocks in 10 minutes.
+📝 92 deadlocks in 10 minutes: PostgreSQL killed one transaction each time and the app saw an error. Make the app lock rows in the same order.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -908,7 +908,7 @@ PostgreSQL temp files 24MiB/s in app_db
 🟥 PROD · 🔴 P1 · FIRING
 nginx unreachable: api.example.com
 🔔 NginxDown · Sites
-📝 nginx-exporter cannot read the stub_status page.
+📝 The exporter cannot read the stub_status page: nginx is down (all sites behind it are down) or stub_status is off.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -924,7 +924,7 @@ nginx unreachable: api.example.com
 🟥 PROD · 🟡 P3 · FIRING
 92% of api logs are errors
 🔔 LogErrorRatioHigh · Logs
-📝 Error/fatal/panic lines make up over 20% of api's output for 10 minutes.
+📝 Error/fatal/panic lines are over 20% of its output for 10 minutes: something is failing repeatedly. Open Logs for the lines.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -939,7 +939,7 @@ nginx unreachable: api.example.com
 🟥 PROD · 🔴 P1 · FIRING
 Panic/fatal in logs: api-backend
 🔔 LogPanic · Logs
-📝 92 panic/fatal/traceback lines in api in the last minute.
+📝 92 log line(s) with panic, fatal or traceback in the last minute (container api-backend, service api): the process crashed or hit an unrecoverable error. Open Logs for the exact line.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -952,7 +952,7 @@ Panic/fatal in logs: api-backend
 🟥 PROD · 🟠 P2 · FIRING
 Out of memory in logs: api-backend
 🔔 LogOOM · Logs
-📝 92 out-of-memory lines in api in the last minute.
+📝 92 out-of-memory log line(s) in the last minute (container api-backend, service api): it ran out of RAM or hit its memory limit. Open Logs for the exact line.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -968,7 +968,7 @@ Out of memory in logs: api-backend
 🟥 PROD · 🟡 P3 · FIRING
 Auth failures: api-backend
 🔔 LogAuthFailures · Logs
-📝 92 failed logins / 401 / 403 in api in the last 5 minutes.
+📝 92 failed logins / 401 / 403 in the last 5 minutes (service api): a wrong password in a config, or someone guessing. Open Logs for the source.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```

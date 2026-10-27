@@ -21,6 +21,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: server }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
           summary: "No metrics from {{ $labels.job }} ({{ $labels.instance }})"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "Prometheus cannot scrape the {{ $labels.job }} target {{ $labels.instance }} for 1 minute: the exporter or app is down or unreachable. The service itself may still work, but its alerts are blind."  # message body
       # CPU busy = 100% minus idle time, averaged over 5m to ignore short bursts.
@@ -30,8 +31,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: server }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
-          summary: "High CPU: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "CPU on {{ $labels.instance }} has been above 90% for 5 minutes."  # message body
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "CPU {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Above 90% for 5 minutes: requests slow down. Find the busiest containers on the Docker dashboard."  # message body
       # MemAvailable (not MemFree) counts reclaimable cache, so this is real memory pressure.
       - alert: HighMemory  # alert name, also the alertname label
         expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90  # used % = 1 - available/total
@@ -39,8 +41,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: server }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
-          summary: "High memory: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Memory usage on {{ $labels.instance }} is above 90%."  # message body
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Memory {{ $value | printf \"%.0f\" }}% used on {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Above 90%: little headroom left before OOM kills. Find the biggest containers on the Docker dashboard."  # message body
       # Same, but at the edge: the kernel starts killing processes (OOM) or the server crawls on swap.
       - alert: MemoryCritical  # alert name, also the alertname label
         expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 95  # used % = 1 - available/total
@@ -48,8 +51,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: server }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
-          summary: "Memory almost exhausted: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.instance }} has under 5% memory left: OOM kills are next. Find the biggest containers on the Docker dashboard."  # message body
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Memory almost exhausted: {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Under 5% RAM left: the kernel will start killing processes (OOM). Find the biggest containers on the Docker dashboard and restart or limit them."  # message body
       # CPU pinned for a long time: everything on the server slows down, not just one app.
       - alert: CpuCritical  # alert name, also the alertname label
         expr: 100 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 > 95  # busy % = 100 - idle %
@@ -57,8 +61,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: server }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
-          summary: "CPU saturated: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "CPU on {{ $labels.instance }} has been above 95% for 15 minutes."  # message body
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "CPU saturated: {{ $value | printf \"%.0f\" }}% on {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Above 95% for 15 minutes: every service on this host is slowed down. Find the busiest containers on the Docker dashboard; scale or limit them."  # message body
       # Heavy swap use: RAM is too small for what runs on the server, every page fault is a disk read.
       - alert: SwapHigh  # alert name, also the alertname label
         expr: (1 - node_memory_SwapFree_bytes / node_memory_SwapTotal_bytes) * 100 > 50 and node_memory_SwapTotal_bytes > 0  # used swap %, only when swap exists
@@ -66,8 +71,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: server }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
-          summary: "Swap {{ $value | printf \"%.0f\" }}% used"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.instance }} keeps more than half its swap in use: the server needs more RAM or fewer containers."  # message body
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Swap {{ $value | printf \"%.0f\" }}% used on {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "More than half of swap in use for a while: the server is short of RAM and everything runs slower. Add RAM or move containers away."  # message body
       # Root filesystem only; tmpfs/overlay are virtual and would cause false alarms.
       - alert: DiskAlmostFull  # alert name, also the alertname label
         expr: instance:node_filesystem_root_used:percent > 85  # used % of the system disk (rules/recording.yml)
@@ -75,8 +81,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: server }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
-          summary: "Disk almost full: {{ $value | printf \"%.0f\" }}%"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "More than 85% of / is used on {{ $labels.instance }}."  # message body
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Disk / {{ $value | printf \"%.0f\" }}% full on {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Over 85% used. At 100% databases and logs stop writing. Free space: docker system prune, old logs, unused volumes (docker system df)."  # message body
       # Forecast instead of a fixed threshold: a disk at 60% that grows 5%/hour is more urgent than one
       # sitting at 90% for months. predict_linear extends the trend of the last window into the future.
       # The free-space condition keeps big, mostly empty disks from alerting on normal daily swings.
@@ -90,6 +97,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: server }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Disk will be full within 24h: {{ $labels.device }} on {{ $labels.instance }}"  # message headline
           description: "At the pace of the last 6 hours, {{ $labels.device }} runs out of space within a day. Look for growing logs, volumes or images (docker system df)."  # message body
       - alert: DiskWillFillIn4h  # alert name, also the alertname label
@@ -102,8 +110,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: server }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Disk full within 4 hours: {{ $labels.device }} on {{ $labels.instance }}"  # message headline
-          description: "Free space on {{ $labels.device }} is falling fast. Services writing to it will start failing soon."  # message body
+          description: "Free space is falling fast; services writing to it will fail soon. Find what grows now: docker system df, du -sh /var/lib/docker/*."  # message body
   # Website probes (blackbox-exporter, sites listed in prometheus/sites.yml).
   - name: sites  # group name, shown in the Prometheus/vmalert UI
     rules:  # rules of this group
@@ -114,8 +123,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: sites }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Site down: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.instance }} has not responded for 2 minutes."  # message body
+          description: "No successful response for 2 minutes (timeout, error status, DNS or TLS failure): users cannot open it. Check the app container and the proxy in front of it."  # message body
       # Whole probe time (DNS + connect + TLS + response) above 3s for 5 minutes.
       - alert: SiteSlow  # alert name, also the alertname label
         expr: probe_duration_seconds{job="blackbox-http"} > 3  # total probe time in seconds
@@ -123,8 +133,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sites }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
-          summary: "Site slow: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Response time {{ $value | printf \"%.1f\" }}s (over 3s)."  # message body
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Site slow: {{ $labels.instance }} ({{ $value | printf \"%.1f\" }}s)"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Full response time (DNS + connect + TLS + response) over 3s for 5 minutes. Check the app's slowest endpoints and the database."  # message body
       # Seconds until the earliest cert in the chain expires, converted to days. for: 1h = no need to hurry.
       - alert: SslExpiresSoon  # alert name, also the alertname label
         expr: (probe_ssl_earliest_cert_expiry{job=~"blackbox-(http|tls)"} - time()) / 86400 < 14  # days until the certificate expires
@@ -132,8 +143,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sites }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
-          summary: "SSL certificate expiring: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value | printf \"%.0f\" }} days left."  # message body
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "SSL certificate expires in {{ $value | printf \"%.0f\" }} days: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Under 14 days left, so automatic renewal has not happened yet. Check certbot / the proxy's ACME logs."  # message body
       # Same, 3 days left: renewal (certbot, cert-manager) has clearly failed. Critical inhibits the warning above.
       - alert: SslExpiresCritical  # alert name, also the alertname label
         expr: (probe_ssl_earliest_cert_expiry{job=~"blackbox-(http|tls)"} - time()) / 86400 < 3  # days until the certificate expires
@@ -141,8 +153,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sites }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
-          summary: "SSL certificate expires in days: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Only {{ $value | printf \"%.1f\" }} days left. Automatic renewal is not working."  # message body
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "SSL certificate expires in {{ $value | printf \"%.1f\" }} days: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Under 3 days left and renewal is not working: browsers will block the site after expiry. Renew it by hand now."  # message body
       # TCP / TLS / ping / DNS probe failed (listed in prometheus/probes/*.yml).
       - alert: ProbeDown  # alert name, also the alertname label
         expr: probe_success{job=~"blackbox-(tcp|tls|icmp|dns)"} == 0  # 1 = probe succeeded, 0 = failed
@@ -150,8 +163,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: sites }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
-          summary: "{{ $labels.job }} probe failing: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.instance }} has failed its {{ $labels.job }} check for 2 minutes."  # message body
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "{{ $labels.job }} check failing: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Failed for 2 minutes: the port is closed, the TLS handshake fails, the host does not answer ping or the DNS server does not answer. Check that service and the network to it."  # message body
 
   # SLO burn rate (Google SRE workbook, multi-window). Target: 99.9% of probes succeed over 30 days,
   # so the error budget is 0.1%. Burn rate = error ratio / 0.001; burn 1 uses up the budget in exactly
@@ -171,8 +185,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: sites }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
-          summary: "Error budget burning fast: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Burn rate {{ $value | printf \"%.0f\" }}x: at this pace the 30-day 99.9% budget is gone in under 2 days."  # message body
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Availability dropping fast: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Failing {{ $value | printf \"%.0f\" }}x faster than the 99.9% target allows: at this pace the 30-day error budget is gone in under 2 days. Treat as an outage."  # message body
       # Burn 6 over 6h = 5% of the monthly budget gone in 6 hours (budget empty in ~5 days).
       - alert: SloSlowBurn  # alert name, also the alertname label
         expr: |  # error ratio over 6h AND over 30m, both above 6x budget
@@ -183,8 +198,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sites }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link in Telegram
-          summary: "Error budget burning: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Burn rate {{ $value | printf \"%.1f\" }}x over 6h. Intermittent failures are eating the 30-day 99.9% budget."  # message body
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Availability slowly dropping: {{ $labels.instance }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Intermittent failures over 6 hours ({{ $value | printf \"%.1f\" }}x the allowed rate) are eating the 30-day 99.9% budget. Look for flapping or timeouts."  # message body
   # App SLOs (job "apps"), same multi-window burn-rate method as the probe SLO above, per service.
   # Ratios come from the app-slo-recording group in rules/recording.yml. Objectives:
   #   availability 99.5% non-5xx (budget 0.005), latency 99% within 1s (budget 0.01).
@@ -201,6 +217,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: sites }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
           summary: "{{ $labels.service }}: error budget burning fast ({{ $value | printf \"%.0f\" }}x)"  # message headline
           description: "At this pace the 30-day 99.5% availability budget is gone in under 2 days. Check the slowest/failing endpoints on the App Endpoints dashboard."  # message body
       - alert: AppErrorBudgetSlowBurn  # alert name, also the alertname label
@@ -212,6 +229,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sites }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
           summary: "{{ $labels.service }}: error budget burning ({{ $value | printf \"%.1f\" }}x)"  # message headline
           description: "Intermittent 5xx over the last 6 hours are eating the 30-day 99.5% budget (gone in ~5 days at this pace)."  # message body
       - alert: AppLatencyBudgetFastBurn  # alert name, also the alertname label
@@ -223,6 +241,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sites }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
           summary: "{{ $labels.service }}: latency budget burning fast ({{ $value | printf \"%.0f\" }}x)"  # message headline
           description: "Far more than 1% of requests take over 1s. At this pace the 30-day latency budget is gone in under 2 days."  # message body
       - alert: AppLatencyBudgetSlowBurn  # alert name, also the alertname label
@@ -234,6 +253,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sites }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "App SLO" dashboard (uid app-slo)
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
           summary: "{{ $labels.service }}: latency budget burning ({{ $value | printf \"%.1f\" }}x)"  # message headline
           description: "Slow requests (over 1s) over the last 6 hours are eating the 30-day latency budget."  # message body
   # Docker containers (cadvisor).
@@ -246,16 +266,18 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: containers }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
-          summary: "Container memory almost full: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.name }} is using over 90% of its memory limit."  # message body
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Container {{ $labels.name }} near its memory limit"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Over 90% of its memory limit: next it gets OOM-killed and restarts. Raise the limit or find the leak."  # message body
       # Crash loop: 3+ starts in 15 minutes. Critical, so it inhibits the ContainerRestarted warning.
       - alert: ContainerRestartLoop  # alert name, also the alertname label
         expr: resets(container_cpu_usage_seconds_total{name!=""}[15m]) >= 3  # 3 or more restarts in 15m
         labels: { priority: P2, severity: critical, category: containers }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
-          summary: "Container restart loop: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.name }} restarted {{ $value }} times in 15 minutes."  # message body
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Container {{ $labels.name }} keeps restarting"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Restarted {{ $value }} times in 15 minutes: it crashes on start. The reason is in the last lines of its logs."  # message body
       # cadvisor stopped seeing the container (stopped, removed or crashed without restart).
       # Also fires briefly after an intentional `docker compose down`.
       # Per container NAME, not per id: a recreated container (deploy, --force-recreate) gets a new id,
@@ -266,8 +288,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: containers }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: probes-slo  # Grafana "Probes & SLO" dashboard (uid probes-slo): target of the Dashboard link
+          __dashboardUid__: probes-slo  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Container stopped: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.name }} has not been seen for over 1 minute."  # message body
+          description: "Not running for over 1 minute (stopped, removed, or crashed without a restart policy). If not intentional: docker start {{ $labels.name }} and check its logs."  # message body
       # A container now runs an image it did not run 10 minutes ago: a deploy or a rollback.
       # Informational, so a broken deploy can be matched with the alerts that follow it.
       # Resolves by itself 10 minutes later (the old image drops out of the offset window).
@@ -279,8 +302,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: info, severity: info, category: deploys }  # info: a notice, not a problem: silent, no reminder, no "resolved"
         annotations:  # text for the message, not used for routing
           dashboard: docker-projects  # Grafana "Docker Projects" dashboard (uid docker-projects)
+          __dashboardUid__: docker-projects  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Deployed: {{ $labels.name }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.name }} now runs {{ $labels.image }}."  # message body
+          description: "Now runs {{ $labels.image }}. If alerts follow, this deploy is the first suspect."  # message body
   # Monitoring the monitoring: is the alert pipeline itself healthy.
   - name: meta  # group name, shown in the Prometheus/vmalert UI
     rules:  # rules of this group
@@ -298,8 +322,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
+          __dashboardUid__: alerts  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Prometheus cannot write to VictoriaMetrics"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value | printf \"%.1f\" }} samples/s are failing on remote_write."  # message body
+          description: "{{ $value | printf \"%.1f\" }} samples/s fail on remote_write: long-term history and alerts are missing data. Check VictoriaMetrics: make logs s=victoriametrics"  # message body
       # Newest scraped sample vs newest sample delivered to VictoriaMetrics; >2m means the queue is stuck.
       - alert: PrometheusRemoteWriteBehind  # alert name, also the alertname label
         expr: (prometheus_remote_storage_highest_timestamp_in_seconds - ignoring(remote_name, url) group_right prometheus_remote_storage_queue_highest_sent_timestamp_seconds) > 120  # seconds between newest scraped and newest sent sample
@@ -307,8 +332,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
-          summary: "Prometheus remote_write is lagging"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "remote_write is {{ $value | printf \"%.0f\" }}s behind."  # message body
+          __dashboardUid__: alerts  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Prometheus remote_write is lagging {{ $value | printf \"%.0f\" }}s"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Metrics reach VictoriaMetrics late, so alerts fire late. Usually VictoriaMetrics is slow or the host is overloaded."  # message body
       # Last config/rules reload failed: Prometheus keeps running on the OLD config until fixed.
       - alert: PrometheusConfigReloadFailed  # alert name, also the alertname label
         expr: prometheus_config_last_reload_successful == 0  # 1 = last reload OK, 0 = failed
@@ -316,16 +342,18 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
+          __dashboardUid__: alerts  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Prometheus config reload failed"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "prometheus.yml or a rules file is invalid. Check the Prometheus logs."  # message body
+          description: "prometheus.yml or a targets file is invalid; Prometheus keeps the old config. See the error: make logs s=prometheus"  # message body
       # A rule's query errors at evaluation time (e.g. bad label matching), so it can never fire.
       - alert: RuleEvaluationFailing  # alert name, also the alertname label
         expr: sum by (instance, group) (increase(vmalert_execution_errors_total[5m])) > 0  # failed group evaluations in 5m (both vmalerts)
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
-          summary: "Alert rule evaluation failing: {{ $labels.group }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value | printf \"%.0f\" }} failed evaluations in 5 minutes ({{ $labels.instance }})."  # message body
+          __dashboardUid__: alerts  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "Alert rules failing in group {{ $labels.group }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "{{ $value | printf \"%.0f\" }} failed evaluations in 5 minutes: these alerts cannot fire. See the error in the vmalert UI (port 38880) or make logs s=vmalert"  # message body
       # vmalert cannot hand alerts to Alertmanager: every alert is lost.
       - alert: VmalertNotifierFailing  # alert name, also the alertname label
         expr: sum by (instance) (rate(vmalert_alerts_send_errors_total[5m])) > 0  # failed sends to Alertmanager
@@ -333,8 +361,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
-          summary: "vmalert cannot reach Alertmanager ({{ $labels.instance }})"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Alerts cannot be delivered."  # message body
+          __dashboardUid__: alerts  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "vmalert cannot reach Alertmanager"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "No alert reaches Telegram right now. Check Alertmanager: make logs s=alertmanager"  # message body
       # Telegram API rejected or unreachable (bad token/chat_id, network). This message may not arrive;
       # Grafana's WatchdogMissing/AlertmanagerDown rules are the backup path.
       - alert: AlertmanagerNotificationsFailing  # alert name, also the alertname label
@@ -343,8 +372,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard (uid alerts): target of the Dashboard link in Telegram
+          __dashboardUid__: alerts  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Alertmanager cannot deliver to {{ $labels.integration }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Notifications are failing. Check the bot token and chat_id."  # message body
+          description: "Alert messages are failing. Usually a revoked bot token, wrong chat_id or topic id. See: make logs s=alertmanager"  # message body
 
   # Logs pipeline health: Vector → VictoriaLogs → vmalert.
   - name: logs-pipeline  # group name, shown in the Prometheus/vmalert UI
@@ -356,8 +386,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Vector is dropping logs"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value | printf \"%.1f\" }} log lines/s are not reaching VictoriaLogs."  # message body
+          description: "{{ $value | printf \"%.1f\" }} log lines/s never reach VictoriaLogs: they are lost, and log alerts miss them. See: make logs s=vector"  # message body
       # Push requests failing: Vector is still retrying from its disk buffer, but logs are delayed.
       - alert: VectorCannotPush  # alert name, also the alertname label
         expr: sum(rate(vector_component_errors_total{component_id="victorialogs"}[5m])) > 0  # failed pushes per second
@@ -365,8 +396,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Vector cannot push logs to VictoriaLogs"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Push requests are failing; logs are buffered and delayed."  # message body
+          description: "Pushes fail; logs wait in the disk buffer and arrive late (lost if the buffer fills). Check VictoriaLogs: make logs s=victorialogs"  # message body
       # No logs arriving at all for 15 minutes: Vector stopped collecting, or every container went quiet.
       - alert: LogsNotIngested  # alert name, also the alertname label
         expr: sum(rate(vl_rows_ingested_total[15m])) == 0  # log lines ingested per second over 15m
@@ -374,16 +406,18 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
           summary: "VictoriaLogs receives no logs"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "No log lines ingested in the last 15 minutes. Check Vector: docker compose logs vector"  # message body
+          description: "No log line in 15 minutes: log search and log alerts are blind. Check Vector: make logs s=vector"  # message body
       # A log rule query fails (e.g. LogsQL syntax), so that alert can never fire.
       - alert: VmalertRuleErrors  # alert name, also the alertname label
         expr: sum by (alertname) (increase(vmalert_alerting_rules_errors_total[5m])) > 0  # failed evaluations per log rule in 5m
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Log alert rule failing: {{ $labels.alertname }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "vmalert cannot evaluate this rule. Check http://localhost:38880."  # message body
+          description: "vmalert cannot evaluate this LogsQL rule, so it cannot fire. See the error in the vmalert UI (port 38880)."  # message body
 
       # A service that normally logs has gone quiet: it may be hung (alive but doing nothing).
       # "Normally logs" = it logged in more than half of the 5-minute windows of the last 24h, so
@@ -398,8 +432,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
-          summary: "No logs from {{ $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.service }} usually logs but has been silent for 30 minutes while running. It may be hung."  # message body
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
+          summary: "No logs from {{ $labels.service }} for 30 minutes"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "It usually logs and is still running: it may be hung or deadlocked. Check it responds; restart if not."  # message body
 
   # Traces. Span metrics come from Tempo's metrics generator (remote-written into Prometheus).
   - name: traces  # group name, shown in the Prometheus/vmalert UI
@@ -411,8 +446,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
+          __dashboardUid__: endpoints  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Tempo is dropping spans ({{ $labels.reason }})"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value | printf \"%.1f\" }} spans/s refused. Raise the limit in tempo/tempo.yaml overrides or find the noisy app."  # message body
+          description: "{{ $value | printf \"%.1f\" }} spans/s refused, so some traces are incomplete. Raise the limit in tempo/tempo.yaml overrides or find the noisy app."  # message body
       # Vector cannot deliver spans to Tempo (Tempo down or overloaded).
       - alert: VectorTraceExportFailing  # alert name, also the alertname label
         expr: sum(rate(vector_component_errors_total{component_id="tempo"}[5m])) > 0  # failed trace pushes per second
@@ -420,8 +456,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: endpoints  # Grafana "Traces" dashboard (uid traces): target of the Dashboard link in Telegram
+          __dashboardUid__: endpoints  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Vector cannot send traces to Tempo"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "Spans are being lost. Check: docker compose logs tempo"  # message body
+          description: "Spans are being lost. Check Tempo: make logs s=tempo"  # message body
   # Disk health (smartctl-exporter, profile "smart") and internet speed (speedtest-exporter).
   - name: hardware  # group name, shown in the Prometheus/vmalert UI
     rules:  # rules of this group
@@ -431,6 +468,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: server }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview)
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
           summary: "SMART failed on {{ $labels.device }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "Disk {{ $labels.device }} reports SMART failure. Back up its data and replace it."  # message body
       # HDDs wear faster above ~50°C; most drives are rated to 60°C.
@@ -440,6 +478,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: server }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview)
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Disk {{ $labels.device }} is hot: {{ $value }}°C"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "Above 55°C for 10 minutes. Check fans and airflow."  # message body
       # SSD wear: percentage of rated write endurance already used.
@@ -448,6 +487,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: server }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview)
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
           summary: "SSD {{ $labels.device }} is {{ $value }}% worn"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "Plan a replacement before it reaches 100%."  # message body
       # Speed test could not run (no internet or Speedtest.net unreachable). Scraped every 30m,
@@ -457,6 +497,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: server }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview)
+          __dashboardUid__: overview  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Speed test failing"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
           description: "No successful speed test for 1 hour. Check internet. Logs: docker compose logs speedtest-exporter"  # message body
   # Proxies: upstream errors are the backend's problem, seen at the edge.
@@ -468,6 +509,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: sites }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: container  # Grafana "Container" dashboard
+          __dashboardUid__: container  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Proxy: upstream {{ $labels.service }} failing ({{ $value | humanizePercentage }} 502/503/504)"  # message headline
           description: "The backend behind {{ $labels.service }} is down, refusing connections or timing out."  # message body
 
@@ -482,6 +524,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: sre }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: sre  # Grafana "SRE" dashboard
+          __dashboardUid__: sre  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Monitoring: {{ $labels.job }} is down"  # message headline
           description: "{{ $labels.instance }} not responding for 1 minute. Its data is not collected. Logs: make logs s={{ $labels.job }}"  # message body
       # Storage of VictoriaMetrics or VictoriaLogs runs out within a day at the current rate.
@@ -491,6 +534,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: sre  # Grafana "SRE" dashboard
+          __dashboardUid__: sre  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Monitoring storage full within 24h ({{ $labels.job }})"  # message headline
           description: "At the current rate the disk of {{ $labels.job }} runs out in a day: writes stop. Lower retention or add disk."  # message body
       # Many new series per second for 30 minutes: a label with unbounded values (user id, URL, ...).
@@ -500,6 +544,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: sre  # Grafana "SRE" dashboard
+          __dashboardUid__: sre  # Grafana Alerting: "View dashboard" button on this rule
           summary: "{{ $value | printf \"%.0f\" }} new series/s in VictoriaMetrics"  # message headline
           description: "Some label has unbounded values: memory and disk grow fast. Find it: VictoriaMetrics UI > Cardinality explorer."  # message body
       # Inserts that miss the cache are slow; over 10% means VictoriaMetrics needs more RAM or fewer series.
@@ -509,6 +554,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: sre  # Grafana "SRE" dashboard
+          __dashboardUid__: sre  # Grafana Alerting: "View dashboard" button on this rule
           summary: "VictoriaMetrics: {{ $value | humanizePercentage }} slow inserts"  # message headline
           description: "Too many active series for the available RAM: ingestion lags and queries slow down."  # message body
       # One alert keeps firing and resolving: its threshold or "for" is wrong, people start ignoring it.
@@ -520,6 +566,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard
+          __dashboardUid__: alerts  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Alert {{ $labels.alertname }} is flapping"  # message headline
           description: "Fired {{ $value | printf \"%.0f\" }} times in 1 hour for the same target: the value keeps crossing the threshold. In its rule, raise the threshold (expr) or the wait before firing (for: 10m to 20m)."  # message body
       # Many alerts at once usually share one cause (network, host, database): look for it first.
@@ -529,6 +576,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P1, severity: critical, category: sre }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard
+          __dashboardUid__: alerts  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Alert storm: {{ $value }} alerts firing"  # message headline
           description: "More than 20 alerts at once usually have one common cause. Start from the oldest one."  # message body
       # A port listens on all interfaces and answers on the public IP, and nobody said it should
@@ -539,6 +587,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: sre }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: sre  # Grafana "SRE" dashboard
+          __dashboardUid__: sre  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Port {{ $labels.port }} ({{ $labels.process }}) is open to the internet"  # message headline
           description: "Listening on all interfaces and reachable via {{ $labels.public_ip }}. Close it in the firewall, bind it to 127.0.0.1, or add it to ALLOWED_PUBLIC_PORTS."  # message body
       # The exposure check cannot see anything: no listening port answers on PUBLIC_IP, not even the allowed
@@ -549,5 +598,6 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: sre  # Grafana "SRE" dashboard
+          __dashboardUid__: sre  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Open-port check is blind"  # message headline
-          description: "No port answers on PUBLIC_IP, so PortExposed cannot fire. Check PUBLIC_IP in .env; on clouds without hairpin NAT run the check from another host."  # message body
+          description: "No port answers on the public IP, so PortExposed cannot fire. Check PUBLIC_IP in .env; on clouds without hairpin NAT run the check from another host."  # message body

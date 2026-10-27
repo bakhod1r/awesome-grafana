@@ -48,9 +48,13 @@
 {{- $p := or .Labels.priority .Labels.severity }}
 {{- /* Line 1: environment · priority · status. */}}
 {{- /* Environment of this alert: the container's env label (container.env), else ALERT_ENV for the whole
-       server (e.g. "dev,prod" when both run here). Red when it includes prod. */}}
+       server (e.g. "dev,prod" when both run here). Each comma-separated env gets its own square:
+       red for prod, blue otherwise, so "dev,prod" reads 🟦 DEV · 🟥 PROD. */}}
 {{- $where := or .Labels.env (index .Labels "container_label_container_env") "${ALERT_ENV}" }}
-{{- with $where }}{{ if match "(?i)prod" . }}🟥{{ else }}🟦{{ end }} <b>{{ toUpper . | html }}</b> · {{ end }}
+{{- with $where }}
+{{- $envs := reReplaceAll `\s*,\s*` "," (toUpper . | html) | reReplaceAll `([^,]+)` "🟦 <b>$1</b>" }}
+{{- $envs = reReplaceAll `🟦 <b>([^<]*PROD[^<]*)</b>` "🟥 <b>$1</b>" $envs }}
+{{- reReplaceAll "," " · " $envs }} · {{ end }}
 {{- if eq .Status "firing" }}{{ template "telegram.priority" $p }} · <b>FIRING</b>
 {{- else }}✅ <b>RESOLVED</b> · {{ template "telegram.priority" $p }}{{ end }}
 {{ template "telegram.icon" .Labels.alertname }} <b>{{ if .Annotations.summary }}{{ template "telegram.cut" .Annotations.summary }}{{ else }}{{ .Labels.alertname | html }}{{ end }}</b>

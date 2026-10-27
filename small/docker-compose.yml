@@ -21,6 +21,7 @@ services:  # containers this file runs; each key below is one service
     command:  # arguments passed to the program at start
       - -storageDataPath=/storage   # where data lives inside the container (backed by the vm-data volume)
       - -retentionPeriod=12         # keep data for 12 months, then delete it automatically
+      - -vmalert.proxyURL=http://vmalert:8880  # serve vmalert's rules and alerts on /api/v1/rules: Grafana Alerting lists them
     volumes:  # named volumes; data here survives `docker compose down`
       - vm-data:/storage            # named volume: survives `docker compose down`
     ports: ["38428:8428"]            # API + VMUI at http://localhost:38428/vmui

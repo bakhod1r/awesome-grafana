@@ -19,17 +19,21 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
     interval: 1m                    # evaluate every minute over the last minute of logs
     rules:  # rules of this group
       # Whole-word, case-insensitive match. Excludes vmalert/vector, whose own logs may quote rule queries.
+      # PostgreSQL: only PANIC counts. Its FATAL ends one connection (wrong password, too many clients,
+      # admin shutdown), not the server; those show up in LogAuthFailures / PostgresTooManyConnections.
       - alert: LogPanic  # alert name, also the alertname label
         # i(word)          case-insensitive whole-word match anywhere in the line
         # level:(a OR b)   the level field Vector extracted
         # -service:(...)   exclude these services
+        # -(a -b)          exclude lines matching a unless they also match b
         # | stats by (service, container) count() as hits   → one alert per container, value = hits
-        expr: '(i(panic) OR i(fatal) OR i(traceback) OR level:(panic OR fatal)) -service:(vmalert OR vector) | stats by (service, container) count() as hits'  # see the filter notes above
+        expr: '(i(panic) OR i(fatal) OR i(traceback) OR level:(panic OR fatal)) -service:(vmalert OR vector) -(service:postgres -level:panic) | stats by (service, container) count() as hits'  # see the filter notes above
         labels: { priority: P1, severity: critical, category: logs }   # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: logs              # Grafana dashboard uid for the message link
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Panic/fatal in logs: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value }} panic/fatal/traceback lines in {{ $labels.service }} in the last minute."  # message body
+          description: "{{ $value }} log line(s) with panic, fatal or traceback in the last minute (container {{ $labels.container }}, service {{ $labels.service }}): the process crashed or hit an unrecoverable error. Open Logs for the exact line."  # message body
 
       - alert: LogOOM  # alert name, also the alertname label
         # i("a b") matches the exact phrase, case-insensitive.
@@ -37,8 +41,9 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: logs }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Out of memory in logs: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value }} out-of-memory lines in {{ $labels.service }} in the last minute."  # message body
+          description: "{{ $value }} out-of-memory log line(s) in the last minute (container {{ $labels.container }}, service {{ $labels.service }}): it ran out of RAM or hit its memory limit. Open Logs for the exact line."  # message body
 
   # Rates: need a wider window to tell a real problem from one stray error.
   - name: log-rates  # group name, shown in the Prometheus/vmalert UI
@@ -56,6 +61,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P3, severity: warning, category: logs }    # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
+          __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
           summary: "Auth failures: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $value }} failed logins / 401 / 403 in {{ $labels.service }} in the last 5 minutes."  # message body
+          description: "{{ $value }} failed logins / 401 / 403 in the last 5 minutes (service {{ $labels.service }}): a wrong password in a config, or someone guessing. Open Logs for the source."  # message body
 
