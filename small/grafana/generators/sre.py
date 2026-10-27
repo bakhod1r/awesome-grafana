@@ -127,4 +127,24 @@ d.add(table("Deploys and restarts by container", [
     order=["Container", "Deploys", "Restarts", "OOM kills"], sort=("Restarts", True),
     overrides=[col("Restarts", cell=TXT, th=steps((3, "yellow"), (10, "red"))), col("OOM kills", cell=TXT, th=steps((1, "red")))]), 24, 9)
 
+d.row("Open ports — listeners on the host and what the internet can reach (port-watch)")
+d.add(stat("Exposed, not allowed", 'count(port_watch_reachable{allowed="false"} == 1) or vector(0)',
+           th=steps((1, "red")), graph=False,
+           desc="Ports reachable on PUBLIC_IP that are not in ALLOWED_PUBLIC_PORTS. Above 0 for 10 minutes = PortExposed."), 6, 4)
+d.add(stat("Open on purpose", 'count(port_watch_reachable{allowed="true"} == 1) or vector(0)', color_mode="value", graph=False,
+           desc="Reachable ports listed in ALLOWED_PUBLIC_PORTS (ssh, http, https...)."), 6, 4)
+d.add(stat("Listening on all interfaces", 'count(count by (port) (port_watch_listening{address=~"0.0.0.0|::"})) or vector(0)',
+           color_mode="value", graph=False, desc="Candidates for exposure: bound to 0.0.0.0 or ::, not to 127.0.0.1."), 6, 4)
+d.add(stat("Exposure check", 'port_watch_public_check_ok', graph=False,
+           mappings=vmap({"1": ("working", "green"), "0": ("blind", "red")}),
+           desc="Blind = no port answers on PUBLIC_IP, not even allowed ones (wrong PUBLIC_IP or no hairpin NAT)."), 6, 4)
+d.add(table("Listening ports", [
+    tgt('max by (port, address, process) (port_watch_listening)', instant=True, fmt="table"),
+    tgt('max by (port, process, allowed) (port_watch_reachable)', instant=True, fmt="table"),
+], desc="Every TCP listener on the host. Internet: yes = PUBLIC_IP:port accepted a connection. Empty = bound to a local address, not checked.",
+    rename={"Value #B": "Internet", "port": "Port", "address": "Address", "process": "Process", "allowed": "Allowed"},
+    hide=("Value #A",), order=["Port", "Process", "Address", "Internet", "Allowed"], sort=("Internet", True),
+    overrides=[col("Internet", cell=TXT, mappings=vmap({"1": ("yes", "red"), "0": ("no", "green")})),
+               col("Allowed", cell=TXT, mappings=vmap({"true": ("allowed", "green"), "false": ("no", "orange")}))]), 24, 10)
+
 d.write("SRE/sre.json")

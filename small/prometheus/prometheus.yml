@@ -163,6 +163,9 @@ scrape_configs:  # scrape jobs
       - { source_labels: [http_request_method], target_label: method }
       - { source_labels: [http_response_status_code], target_label: status }
       - { target_label: job, replacement: apps }
+  # Listening ports and their exposure to the internet (port-watch, alert PortExposed).
+  - job_name: port-watch  # job="port-watch" label on every metric from this job
+    static_configs: [{ targets: ["host.docker.internal:39190"] }]  # docker0 bridge, see docker-compose.yml
   - job_name: vmalert  # job="vmalert" label on every metric from this job
     static_configs: [{ targets: ["grafana-s-vmalert:8880"] }]  # all rules (metrics + logs)
 

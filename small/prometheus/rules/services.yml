@@ -11,7 +11,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresDown  # alert name, also the alertname label
         expr: pg_up == 0  # 1 = exporter reached the database
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical, category: database }  # loud Telegram message, repeated every 1h
+        labels: { priority: P1, severity: critical, category: database }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL unreachable: {{ $labels.instance }}"  # message headline
@@ -20,7 +20,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresTooManyConnections  # alert name, also the alertname label
         expr: sum by (instance) (pg_stat_activity_count) / on (instance) max by (instance) (pg_settings_max_connections) * 100 > 80  # used % of max_connections
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL connections at {{ $value | printf \"%.0f\" }}%"  # message headline
@@ -29,7 +29,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresLongTransaction  # alert name, also the alertname label
         expr: max by (instance, datname) (pg_stat_activity_max_tx_duration{state!="idle"}) > 300  # oldest open transaction, seconds
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "Long PostgreSQL transaction in {{ $labels.datname }}"  # message headline
@@ -38,7 +38,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresReplicationLag  # alert name, also the alertname label
         expr: pg_replication_lag_seconds > 30  # seconds since last replayed transaction
         for: 5m  # condition must hold 5m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P2, severity: critical, category: database }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL replica lagging: {{ $labels.instance }}"  # message headline
@@ -46,7 +46,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       # Deadlocks mean two transactions waited on each other; PostgreSQL killed one of them.
       - alert: PostgresDeadlocks  # alert name, also the alertname label
         expr: increase(pg_stat_database_deadlocks[10m]) > 0  # deadlocks in 10m
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL deadlocks in {{ $labels.datname }}"  # message headline
@@ -58,7 +58,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
             / (sum by (instance, datname) (rate(pg_stat_database_blks_hit[10m])) + sum by (instance, datname) (rate(pg_stat_database_blks_read[10m]))) < 0.9
           and sum by (instance, datname) (rate(pg_stat_database_blks_hit[10m]) + rate(pg_stat_database_blks_read[10m])) > 100
         for: 15m  # condition must hold 15m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL cache hit {{ $value | humanizePercentage }} in {{ $labels.datname }}"  # message headline
@@ -67,7 +67,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresIdleInTransaction  # alert name, also the alertname label
         expr: max by (instance, application, datname) (pg_app_activity_max_idle_tx_seconds) > 300  # seconds idle inside a transaction
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "{{ $labels.application }} idle in transaction in {{ $labels.datname }}"  # message headline
@@ -76,7 +76,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresBlockedSessions  # alert name, also the alertname label
         expr: max by (instance, application, datname) (pg_app_blocked_max_wait_seconds) > 60  # seconds waiting on a lock
         for: 2m  # condition must hold 2m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "{{ $labels.application }} blocked on locks in {{ $labels.datname }}"  # message headline
@@ -85,7 +85,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresSlowStatements  # alert name, also the alertname label
         expr: histogram_quantile(0.95, sum by (le, pg_app, pg_db) (rate(vector_postgres_statement_duration_seconds_bucket{pg_app!~"\\[unknown\\]|psql"}[5m]))) * 1000 > 500  # p95 in ms
         for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL p95 {{ $value | printf \"%.0f\" }} ms for {{ $labels.pg_app }}"  # message headline
@@ -94,7 +94,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresXidWraparound  # alert name, also the alertname label
         expr: max by (instance, datname) (pg_database_wraparound_age_datfrozenxid_seconds) > 1000000000  # transaction ids since the last freeze (the metric name says seconds, the value is a count)
         for: 30m  # condition must hold 30m before firing (shorter blips are ignored)
-        labels: { severity: critical, category: database }  # loud Telegram message, repeated every 1h
+        labels: { priority: P1, severity: critical, category: database }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL XID age {{ $value | humanize }} in {{ $labels.datname }}"  # message headline
@@ -103,7 +103,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresTableBloat  # alert name, also the alertname label
         expr: pg_table_dead_tuples / (pg_table_live_tuples + pg_table_dead_tuples) > 0.2 and pg_table_dead_tuples > 10000  # dead row share, ignoring tiny tables
         for: 30m  # condition must hold 30m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "Dead rows {{ $value | humanizePercentage }} in {{ $labels.datname }}.{{ $labels.relname }}"  # message headline
@@ -112,7 +112,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: PostgresTempFiles  # alert name, also the alertname label
         expr: sum by (instance, datname) (rate(pg_stat_database_temp_bytes[10m])) > 10 * 1024 * 1024  # bytes/s written to temp files
         for: 15m  # condition must hold 15m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: database }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: database }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           summary: "PostgreSQL temp files {{ $value | humanize1024 }}B/s in {{ $labels.datname }}"  # message headline
@@ -123,7 +123,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: NginxDown  # alert name, also the alertname label
         expr: nginx_up == 0  # 1 = exporter read stub_status
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
-        labels: { severity: critical, category: sites }  # loud Telegram message, repeated every 1h
+        labels: { priority: P1, severity: critical, category: sites }  # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Services" dashboard (uid services)
           summary: "nginx unreachable: {{ $labels.instance }}"  # message headline
@@ -138,7 +138,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           service:log_error_ratio:rate5m * 100 > 20
           and on (service) sum by (service) (service_level:log_lines:rate5m) > 0.1
         for: 10m  # condition must hold 10m before firing (shorter blips are ignored)
-        labels: { severity: warning, category: logs }  # silent Telegram message, repeated every 4h
+        labels: { priority: P3, severity: warning, category: logs }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs)
           summary: "{{ $value | printf \"%.0f\" }}% of {{ $labels.service }} logs are errors"  # message headline

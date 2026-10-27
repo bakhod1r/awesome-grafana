@@ -1,20 +1,26 @@
 {{/*
-  Telegram message for Alertmanager (Go template, parse_mode: HTML).
-  One block per alert in the group:
-    icon + name + severity, summary, description, start/resolve time (TZ from docker-compose),
-    links to Prometheus, the Grafana dashboard and a pre-filled silence.
-  ${GRAFANA_URL} is filled in by entrypoint.sh. The dashboard uid comes from the rule's
-  "dashboard" annotation (falls back to overview).
+  Telegram message for Alertmanager (Go template, parse_mode: HTML). One block per alert:
+
+    🟥 PROD · 🔴 P1 · FIRING                       environment, priority, status: readable in the notification preview
+    🐘 PostgreSQL unreachable: db:5432             summary (bold): what is wrong, in plain words
+    🔔 PostgresDown · Database                     alert name and category (italic): what to search for
+    📝 postgres-exporter cannot connect.           description: impact / what to check
+    🖥️ db:5432 · 📦 api · 👥 backend · 🏷️ prod     where: instance, container, team, env
+    🕒 2026-10-27 12:00 +05                        start (and end + duration when resolved)
+    📊 Dashboard · 📜 Logs · 🔕 Silence
+    📣 @user1 @user2                               only P1/P2 while firing
+
+  ${GRAFANA_URL}, ${ALERT_ENV} and ${TELEGRAM_MENTIONS_*} are filled in by entrypoint.sh.
+  Annotations used: summary, description, dashboard (Grafana uid, default overview).
 
   Telegram rejects messages over 4096 characters, and Alertmanager cuts longer ones mid-tag, which
   breaks the HTML and fails the whole notification. So the message stays short on purpose:
     - at most 5 alerts in full, then a "showing 5 of N" line (all of them are in Grafana / Alertmanager)
-    - summary (bold) and description (italic) cut to 300 characters
+    - summary and description cut to 300 characters
     - text from labels and annotations is HTML-escaped: a "<" in a log line would break parse_mode HTML
-    - the Prometheus link points at the alerts page, not at the full query (a long query URL alone
-      can take 1000+ characters)
 */}}
 {{ define "telegram.cut" }}{{ reReplaceAll "(?s)^(.{300}).+$" "$1…" . | html }}{{ end }}
+
 {{/* Icon from the alert name: finer than the topic (category label), e.g. SLO vs proxy inside Sites. */}}
 {{ define "telegram.icon" }}
 {{- if eq . "ContainerUpdated" }}🚀
@@ -28,33 +34,57 @@
 {{- else if match "^(Vector|LogsNotIngested|LogSilence|VmalertRule)" . }}🚰
 {{- else if match "^Log" . }}📜
 {{- else if match "^(Watchdog|Prometheus|RuleEvaluation|VmalertNotifier|Alert|Monitoring|Cardinality|VictoriaMetrics)" . }}🛡️
+{{- else if match "^Port" . }}🔓
 {{- else if match "^Test" . }}🧪
 {{- else }}🖥️{{ end }}
 {{- end }}
+
+{{ define "telegram.priority" }}
+{{- if eq . "P1" }}🔴 <b>P1</b>{{ else if eq . "P2" }}🟠 <b>P2</b>{{ else if eq . "P3" }}🟡 <b>P3</b>{{ else if eq . "info" }}ℹ️ <b>info</b>{{ else }}<b>{{ . | html }}</b>{{ end }}
+{{- end }}
+
 {{ define "telegram.message" }}
 {{- range $i, $a := .Alerts }}{{ if lt $i 5 }}{{ with $a }}
-{{- if eq .Status "firing" }}{{ if eq .Labels.severity "critical" }}🚨{{ else }}⚠️{{ end }}{{ else }}✅{{ end }} {{ template "telegram.icon" .Labels.alertname }} <b>{{ .Labels.alertname | html }}</b> [<i>{{ .Labels.severity | html }}</i>]
-{{- with .Annotations.summary }}
-<b>{{ template "telegram.cut" . }}</b>{{ end }}
-{{- with .Annotations.description }}
-<i>{{ template "telegram.cut" . }}</i>{{ end }}
-{{- /* container.* labels: cadvisor alerts carry container_label_container_*, log alerts team/env/type. */}}
+{{- $p := or .Labels.priority .Labels.severity }}
+{{- /* Line 1: environment · priority · status. */}}
+{{- with "${ALERT_ENV}" }}{{ if eq . "prod" }}🟥{{ else }}🟦{{ end }} <b><i>{{ toUpper . }}</i></b> · {{ end }}
+{{- if eq .Status "firing" }}{{ template "telegram.priority" $p }} · <b><i>FIRING</i></b>
+{{- else }}✅ <b><i>RESOLVED</i></b> · {{ template "telegram.priority" $p }}{{ end }}
+{{ template "telegram.icon" .Labels.alertname }} <b>{{ if .Annotations.summary }}{{ template "telegram.cut" .Annotations.summary }}{{ else }}{{ .Labels.alertname | html }}{{ end }}</b>
+🔔 <b><i>{{ .Labels.alertname | html }}{{ with .Labels.category }} · {{ title . | html }}{{ end }}</i></b>
+{{- if eq .Status "firing" }}{{ with .Annotations.description }}
+📝 <i>{{ template "telegram.cut" . }}</i>{{ end }}{{ end }}
+{{- /* Where: host, container and the container.* labels (cadvisor: container_label_container_*, logs: team/env/type). */}}
+{{- $c := or .Labels.container .Labels.name }}
 {{- $team := or .Labels.team (index .Labels "container_label_container_team") }}
 {{- $env := or .Labels.env (index .Labels "container_label_container_env") }}
-{{- $type := or .Labels.type (index .Labels "container_label_container_type") }}
-{{- if or $team $env $type }}
-👥 {{ if $team }}<b>Team:</b> {{ $team | html }}{{ end }}{{ if $env }}{{ if $team }} · {{ end }}<b>Env:</b> {{ $env | html }}{{ end }}{{ if $type }}{{ if or $team $env }} · {{ end }}<b>Type:</b> {{ $type | html }}{{ end }}
+{{- if or .Labels.instance $c $team $env }}
+{{- $s := "" }}
+{{ with .Labels.instance }}🖥️ <b><code>{{ . | html }}</code></b>{{ $s = " · " }}{{ end }}
+{{- with $c }}{{ $s }}📦 <b><code>{{ . | html }}</code></b>{{ $s = " · " }}{{ end }}
+{{- with $team }}{{ $s }}👥 <b><i>{{ . | html }}</i></b>{{ $s = " · " }}{{ end }}
+{{- with $env }}{{ $s }}🏷️ <b><i>{{ . | html }}</i></b>{{ end }}
 {{- end }}
-🕒 <b>Started:</b> <i>{{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}</i>
-{{- if eq .Status "resolved" }}
-🕒 <b>Resolved:</b> <i>{{ .EndsAt.Local.Format "2006-01-02 15:04:05 MST" }}</i>
+{{- if eq .Status "firing" }}
+🕒 <b><i>{{ .StartsAt.Local.Format "2006-01-02 15:04 MST" }}</i></b>
+{{- else }}
+🕒 <b><i>{{ .StartsAt.Local.Format "2006-01-02 15:04" }} → {{ .EndsAt.Local.Format "15:04 MST" }}</i></b> · ⌛ <b><i>{{ reReplaceAll "m0s$" "m" ((.EndsAt.Sub .StartsAt).Round 60000000000).String }}</i></b>
 {{- end }}
-{{- /* Logs link: log alerts carry "container", cadvisor alerts carry "name". Opens the Logs dashboard
-       filtered to that container for the last hour. Omitted for alerts without a container. */}}
-{{- $c := or .Labels.container .Labels.name }}
-🔗 <a href="{{ reReplaceAll "/graph\\?.*$" "/alerts" .GeneratorURL }}">Prometheus</a> | <a href="${GRAFANA_URL}/d/{{ or .Annotations.dashboard "overview" }}">Dashboard</a>
-{{- if $c }} | <a href="${GRAFANA_URL}/d/logs?var-container={{ $c | urlquery }}&amp;from=now-1h&amp;to=now">Logs</a>{{ end }}
-{{- if eq .Status "firing" }} | <a href="{{ $.ExternalURL }}/#/silences/new?filter={{ printf "{alertname=\"%s\"}" .Labels.alertname | urlquery }}">Silence</a>{{ end }}
+{{- /* Logs: last hour of that container. Silence: only while firing. */}}
+📊 <a href="${GRAFANA_URL}/d/{{ or .Annotations.dashboard "overview" }}"><b><i>Dashboard</i></b></a>
+{{- if $c }} · 📜 <a href="${GRAFANA_URL}/d/logs?var-container={{ $c | urlquery }}&amp;from=now-1h&amp;to=now"><b><i>Logs</i></b></a>{{ end }}
+{{- if eq .Status "firing" }} · 🔕 <a href="{{ $.ExternalURL }}/#/silences/new?filter={{ printf "{alertname=\"%s\"}" .Labels.alertname | urlquery }}"><b><i>Silence</i></b></a>{{ end }}
+{{- /* Tag on-call on P1/P2 while firing: TELEGRAM_MENTIONS_<CATEGORY> (entrypoint.sh defaults it to TELEGRAM_MENTIONS). */}}
+{{- if and (eq .Status "firing") (or (eq $p "P1") (eq $p "P2")) }}
+{{- $m := "${TELEGRAM_MENTIONS}" }}
+{{- if eq .Labels.category "server" }}{{ $m = "${TELEGRAM_MENTIONS_SERVER}" }}
+{{- else if eq .Labels.category "containers" }}{{ $m = "${TELEGRAM_MENTIONS_CONTAINERS}" }}
+{{- else if eq .Labels.category "sites" }}{{ $m = "${TELEGRAM_MENTIONS_SITES}" }}
+{{- else if eq .Labels.category "database" }}{{ $m = "${TELEGRAM_MENTIONS_DATABASE}" }}
+{{- else if eq .Labels.category "logs" }}{{ $m = "${TELEGRAM_MENTIONS_LOGS}" }}
+{{- else if eq .Labels.category "sre" }}{{ $m = "${TELEGRAM_MENTIONS_SRE}" }}{{ end }}
+{{- with trimSpace $m }}
+📣 <b><i>{{ . | html }}</i></b>{{ end }}{{ end }}
 
 {{ end }}{{ end }}{{ end }}
 {{- if gt (len .Alerts) 5 }}<i>… showing 5 of {{ len .Alerts }} alerts.</i> All of them: <a href="${GRAFANA_URL}/d/alerts">Alerts dashboard</a>

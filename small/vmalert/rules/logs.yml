@@ -25,7 +25,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         # -service:(...)   exclude these services
         # | stats by (service, container) count() as hits   → one alert per container, value = hits
         expr: '(i(panic) OR i(fatal) OR i(traceback) OR level:(panic OR fatal)) -service:(vmalert OR vector) | stats by (service, container) count() as hits'  # see the filter notes above
-        labels: { severity: critical, category: logs }   # critical route: Telegram with sound, repeat every 1h
+        labels: { priority: P1, severity: critical, category: logs }   # P1: users affected now, page immediately, tag on-call, remind every 30m
         annotations:  # text for the message, not used for routing
           dashboard: logs              # Grafana dashboard uid for the message link
           summary: "Panic/fatal in logs: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -34,7 +34,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
       - alert: LogOOM  # alert name, also the alertname label
         # i("a b") matches the exact phrase, case-insensitive.
         expr: '(i("out of memory") OR i(oomkilled) OR i("cannot allocate memory")) -service:(vmalert OR vector) | stats by (service, container) count() as hits'  # see the filter notes above
-        labels: { severity: critical, category: logs }  # severity critical: loud Telegram message, repeated every 1h, inhibits warnings for the same target
+        labels: { priority: P2, severity: critical, category: logs }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "Out of memory in logs: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
@@ -53,7 +53,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         # ~"regex"   regular expression match on the message
         # -i(x)      exclude lines containing word x
         expr: '(~"\" (401|403) " OR i("failed password") OR i("authentication failed") OR i("invalid credentials") OR i("invalid username or password")) -i(telegram) -service:(vmalert OR vector) | stats by (service, container) count() as failures | filter failures:>20'
-        labels: { severity: warning, category: logs }    # warning route: silent Telegram message, repeat every 4h
+        labels: { priority: P3, severity: warning, category: logs }    # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           summary: "Auth failures: {{ or $labels.container $labels.service }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result

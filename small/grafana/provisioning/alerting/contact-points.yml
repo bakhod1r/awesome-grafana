@@ -28,12 +28,14 @@ templates:  # notification templates
       {{ define "deadman.cut" }}{{ reReplaceAll "(?s)^(.{300}).+$" "$1…" . | html }}{{ end }}
       {{ define "deadman.message" }}
       {{- range $i, $a := .Alerts }}{{ if lt $i 5 }}{{ with $a }}
-      {{- if eq .Status "firing" }}🚨{{ else }}✅{{ end }} <b>{{ .Labels.alertname | html }}</b> [{{ .Labels.severity | html }}] (Grafana)
+      {{- if eq .Status "firing" }}🔴 P1 · <b>FIRING</b>{{ else }}✅ <b>RESOLVED</b> · 🔴 P1{{ end }} · 🛡️ <b>{{ .Labels.alertname | html }}</b> (Grafana)
       {{- with .Annotations.summary }}
       <b>{{ template "deadman.cut" . }}</b>{{ end }}
       {{- with .Annotations.description }}
       <i>{{ template "deadman.cut" . }}</i>{{ end }}
       🕒 <b>Started:</b> <i>{{ .StartsAt.Local.Format "2006-01-02 15:04:05 MST" }}</i>
+      {{- if eq .Status "firing" }}{{ with "__TELEGRAM_MENTIONS__" }}
+      {{ . }}{{ end }}{{ end }}
       {{ end }}{{ end }}{{ end }}
       {{- if gt (len .Alerts) 5 }}<i>… showing 5 of {{ len .Alerts }} alerts</i>{{ end }}
       {{- end }}

@@ -20,7 +20,7 @@ Self-hosted observability stack in one `docker compose up`: metrics, logs, trace
 1. **Metrics** — Prometheus scrapes exporters and apps (static jobs + `discoverer` file_sd targets) and `remote_write`s everything to VictoriaMetrics. vmalert evaluates the recording/alert rules (`prometheus/rules/`) against VictoriaMetrics. Grafana reads metrics from VictoriaMetrics.
 2. **Logs** — Vector reads container stdout through the Docker socket and nginx file logs, parses levels, masks secrets, turns lines into metrics (`vector_*` on `:9598`) and ships them to VictoriaLogs. vmalert runs LogsQL alert rules against VictoriaLogs.
 3. **Traces** — apps send OTLP to Vector (`vector:4317` gRPC, `vector:4318` HTTP inside Docker; `34317` / `34318` on the host), Vector forwards traces to Tempo, metrics to Prometheus, logs to VictoriaLogs. No CORS: browser SDKs need a reverse proxy in front. Tempo's metrics generator writes span metrics (with exemplars) back to Prometheus.
-4. **Alerts** — vmalert (metric and log rules) fires into Alertmanager, which sends Telegram messages (critical loud, warnings silent).
+4. **Alerts** — vmalert (metric and log rules) fires into Alertmanager, which sends Telegram messages: P1/P2 loud and tagging the on-call people, P3 silent.
 
 ## Quick start
 
@@ -46,6 +46,9 @@ PostgreSQL and Redis targets are off (`[]`) in `prometheus/exporters/<name>.yml`
 | `TELEGRAM_WARNING_CHAT_ID` | Chat for warnings (sent silently). Empty = same as `TELEGRAM_CHAT_ID`. |
 | `TELEGRAM_TOPIC_ID`, `TELEGRAM_WARNING_TOPIC_ID` | Forum topic inside the group. Empty = General. |
 | `TELEGRAM_TOPIC_<CATEGORY>` | One topic per alert category (SERVER, CONTAINERS, SITES, DATABASE, LOGS, SRE, DEPLOYS), routed by the rules' `category` label. Create them in the group, ids from the topic link. Empty = the critical / warning chat. |
+| `ALERT_ENV` | First word of every alert message (`prod` shows 🟥 PROD, anything else 🟦). Empty = not shown. |
+| `TELEGRAM_MENTIONS`, `TELEGRAM_MENTIONS_<CATEGORY>` | Telegram usernames tagged on P1/P2 alerts, e.g. `@user1 @user2`. The per-category one overrides the default for that topic. |
+| `PUBLIC_IP`, `ALLOWED_PUBLIC_PORTS` | Open-port check (port-watch): every port listening on all interfaces is tried on the public IP; one that answers and is not allowed (default `22,80,443`) fires PortExposed. Catches Docker-published ports that bypass ufw. Empty IP = detected automatically (AWS metadata, else ifconfig.me); `off` = ports are only listed. |
 | `GRAFANA_URL`, `PROMETHEUS_URL`, `ALERTMANAGER_URL` | Public addresses used only for links in Telegram messages (Dashboard, Logs, Query). On a server, put its IP or domain here, not `localhost`, or the links will not open from a phone. |
 | `GRAFANA_HOST` | IP Grafana binds to: `0.0.0.0` every interface, `127.0.0.1` this machine only. |
 | `GRAFANA_PORT`, `GRAFANA_DIRECT_PORT` | Main UI (themed proxy, default `3000`) and plain Grafana (default `3002`). Keep `GRAFANA_URL` in sync. |
@@ -157,8 +160,8 @@ The links in the top bar go to the same dashboards from everywhere and keep the 
 
 ### 4. Alerts
 
-Rules live in `prometheus/rules/alerts.yml` (metrics, run by vmalert) and `vmalert/` (log patterns). Every alert with an example Telegram message: [docs/alerts.md](docs/alerts.md). Critical alerts come to
-Telegram with sound, warnings silently; each message links to the query, the dashboard and the logs, and has
+Rules live in `prometheus/rules/alerts.yml` (metrics, run by vmalert) and `vmalert/` (log patterns). Every alert with an example Telegram message: [docs/alerts.md](docs/alerts.md). Every rule has a priority:
+P1 (users affected now) and P2 (degraded) come to Telegram with sound and tag `TELEGRAM_MENTIONS`, P3 silently; each message links to the query, the dashboard and the logs, and has
 a one-click Silence. Containers labelled `container.team` / `container.env` show them in the message.
 Targets with `env: demo` (the demo cache, queue, proxy) are routed nowhere, so demos never page you.
 

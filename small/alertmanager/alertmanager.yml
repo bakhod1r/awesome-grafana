@@ -49,32 +49,41 @@ route:  # root of the routing tree
       repeat_interval: 24h  # it resolves after 10 minutes anyway
 
     # One Telegram topic per category (category label on every rule, TELEGRAM_TOPIC_<CATEGORY> in .env).
-    # Inside a topic, severity decides the sound: critical loud + hourly reminder, warning silent + every 4h.
+    # Inside a topic, priority decides sound and reminders (the template tags TELEGRAM_MENTIONS on P1/P2):
+    #   P1  users affected now        loud    remind every 30m
+    #   P2  degraded / about to break loud    remind every 1h
+    #   P3  working hours             silent  remind every 24h
     # A category without its topic id falls back to the critical / warning chat (see entrypoint.sh).
     - matchers: [category="server"]  # alerts of the server category
-      routes:  # split by severity
-        - { matchers: [severity="critical"], receiver: server-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
-        - { matchers: [severity="warning"], receiver: server-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+      routes:  # split by priority
+        - { matchers: [priority="P1"], receiver: server-critical, repeat_interval: 30m }
+        - { matchers: [priority="P2"], receiver: server-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [priority="P3"], receiver: server-warning, repeat_interval: 24h, mute_time_intervals: [maintenance] }
     - matchers: [category="containers"]  # alerts of the containers category
-      routes:  # split by severity
-        - { matchers: [severity="critical"], receiver: containers-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
-        - { matchers: [severity="warning"], receiver: containers-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+      routes:  # split by priority
+        - { matchers: [priority="P1"], receiver: containers-critical, repeat_interval: 30m }
+        - { matchers: [priority="P2"], receiver: containers-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [priority="P3"], receiver: containers-warning, repeat_interval: 24h, mute_time_intervals: [maintenance] }
     - matchers: [category="sites"]  # alerts of the sites category
-      routes:  # split by severity
-        - { matchers: [severity="critical"], receiver: sites-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
-        - { matchers: [severity="warning"], receiver: sites-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+      routes:  # split by priority
+        - { matchers: [priority="P1"], receiver: sites-critical, repeat_interval: 30m }
+        - { matchers: [priority="P2"], receiver: sites-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [priority="P3"], receiver: sites-warning, repeat_interval: 24h, mute_time_intervals: [maintenance] }
     - matchers: [category="database"]  # alerts of the database category
-      routes:  # split by severity
-        - { matchers: [severity="critical"], receiver: database-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
-        - { matchers: [severity="warning"], receiver: database-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+      routes:  # split by priority
+        - { matchers: [priority="P1"], receiver: database-critical, repeat_interval: 30m }
+        - { matchers: [priority="P2"], receiver: database-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [priority="P3"], receiver: database-warning, repeat_interval: 24h, mute_time_intervals: [maintenance] }
     - matchers: [category="logs"]  # alerts of the logs category
-      routes:  # split by severity
-        - { matchers: [severity="critical"], receiver: logs-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
-        - { matchers: [severity="warning"], receiver: logs-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+      routes:  # split by priority
+        - { matchers: [priority="P1"], receiver: logs-critical, repeat_interval: 30m }
+        - { matchers: [priority="P2"], receiver: logs-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [priority="P3"], receiver: logs-warning, repeat_interval: 24h, mute_time_intervals: [maintenance] }
     - matchers: [category="sre"]  # alerts of the sre category
-      routes:  # split by severity
-        - { matchers: [severity="critical"], receiver: sre-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
-        - { matchers: [severity="warning"], receiver: sre-warning, repeat_interval: 4h, mute_time_intervals: [maintenance] }
+      routes:  # split by priority
+        - { matchers: [priority="P1"], receiver: sre-critical, repeat_interval: 30m }
+        - { matchers: [priority="P2"], receiver: sre-critical, repeat_interval: 1h, mute_time_intervals: [maintenance] }
+        - { matchers: [priority="P3"], receiver: sre-warning, repeat_interval: 24h, mute_time_intervals: [maintenance] }
 
     # Alerts without a category label (custom rules, make test-alert): the general critical / warning chat.
     - matchers: [severity="critical"]  # alerts labelled severity=critical
@@ -257,13 +266,19 @@ receivers:  # notification targets
   # Receiver with no integrations: alerts routed here are accepted and dropped.
   - name: blackhole  # receiver with no integrations: accepts and drops
 
-# Suppress lower-severity alerts while a related higher-severity one is firing.
-# Example: if a container is in a restart loop (critical), don't also send
-# "container restarted" (warning) for the same container.
+# Suppress lower-priority alerts while a related higher-priority one is firing.
+# Example: the database is down (P1), so "too many connections" (P2) on it adds nothing.
 inhibit_rules:  # mute some alerts while others fire
-  - source_matchers: [severity="critical"]  # if an alert like this is firing...
-    target_matchers: [severity="warning"]  # ...mute alerts like this...
-    # Only inhibit when these labels match, i.e. the same category, host AND container.
-    # Without "name", one critical cadvisor alert would mute warnings for every container;
-    # without "category", a server alert would mute a database warning on the same host.
+  - source_matchers: [priority="P1"]  # if a P1 like this is firing...
+    target_matchers: [priority=~"P2|P3"]  # ...mute P2 and P3 alerts...
+    # Only when these labels match, i.e. the same category, host AND container.
+    # Without "name", one cadvisor alert would mute every container; without "category",
+    # a server alert would mute a database alert on the same host.
     equal: [category, instance, name]  # ...when these labels are equal
+  - source_matchers: [priority="P2"]  # same for P2 over P3
+    target_matchers: [priority="P3"]
+    equal: [category, instance, name]
+  # Alerts without priority (custom rules, make test-alert): critical mutes warning.
+  - source_matchers: [severity="critical"]
+    target_matchers: [severity="warning", priority=""]
+    equal: [category, instance, name]

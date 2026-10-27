@@ -12,12 +12,14 @@ fi
 : "${TELEGRAM_WARNING_TOPIC_ID:=}"
 : "${TELEGRAM_WARNING_CHAT_ID:=$TELEGRAM_CHAT_ID}"
 : "${GRAFANA_URL:=http://localhost:33000}"
+: "${ALERT_ENV:=}"           # shown first in every message (prod, staging...); empty = not shown
+: "${TELEGRAM_MENTIONS:=}"   # tagged on P1/P2, e.g. "@user1 @user2"; empty = nobody
 export TELEGRAM_TOPIC_ID TELEGRAM_WARNING_TOPIC_ID TELEGRAM_WARNING_CHAT_ID GRAFANA_URL
 
 # Per-category destinations (receivers <category>-critical / -warning in alertmanager.yml).
 # TELEGRAM_TOPIC_<CATEGORY> set (topic ids from the topic links): both severities go to that topic of TELEGRAM_CHAT_ID.
 # Not set: critical goes where telegram-critical goes, warning where telegram-warning goes.
-vars="TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_TOPIC_ID TELEGRAM_WARNING_CHAT_ID TELEGRAM_WARNING_TOPIC_ID GRAFANA_URL"
+vars="TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID TELEGRAM_TOPIC_ID TELEGRAM_WARNING_CHAT_ID TELEGRAM_WARNING_TOPIC_ID GRAFANA_URL ALERT_ENV TELEGRAM_MENTIONS"
 for cat in SERVER CONTAINERS SITES DATABASE LOGS SRE DEPLOYS; do
   eval "topic=\${TELEGRAM_TOPIC_$cat:-}"
   if [ -n "$topic" ]; then
@@ -25,7 +27,9 @@ for cat in SERVER CONTAINERS SITES DATABASE LOGS SRE DEPLOYS; do
   else
     eval "TG_${cat}_CRIT_CHAT=\$TELEGRAM_CHAT_ID TG_${cat}_CRIT_TOPIC=\$TELEGRAM_TOPIC_ID TG_${cat}_WARN_CHAT=\$TELEGRAM_WARNING_CHAT_ID TG_${cat}_WARN_TOPIC=\$TELEGRAM_WARNING_TOPIC_ID"
   fi
-  vars="$vars TG_${cat}_CRIT_CHAT TG_${cat}_CRIT_TOPIC TG_${cat}_WARN_CHAT TG_${cat}_WARN_TOPIC"
+  # Who to tag for this category: TELEGRAM_MENTIONS_<CATEGORY>, else TELEGRAM_MENTIONS.
+  eval "TELEGRAM_MENTIONS_$cat=\${TELEGRAM_MENTIONS_$cat:-\$TELEGRAM_MENTIONS}"
+  vars="$vars TG_${cat}_CRIT_CHAT TG_${cat}_CRIT_TOPIC TG_${cat}_WARN_CHAT TG_${cat}_WARN_TOPIC TELEGRAM_MENTIONS_$cat"
 done
 
 # render SRC DST: copy SRC to DST, replacing each ${VAR} from the list with its value.

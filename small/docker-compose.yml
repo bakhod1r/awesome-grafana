@@ -65,6 +65,24 @@ services:  # containers this file runs; each key below is one service
       - /:/host:ro                   # host root, read-only (on a Linux server add ,rslave to see later mounts)
     ports: ["39100:9100"]            # raw metrics: http://localhost:39100/metrics
 
+  # Open ports: lists every TCP listener on the host and checks which ones the internet can reach
+  # through PUBLIC_IP (alert PortExposed). Host network + PID namespace to see all listeners and their
+  # process names. Listens on the docker0 bridge only; Prometheus scrapes host.docker.internal:39190.
+  port-watch:  # open-port watcher
+    container_name: grafana-s-port-watch  # fixed name; grafana-s-* = this stack (small)
+    image: python:3.14.9-alpine3.24  # same image as discoverer
+    labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
+    command: ["python", "-u", "/app/port-watch.py"]  # -u: log lines appear immediately
+    network_mode: host  # see the host's sockets, connect to its public IP
+    pid: host  # see host processes, to name the owner of each port
+    cap_add: [SYS_PTRACE]  # read /proc/<pid>/fd of other users' processes
+    environment:  # environment variables inside the container
+      - PUBLIC_IP=${PUBLIC_IP:-}  # server's public IP; empty = detected automatically (AWS metadata, else ifconfig.me), "off" = no exposure check
+      - ALLOWED_PUBLIC_PORTS=${ALLOWED_PUBLIC_PORTS:-22,80,443}  # open on purpose, no alert
+      - LISTEN=172.17.0.1:39190  # docker0 bridge: Prometheus only, not the internet
+    volumes:
+      - ./port-watch:/app:ro  # the script
+
   # Per-container metrics: CPU, memory, restarts. Needs read access to Docker and kernel paths.
   cadvisor:  # container metrics exporter
     container_name: grafana-s-cadvisor  # fixed name; grafana-s-* = this stack (small)
@@ -254,6 +272,15 @@ services:  # containers this file runs; each key below is one service
       - TELEGRAM_TOPIC_LOGS=${TELEGRAM_TOPIC_LOGS:-}
       - TELEGRAM_TOPIC_SRE=${TELEGRAM_TOPIC_SRE:-}
       - TELEGRAM_TOPIC_DEPLOYS=${TELEGRAM_TOPIC_DEPLOYS:-}
+      - ALERT_ENV=${ALERT_ENV:-}  # first word of every message (prod, staging...)
+      # Tagged on P1/P2 alerts, e.g. "@user1 @user2"; per category overrides the default.
+      - TELEGRAM_MENTIONS=${TELEGRAM_MENTIONS:-}
+      - TELEGRAM_MENTIONS_SERVER=${TELEGRAM_MENTIONS_SERVER:-}
+      - TELEGRAM_MENTIONS_CONTAINERS=${TELEGRAM_MENTIONS_CONTAINERS:-}
+      - TELEGRAM_MENTIONS_SITES=${TELEGRAM_MENTIONS_SITES:-}
+      - TELEGRAM_MENTIONS_DATABASE=${TELEGRAM_MENTIONS_DATABASE:-}
+      - TELEGRAM_MENTIONS_LOGS=${TELEGRAM_MENTIONS_LOGS:-}
+      - TELEGRAM_MENTIONS_SRE=${TELEGRAM_MENTIONS_SRE:-}
       - GRAFANA_URL=${GRAFANA_URL:-http://localhost:${GRAFANA_PORT:-33000}}         # for "Dashboard" links in messages
       - ALERTMANAGER_URL=${ALERTMANAGER_URL:-http://localhost:39093} # for "Silence" links in messages
       - TZ=Asia/Tashkent            # times in messages and the maintenance window use this zone
@@ -278,6 +305,8 @@ services:  # containers this file runs; each key below is one service
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is not set in .env}  # required: from .env, startup fails with this message if missing
       - TELEGRAM_TOPIC_ID=${TELEGRAM_TOPIC_ID:-}  # forum topic id; empty = general chat
       - TELEGRAM_TOPIC_SRE=${TELEGRAM_TOPIC_SRE:-}  # dead man's switch goes to the SRE topic when set
+      - TELEGRAM_MENTIONS=${TELEGRAM_MENTIONS:-}  # tagged on dead man's switch alerts
+      - TELEGRAM_MENTIONS_SRE=${TELEGRAM_MENTIONS_SRE:-}  # overrides TELEGRAM_MENTIONS for them
       - TZ=Asia/Tashkent  # time zone for logs, message times and the maintenance window
       # Downloaded from grafana.com on first start (needs internet), kept in the grafana-data volume.
       - GF_INSTALL_PLUGINS=victoriametrics-logs-datasource 0.32.0  # plugin id + exact version, installed on first start

@@ -13,6 +13,8 @@ mkdir -p "$dst/plugins" "$dst/notifiers"
 chat_id=$(printf '%s' "$TELEGRAM_CHAT_ID" | sed 's/[|&\\]/\\&/g')
 # Dead man's switch is about the monitoring stack itself: SRE topic when set, else the critical topic.
 topic_id=$(printf '%s' "${TELEGRAM_TOPIC_SRE:-${TELEGRAM_TOPIC_ID:-}}" | sed 's/[|&\\]/\\&/g')
-sed -i -e "s|__TELEGRAM_CHAT_ID__|$chat_id|g" -e "s|__TELEGRAM_TOPIC_ID__|$topic_id|g" "$dst"/alerting/*.yml
+# Dead man's switch is always P1: tag the SRE people (TELEGRAM_MENTIONS_SRE, else TELEGRAM_MENTIONS).
+mentions=$(printf '%s' "${TELEGRAM_MENTIONS_SRE:-${TELEGRAM_MENTIONS:-}}" | sed 's/[|&\\]/\\&/g')
+sed -i -e "s|__TELEGRAM_CHAT_ID__|$chat_id|g" -e "s|__TELEGRAM_TOPIC_ID__|$topic_id|g" -e "s|__TELEGRAM_MENTIONS__|$mentions|g" "$dst"/alerting/*.yml
 export GF_PATHS_PROVISIONING="$dst"
 exec /run.sh "$@"
