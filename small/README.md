@@ -80,7 +80,7 @@ Attach the exporter to the app's network and use the container name:
 ```yaml
 # docker-compose.yml (this stack)
 services:
-  postgres-exporter-docker:
+  postgres-exporter-1:
     networks: [default, app]
 networks:
   app:

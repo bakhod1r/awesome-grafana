@@ -7,7 +7,7 @@ PROFILE_FLAGS := $(foreach p,$(PROFILES),--profile $(p))
 DC := $(COMPOSE) $(PROFILE_FLAGS)
 
 .DEFAULT_GOAL := help
-.PHONY: help up down restart ps logs pull upgrade update dashboards check alert-catalog targets reload-prometheus reload-alerts pg-check minio-token test-alert config
+.PHONY: help up down restart ps logs pull upgrade update dashboards check alert-catalog targets reload-prometheus reload-alerts pg-check firewall minio-token test-alert config
 
 help:  ## list targets
 	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -47,7 +47,7 @@ alert-catalog:  ## rewrite docs/alerts.md (every alert with an example message)
 	python3 scripts/alert-catalog.py
 
 targets:  ## Prometheus scrape targets that are down
-	@curl -s http://localhost:39090/api/v1/targets | python3 -c 'import sys,json; [print(t["health"].upper(), t["labels"]["job"], t["scrapeUrl"], t["lastError"][:80]) for t in json.load(sys.stdin)["data"]["activeTargets"] if t["health"]!="up"]'
+	@curl -sf --retry 10 --retry-delay 2 --retry-all-errors http://localhost:39090/api/v1/targets | python3 -c 'import sys,json; [print(t["health"].upper(), t["labels"]["job"], t["scrapeUrl"], t["lastError"][:80]) for t in json.load(sys.stdin)["data"]["activeTargets"] if t["health"]!="up"]'
 
 reload-prometheus:  ## apply prometheus.yml changes (restart: no --web.enable-lifecycle); rules: make reload-alerts
 	$(DC) restart prometheus
@@ -61,6 +61,10 @@ reload-alerts:  ## reload vmalert rules (metrics + logs) and Alertmanager config
 
 pg-check:  ## can the PostgreSQL exporters reach their databases (pg_up 1 = yes)
 	@for a in 172.17.0.1:39187 172.17.0.1:39188; do printf "%s " $$a; curl -s $$a/metrics | grep '^pg_up' || echo "exporter not running"; done
+
+firewall:  ## ufw: let Prometheus (Docker networks) reach the host-network exporters (postgres, port-watch); not the internet
+	@for p in 39187 39188 39190; do sudo ufw allow from 172.16.0.0/12 to 172.17.0.1 port $$p proto tcp comment "awesome-grafana: prometheus -> $$p"; done
+	@echo "check: make targets (empty = every target is up)"
 
 minio-token:  ## build + test the MinIO metrics token from MINIO_* in .env, write it for Prometheus
 	@set -a; . ./.env; set +a; python3 scripts/minio-token.py

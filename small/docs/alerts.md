@@ -758,7 +758,7 @@ Open-port check is blind
 🟥 PROD · 🔴 P1 · FIRING
 PostgreSQL unreachable: api.example.com
 🔔 PostgresDown · Database
-📝 The exporter cannot connect: the database is down, or the DSN (host, port, password) in POSTGRES_EXPORTER_DSN is wrong. See: docker logs grafana-s-postgres-exporter-api.example.com
+📝 The exporter cannot connect: the database is down, or the DSN (host, port, password) in POSTGRES_EXPORTER_DSN is wrong. See its exporter logs: make logs s=postgres-exporter-1 (or -2)
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2

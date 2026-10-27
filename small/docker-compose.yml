@@ -154,6 +154,7 @@ services:  # containers this file runs; each key below is one service
       - SITES_DEV=${SITES_DEV:-}
       # Targets and the Beyla config generated from .env at start (discoverer.py, write_env_targets).
       - POSTGRES_EXPORTER_DSN=${POSTGRES_EXPORTER_DSN:-}  # only the number of DSNs is used
+      - POSTGRES_EXPORTER_NAMES=${POSTGRES_EXPORTER_NAMES:-}  # instance label per DSN, e.g. prod,dev
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-}
       - MINIO_PORT=${MINIO_PORT:-9000}
       - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
@@ -177,14 +178,15 @@ services:  # containers this file runs; each key below is one service
   # PostgreSQL: connections, transactions, locks, long-running queries, replication lag.
   # Dashboard: "PostgreSQL" (uid postgres). Per-service breakdown uses application_name,
   # so set it in every app's connection string (?application_name=shop-api).
-  # Up to two PostgreSQL servers, both from ONE .env line, comma-separated:
-  #   POSTGRES_EXPORTER_DSN=<1st: postgres-exporter-docker>,<2nd: postgres-exporter-server>
+  # Up to two PostgreSQL servers (in Docker or on the host, any port), both from ONE .env line:
+  #   POSTGRES_EXPORTER_DSN=<1st: postgres-exporter-1>,<2nd: postgres-exporter-2>
+  #   POSTGRES_EXPORTER_NAMES=prod,dev   # how alerts and the dashboard's Server picker call them
   # One exporter per server (a single exporter with two DSNs mixes them into one "Server").
   # Both run in the host's network and connect to localhost:<port>, so a database that only listens
   # on 127.0.0.1 works too. They listen on the Docker bridge address only (not public);
   # Prometheus reaches them as host.docker.internal:39187 / :39188.
-  postgres-exporter-docker: &postgres-exporter  # 1st DSN: PostgreSQL running in a Docker container
-    container_name: grafana-s-postgres-exporter-docker  # fixed name; grafana-s-* = this stack (small)
+  postgres-exporter-1: &postgres-exporter  # 1st DSN of POSTGRES_EXPORTER_DSN
+    container_name: grafana-s-postgres-exporter-1  # fixed name; grafana-s-* = this stack (small)
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1  # pinned version: upgrades only happen when you change this tag
     labels: { container.type: exporter }  # which dashboard Docker Projects opens for it (README: Container labels)
     profiles: [postgres]  # started only with --profile postgres
@@ -224,9 +226,9 @@ services:  # containers this file runs; each key below is one service
     volumes:
       - ./postgres:/etc/postgres-exporter:ro  # custom SQL metrics (queries.yaml, queries-statements.yaml)
 
-  postgres-exporter-server:  # 2nd DSN: PostgreSQL installed on the server itself
+  postgres-exporter-2:  # 2nd DSN of POSTGRES_EXPORTER_DSN (exits at once when there is none)
     <<: *postgres-exporter
-    container_name: grafana-s-postgres-exporter-server  # fixed name; grafana-s-* = this stack (small)
+    container_name: grafana-s-postgres-exporter-2  # fixed name; grafana-s-* = this stack (small)
     command:  # same collectors, its own listen address
       - --web.listen-address=172.17.0.1:39188  # docker0 bridge: Prometheus only, not the internet
       - --auto-discover-databases

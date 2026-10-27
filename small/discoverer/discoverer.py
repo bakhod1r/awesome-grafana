@@ -115,7 +115,9 @@ def write_env_targets():
     the exporters listen on the Docker bridge, ports 39187 and 39188, see docker-compose.yml).
     minio.json: MINIO_ENDPOINT:MINIO_PORT, https when MINIO_USE_SSL=true."""
     dsns = [d for d in os.environ.get("POSTGRES_EXPORTER_DSN", "").split(",") if d.strip()][:2]
-    names = ["docker", "server"]  # instance label = name in the PostgreSQL dashboard's Server picker
+    # instance label = name in alerts and in the PostgreSQL dashboard's Server picker (POSTGRES_EXPORTER_NAMES, e.g. prod,dev)
+    names = [n.strip() for n in os.environ.get("POSTGRES_EXPORTER_NAMES", "").split(",")]
+    names = [names[i] if i < len(names) and names[i] else f"db{i + 1}" for i in range(2)]
     write_json(POSTGRES_FILE, [{"targets": [f"host.docker.internal:{39187 + i}"], "labels": {"instance": names[i]}}
                                for i in range(len(dsns))])
     endpoint = os.environ.get("MINIO_ENDPOINT", "")

@@ -16,7 +16,7 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           dashboard: postgres  # Grafana "PostgreSQL" dashboard (uid postgres)
           __dashboardUid__: postgres  # Grafana Alerting: "View dashboard" button on this rule
           summary: "PostgreSQL unreachable: {{ $labels.instance }}"  # message headline
-          description: "The exporter cannot connect: the database is down, or the DSN (host, port, password) in POSTGRES_EXPORTER_DSN is wrong. See: docker logs grafana-s-postgres-exporter-{{ $labels.instance }}"  # message body
+          description: "The exporter cannot connect: the database is down, or the DSN (host, port, password) in POSTGRES_EXPORTER_DSN is wrong. See its exporter logs: make logs s=postgres-exporter-1 (or -2)"  # message body
       # New connections are refused at 100%; 80% leaves time to react (pooler, leak, max_connections).
       - alert: PostgresTooManyConnections  # alert name, also the alertname label
         expr: sum by (instance) (pg_stat_activity_count) / on (instance) max by (instance) (pg_settings_max_connections) * 100 > 80  # used % of max_connections
