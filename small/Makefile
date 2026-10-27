@@ -53,7 +53,11 @@ reload-prometheus:  ## apply prometheus.yml changes (restart: no --web.enable-li
 	$(DC) restart prometheus
 
 reload-alerts:  ## reload vmalert rules (metrics + logs) and Alertmanager config
-	curl -s -X POST http://localhost:38880/-/reload && curl -s -X POST http://localhost:39093/-/reload && echo reloaded
+	@# Retries for ~20s: right after `up`/recreate a container accepts connections before it answers (curl error 56).
+	@for s in vmalert:38880 alertmanager:39093; do \
+	  curl -sf --retry 10 --retry-delay 2 --retry-all-errors -X POST http://localhost:$${s#*:}/-/reload >/dev/null \
+	    && echo "$${s%%:*} reloaded" || { echo "$${s%%:*}: reload failed, see: make logs s=$${s%%:*}"; exit 1; }; \
+	done
 
 pg-check:  ## can the PostgreSQL exporters reach their databases (pg_up 1 = yes)
 	@for a in 172.17.0.1:39187 172.17.0.1:39188; do printf "%s " $$a; curl -s $$a/metrics | grep '^pg_up' || echo "exporter not running"; done
