@@ -84,9 +84,9 @@ Priority (label `priority`): **P1** = users affected now: loud, tags TELEGRAM_ME
 
 ```
 🟥 PROD · 🟠 P2 · FIRING
-node is down
+No metrics from node (api.example.com)
 🔔 TargetDown · Server
-📝 api.example.com has not responded for 1 minute.
+📝 Prometheus cannot scrape the node target api.example.com for 1 minute: the exporter or app is down or unreachable. The service itself may still work, but its alerts are blind.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 📣 @user1 @user2
@@ -705,7 +705,7 @@ VictoriaMetrics: 12.5% slow inserts
 🟥 PROD · 🟡 P3 · FIRING
 Alert SiteDown is flapping
 🔔 AlertFlapping · Sre
-📝 Fired 92 times in 1 hour. Raise its threshold or its "for".
+📝 Fired 92 times in 1 hour for the same target: the value keeps crossing the threshold. In its rule, raise the threshold (expr) or the wait before firing (for: 10m to 20m).
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```

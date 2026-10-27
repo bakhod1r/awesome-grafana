@@ -21,8 +21,8 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         labels: { priority: P2, severity: critical, category: server }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
           dashboard: overview  # Grafana "Server Overview" dashboard (uid overview): target of the Dashboard link
-          summary: "{{ $labels.job }} is down"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "{{ $labels.instance }} has not responded for 1 minute."  # message body
+          summary: "No metrics from {{ $labels.job }} ({{ $labels.instance }})"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "Prometheus cannot scrape the {{ $labels.job }} target {{ $labels.instance }} for 1 minute: the exporter or app is down or unreachable. The service itself may still work, but its alerts are blind."  # message body
       # CPU busy = 100% minus idle time, averaged over 5m to ignore short bursts.
       - alert: HighCpu  # alert name, also the alertname label
         expr: 100 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 > 90  # busy % per host = 100 - idle %, over 5m
@@ -258,8 +258,10 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           description: "{{ $labels.name }} restarted {{ $value }} times in 15 minutes."  # message body
       # cadvisor stopped seeing the container (stopped, removed or crashed without restart).
       # Also fires briefly after an intentional `docker compose down`.
+      # Per container NAME, not per id: a recreated container (deploy, --force-recreate) gets a new id,
+      # and the old id's series would otherwise look "gone" while the new one runs under the same name.
       - alert: ContainerGone  # alert name, also the alertname label
-        expr: time() - container_last_seen{name!=""} > 60  # seconds since cadvisor last saw the container
+        expr: time() - max by (name, instance, container_label_container_team, container_label_container_env) (container_last_seen{name!=""}) > 60  # seconds since cadvisor last saw any container with this name
         for: 1m  # condition must hold 1m before firing (shorter blips are ignored)
         labels: { priority: P2, severity: critical, category: containers }  # P2: degraded or about to break, act within 1h, tag on-call, remind every 1h
         annotations:  # text for the message, not used for routing
@@ -511,14 +513,15 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
           description: "Too many active series for the available RAM: ingestion lags and queries slow down."  # message body
       # One alert keeps firing and resolving: its threshold or "for" is wrong, people start ignoring it.
       # ALERTS_FOR_STATE (written by vmalert) holds the activation time; it changes on every new firing.
+      # max, not sum: one alert firing once for each of 5 services is not flapping; one series re-firing 5 times is.
       - alert: AlertFlapping  # alert name, also the alertname label
-        expr: sum by (alertname) (changes(ALERTS_FOR_STATE[1h])) > 4  # new activations in 1h
+        expr: max by (alertname) (changes(ALERTS_FOR_STATE[1h])) > 4  # new activations of the busiest series in 1h
         for: 15m  # vmalert restarts and config changes also reset the state: skip that one-off burst
         labels: { priority: P3, severity: warning, category: sre }  # P3: look at it during working hours, silent, remind every 24h
         annotations:  # text for the message, not used for routing
           dashboard: alerts  # Grafana "Alerts" dashboard
           summary: "Alert {{ $labels.alertname }} is flapping"  # message headline
-          description: "Fired {{ $value | printf \"%.0f\" }} times in 1 hour. Raise its threshold or its \"for\"."  # message body
+          description: "Fired {{ $value | printf \"%.0f\" }} times in 1 hour for the same target: the value keeps crossing the threshold. In its rule, raise the threshold (expr) or the wait before firing (for: 10m to 20m)."  # message body
       # Many alerts at once usually share one cause (network, host, database): look for it first.
       - alert: AlertStorm  # alert name, also the alertname label
         expr: count(ALERTS{alertstate="firing", severity=~"critical|warning"}) > 20  # firing alerts right now
