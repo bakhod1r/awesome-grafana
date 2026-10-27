@@ -416,8 +416,8 @@ groups:  # list of rule groups; rules in a group are evaluated together, in orde
         annotations:  # text for the message, not used for routing
           dashboard: logs  # Grafana "Logs" dashboard (uid logs): target of the Dashboard link in Telegram
           __dashboardUid__: logs  # Grafana Alerting: "View dashboard" button on this rule
-          summary: "Log alert rule failing: {{ $labels.alertname }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
-          description: "vmalert cannot evaluate this LogsQL rule, so it cannot fire."  # message body
+          summary: "Alert rule failing: {{ $labels.alertname }}"  # message headline; {{ $labels.x }} = label value, {{ $value }} = query result
+          description: "vmalert cannot evaluate this rule (query error or the database did not answer), so it cannot fire. Brief errors during a restart are normal."  # message body
 
       # A service that normally logs has gone quiet: it may be hung (alive but doing nothing).
       # "Normally logs" = it logged in more than half of the 5-minute windows of the last 24h, so

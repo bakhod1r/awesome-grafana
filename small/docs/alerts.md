@@ -530,9 +530,9 @@ VictoriaLogs receives no logs
 
 ```
 🟥 PROD · 🟡 P3 · FIRING
-Log alert rule failing: SiteDown
+Alert rule failing: SiteDown
 🔔 VmalertRuleErrors · Sre
-📝 vmalert cannot evaluate this LogsQL rule, so it cannot fire.
+📝 vmalert cannot evaluate this rule (query error or the database did not answer), so it cannot fire. Brief errors during a restart are normal.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
