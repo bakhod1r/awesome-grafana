@@ -452,7 +452,7 @@ Prometheus config reload failed
 🟥 PROD · 🟡 P3 · FIRING
 Alert rules failing in group containers
 🔔 RuleEvaluationFailing · Sre
-📝 92 failed evaluations in 5 minutes: these alerts cannot fire. See the error in the vmalert UI (port 38880) or make logs s=vmalert
+📝 92 failed evaluations in 5 minutes: these alerts cannot fire.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```
@@ -532,7 +532,7 @@ VictoriaLogs receives no logs
 🟥 PROD · 🟡 P3 · FIRING
 Log alert rule failing: SiteDown
 🔔 VmalertRuleErrors · Sre
-📝 vmalert cannot evaluate this LogsQL rule, so it cannot fire. See the error in the vmalert UI (port 38880).
+📝 vmalert cannot evaluate this LogsQL rule, so it cannot fire.
 🕒 2026-10-26 10:15 +05
 📊 Dashboard · 🔕 Silence
 ```

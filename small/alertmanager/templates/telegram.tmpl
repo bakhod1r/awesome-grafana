@@ -11,6 +11,8 @@
     📣 @user1 @user2                               only P1/P2 while firing
 
   ${GRAFANA_URL}, ${ALERT_ENV} and ${TELEGRAM_MENTIONS_*} are filled in by entrypoint.sh.
+  Every link goes through Grafana (GRAFANA_URL, e.g. https://grafana.example.com), so only Grafana
+  needs to be public: Silence opens Grafana's silence form for the Alertmanager datasource (uid alertmanager).
   Annotations used: summary, description, dashboard (Grafana uid, default overview).
 
   Telegram rejects messages over 4096 characters, and Alertmanager cuts longer ones mid-tag, which
@@ -78,7 +80,7 @@
 {{- /* Logs: last hour of that container. Silence: only while firing. */}}
 📊 <a href="${GRAFANA_URL}/d/{{ or .Annotations.dashboard "overview" }}">Dashboard</a>
 {{- if $c }} · 📜 <a href="${GRAFANA_URL}/d/logs?var-container={{ $c | urlquery }}&amp;from=now-1h&amp;to=now">Logs</a>{{ end }}
-{{- if eq .Status "firing" }} · 🔕 <a href="{{ $.ExternalURL }}/#/silences/new?filter={{ printf "{alertname=\"%s\"}" .Labels.alertname | urlquery }}">Silence</a>{{ end }}
+{{- if eq .Status "firing" }} · 🔕 <a href="${GRAFANA_URL}/alerting/silence/new?alertmanager=alertmanager&amp;matcher={{ printf "alertname=%s" .Labels.alertname | urlquery }}">Silence</a>{{ end }}
 {{- /* Tag on-call on P1/P2 while firing: TELEGRAM_MENTIONS_<CATEGORY> (entrypoint.sh defaults it to TELEGRAM_MENTIONS). */}}
 {{- if and (eq .Status "firing") (or (eq $p "P1") (eq $p "P2")) }}
 {{- $m := "${TELEGRAM_MENTIONS}" }}
@@ -92,6 +94,6 @@
 📣 {{ . | html }}{{ end }}{{ end }}
 
 {{ end }}{{ end }}{{ end }}
-{{- if gt (len .Alerts) 5 }}<i>… showing 5 of {{ len .Alerts }} alerts.</i> All of them: <a href="${GRAFANA_URL}/d/alerts">Alerts dashboard</a>
+{{- if gt (len .Alerts) 5 }}<i>… showing 5 of {{ len .Alerts }} alerts.</i> All of them: <a href="${GRAFANA_URL}/alerting/list">Grafana Alerting</a>
 {{ end }}
 {{- end }}
