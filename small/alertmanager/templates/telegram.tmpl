@@ -56,7 +56,7 @@
 {{- with $where }}
 {{- $envs := reReplaceAll `\s*,\s*` "," (toUpper . | html) | reReplaceAll `([^,]+)` "🟦 <b>$1</b>" }}
 {{- $envs = reReplaceAll `🟦 <b>([^<]*PROD[^<]*)</b>` "🟥 <b>$1</b>" $envs }}
-{{- reReplaceAll "," " · " $envs }} · {{ end }}
+{{- reReplaceAll "," " · " $envs | safeHtml }} · {{ end }}
 {{- if eq .Status "firing" }}{{ template "telegram.priority" $p }} · <b>FIRING</b>
 {{- else }}✅ <b>RESOLVED</b> · {{ template "telegram.priority" $p }}{{ end }}
 {{ template "telegram.icon" .Labels.alertname }} <b>{{ if .Annotations.summary }}{{ template "telegram.cut" .Annotations.summary }}{{ else }}{{ .Labels.alertname | html }}{{ end }}</b>
