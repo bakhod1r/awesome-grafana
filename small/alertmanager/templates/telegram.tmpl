@@ -1,11 +1,11 @@
 {{/*
   Telegram message for Alertmanager (Go template, parse_mode: HTML). One block per alert:
 
-    🟥 PROD · 🔴 P1 · FIRING                       environment, priority, status: readable in the notification preview
+    🟥 PROD · 🔴 P1 · FIRING                       environment (container.env, else ALERT_ENV), priority, status: readable in the notification preview
     🐘 PostgreSQL unreachable: db:5432             summary (bold): what is wrong, in plain words
     🔔 PostgresDown · Database                     alert name and category (italic): what to search for
     📝 postgres-exporter cannot connect.           description: impact / what to check
-    🖥️ db:5432 · 📦 api · 👥 backend · 🏷️ prod     where: instance, container, team, env
+    🖥️ db:5432 · 📦 api · 👥 backend               where: instance, container, team
     🕒 2026-10-27 12:00 +05                        start (and end + duration when resolved)
     📊 Dashboard · 📜 Logs · 🔕 Silence
     📣 @user1 @user2                               only P1/P2 while firing
@@ -47,7 +47,10 @@
 {{- range $i, $a := .Alerts }}{{ if lt $i 5 }}{{ with $a }}
 {{- $p := or .Labels.priority .Labels.severity }}
 {{- /* Line 1: environment · priority · status. */}}
-{{- with "${ALERT_ENV}" }}{{ if eq . "prod" }}🟥{{ else }}🟦{{ end }} <b><i>{{ toUpper . }}</i></b> · {{ end }}
+{{- /* Environment of this alert: the container's env label (container.env), else ALERT_ENV for the whole
+       server (e.g. "dev,prod" when both run here). Red when it includes prod. */}}
+{{- $where := or .Labels.env (index .Labels "container_label_container_env") "${ALERT_ENV}" }}
+{{- with $where }}{{ if match "(?i)prod" . }}🟥{{ else }}🟦{{ end }} <b><i>{{ toUpper . | html }}</i></b> · {{ end }}
 {{- if eq .Status "firing" }}{{ template "telegram.priority" $p }} · <b><i>FIRING</i></b>
 {{- else }}✅ <b><i>RESOLVED</i></b> · {{ template "telegram.priority" $p }}{{ end }}
 {{ template "telegram.icon" .Labels.alertname }} <b>{{ if .Annotations.summary }}{{ template "telegram.cut" .Annotations.summary }}{{ else }}{{ .Labels.alertname | html }}{{ end }}</b>
@@ -57,13 +60,11 @@
 {{- /* Where: host, container and the container.* labels (cadvisor: container_label_container_*, logs: team/env/type). */}}
 {{- $c := or .Labels.container .Labels.name }}
 {{- $team := or .Labels.team (index .Labels "container_label_container_team") }}
-{{- $env := or .Labels.env (index .Labels "container_label_container_env") }}
-{{- if or .Labels.instance $c $team $env }}
+{{- if or .Labels.instance $c $team }}
 {{- $s := "" }}
 {{ with .Labels.instance }}🖥️ <b><code>{{ . | html }}</code></b>{{ $s = " · " }}{{ end }}
 {{- with $c }}{{ $s }}📦 <b><code>{{ . | html }}</code></b>{{ $s = " · " }}{{ end }}
-{{- with $team }}{{ $s }}👥 <b><i>{{ . | html }}</i></b>{{ $s = " · " }}{{ end }}
-{{- with $env }}{{ $s }}🏷️ <b><i>{{ . | html }}</i></b>{{ end }}
+{{- with $team }}{{ $s }}👥 <b><i>{{ . | html }}</i></b>{{ end }}
 {{- end }}
 {{- if eq .Status "firing" }}
 🕒 <b><i>{{ .StartsAt.Local.Format "2006-01-02 15:04 MST" }}</i></b>

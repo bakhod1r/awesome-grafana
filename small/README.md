@@ -46,7 +46,7 @@ PostgreSQL and Redis targets are off (`[]`) in `prometheus/exporters/<name>.yml`
 | `TELEGRAM_WARNING_CHAT_ID` | Chat for warnings (sent silently). Empty = same as `TELEGRAM_CHAT_ID`. |
 | `TELEGRAM_TOPIC_ID`, `TELEGRAM_WARNING_TOPIC_ID` | Forum topic inside the group. Empty = General. |
 | `TELEGRAM_TOPIC_<CATEGORY>` | One topic per alert category (SERVER, CONTAINERS, SITES, DATABASE, LOGS, SRE, DEPLOYS), routed by the rules' `category` label. Create them in the group, ids from the topic link. Empty = the critical / warning chat. |
-| `ALERT_ENV` | First word of every alert message (`prod` shows 🟥 PROD, anything else 🟦). Empty = not shown. |
+| `ALERT_ENV` | First word of server-wide alert messages, e.g. `dev,prod` when both run on this server. Container alerts show their own `container.env` instead. 🟥 when it includes prod, 🟦 otherwise. |
 | `TELEGRAM_MENTIONS`, `TELEGRAM_MENTIONS_<CATEGORY>` | Telegram usernames tagged on P1/P2 alerts, e.g. `@user1 @user2`. The per-category one overrides the default for that topic. |
 | `PUBLIC_IP`, `ALLOWED_PUBLIC_PORTS` | Open-port check (port-watch): every port listening on all interfaces is tried on the public IP; one that answers and is not allowed (default `22,80,443`) fires PortExposed. Catches Docker-published ports that bypass ufw. Empty IP = detected automatically (AWS metadata, else ifconfig.me); `off` = ports are only listed. |
 | `GRAFANA_URL`, `PROMETHEUS_URL`, `ALERTMANAGER_URL` | Public addresses used only for links in Telegram messages (Dashboard, Logs, Query). On a server, put its IP or domain here, not `localhost`, or the links will not open from a phone. |

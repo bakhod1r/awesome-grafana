@@ -12,7 +12,7 @@ fi
 : "${TELEGRAM_WARNING_TOPIC_ID:=}"
 : "${TELEGRAM_WARNING_CHAT_ID:=$TELEGRAM_CHAT_ID}"
 : "${GRAFANA_URL:=http://localhost:33000}"
-: "${ALERT_ENV:=}"           # shown first in every message (prod, staging...); empty = not shown
+: "${ALERT_ENV:=}"           # environment for server-wide alerts (e.g. dev,prod); container alerts use container.env
 : "${TELEGRAM_MENTIONS:=}"   # tagged on P1/P2, e.g. "@user1 @user2"; empty = nobody
 export TELEGRAM_TOPIC_ID TELEGRAM_WARNING_TOPIC_ID TELEGRAM_WARNING_CHAT_ID GRAFANA_URL
 

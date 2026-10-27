@@ -272,7 +272,7 @@ services:  # containers this file runs; each key below is one service
       - TELEGRAM_TOPIC_LOGS=${TELEGRAM_TOPIC_LOGS:-}
       - TELEGRAM_TOPIC_SRE=${TELEGRAM_TOPIC_SRE:-}
       - TELEGRAM_TOPIC_DEPLOYS=${TELEGRAM_TOPIC_DEPLOYS:-}
-      - ALERT_ENV=${ALERT_ENV:-}  # first word of every message (prod, staging...)
+      - ALERT_ENV=${ALERT_ENV:-}  # environment for server-wide alerts, e.g. dev,prod (container alerts: container.env)
       # Tagged on P1/P2 alerts, e.g. "@user1 @user2"; per category overrides the default.
       - TELEGRAM_MENTIONS=${TELEGRAM_MENTIONS:-}
       - TELEGRAM_MENTIONS_SERVER=${TELEGRAM_MENTIONS_SERVER:-}
