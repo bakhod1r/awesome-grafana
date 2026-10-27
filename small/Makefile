@@ -62,8 +62,11 @@ reload-alerts:  ## reload vmalert rules (metrics + logs) and Alertmanager config
 pg-check:  ## can the PostgreSQL exporters reach their databases (pg_up 1 = yes)
 	@for a in 172.17.0.1:39187 172.17.0.1:39188; do printf "%s " $$a; curl -s $$a/metrics | grep '^pg_up' || echo "exporter not running"; done
 
-firewall:  ## ufw: let Prometheus (Docker networks) reach the host-network exporters (postgres, port-watch); not the internet
-	@for p in 39187 39188 39190; do sudo ufw allow from 172.16.0.0/12 to 172.17.0.1 port $$p proto tcp comment "awesome-grafana: prometheus -> $$p"; done
+firewall:  ## ufw: let Prometheus (Docker networks) reach services on the host: exporters, port-watch, MinIO; not the internet
+	@# 39187/39188 postgres exporters, 39190 port-watch; plus MINIO_PORT when MINIO_ENDPOINT=host.docker.internal (.env).
+	@ports="39187 39188 39190"; \
+	if grep -qs '^MINIO_ENDPOINT=host.docker.internal' .env; then ports="$$ports $$(grep -s '^MINIO_PORT=' .env | cut -d= -f2 | grep . || echo 9000)"; fi; \
+	for p in $$ports; do sudo ufw allow from 172.16.0.0/12 to 172.17.0.1 port $$p proto tcp comment "awesome-grafana: prometheus -> $$p"; done
 	@echo "check: make targets (empty = every target is up)"
 
 minio-token:  ## build + test the MinIO metrics token from MINIO_* in .env, write it for Prometheus

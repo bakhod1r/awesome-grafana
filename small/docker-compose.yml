@@ -182,7 +182,7 @@ services:  # containers this file runs; each key below is one service
   #   POSTGRES_EXPORTER_DSN=<1st: postgres-exporter-1>,<2nd: postgres-exporter-2>
   #   POSTGRES_EXPORTER_NAMES=prod,dev   # how alerts and the dashboard's Server picker call them
   # One exporter per server (a single exporter with two DSNs mixes them into one "Server").
-  # Both run in the host's network and connect to localhost:<port>, so a database that only listens
+  # Both run in the host's network and connect to 127.0.0.1:<port> (not "localhost": it may resolve to ::1, another server), so a database that only listens
   # on 127.0.0.1 works too. They listen on the Docker bridge address only (not public);
   # Prometheus reaches them as host.docker.internal:39187 / :39188.
   postgres-exporter-1: &postgres-exporter  # 1st DSN of POSTGRES_EXPORTER_DSN
@@ -218,8 +218,8 @@ services:  # containers this file runs; each key below is one service
       - --collector.postmaster              # server start time (uptime)
       - --collector.replication_slots       # slots and retained WAL (renamed from replication_slot in v0.18)
     environment:  # environment variables inside the container
-      # postgresql://user:pass@localhost:5432/db?sslmode=disable[,second DSN]; user with the pg_monitor role.
-      - DSNS=${POSTGRES_EXPORTER_DSN:-postgresql://postgres_exporter:exporter@localhost:5432/postgres?sslmode=disable}
+      # postgresql://user:pass@127.0.0.1:5432/db?sslmode=disable[,second DSN]; user with the pg_monitor role.
+      - DSNS=${POSTGRES_EXPORTER_DSN:-postgresql://postgres_exporter:exporter@127.0.0.1:5432/postgres?sslmode=disable}
       - DSN_INDEX=1
       # true = top queries (pg_stat_statements); only when the extension is installed in the database.
       - PG_STAT_STATEMENTS=${POSTGRES_STAT_STATEMENTS:-false}
